@@ -22,11 +22,13 @@ class _AddSupervisorState extends State<AddAgent> {
   final TextEditingController _email_ctrl = TextEditingController();
   final TextEditingController _site_ctrl = TextEditingController();
   final TextEditingController _type_ctrl = TextEditingController();
+  final TextEditingController _categorie_ctrl = TextEditingController();
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
 
   bool _adding = false;
-  bool _isPointZero = false;
-  List<String> typeAgents = ["SECURITÉ", "NETTOYAGE"];
+
+  List<String> typeAgents = ["SECURITÉ", "NETTOYAGE", "ADMINISTRATEUR"];
+  List<String> categories = ["FIXE", "POINT ZERO", "RONDIER"];
   @override
   void initState() {
     // TODO: implement initState
@@ -39,7 +41,7 @@ class _AddSupervisorState extends State<AddAgent> {
     _site_ctrl.text =
         widget.agent.site == null ? '' : '${widget.agent.site?.name}';
     _type_ctrl.text = widget.agent.type;
-    _isPointZero = widget.agent.site == null;
+    _categorie_ctrl.text = widget.agent.categorie!;
   }
 
   @override
@@ -53,6 +55,7 @@ class _AddSupervisorState extends State<AddAgent> {
     _code_ctrl.dispose();
     _email_ctrl.dispose();
     _site_ctrl.dispose();
+    _categorie_ctrl.dispose();
   }
 
   @override
@@ -74,24 +77,45 @@ class _AddSupervisorState extends State<AddAgent> {
             key: _key,
             child: Column(
               children: [
-                Row(
-                  children: [
-                    Checkbox(
-                        value: _isPointZero,
-                        onChanged: (value) {
-                          _isPointZero = value!;
-                          if (_isPointZero) {
-                            widget.agent.site = null;
-                          }
-                          setState(() {});
-                        }),
-                    const Text("Point 0")
-                  ],
+                DropdownButtonFormField(
+                  hint: const Text("Catégorie"),
+                  decoration: const InputDecoration(
+                      hintText: "Catégorie",
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.work)),
+                  validator: (value) {
+                    return value!.isNotEmpty ? null : "Catégorie obligatoir";
+                  },
+                  isExpanded: true,
+                  value: _categorie_ctrl.text,
+                  items: categories
+                      .map((e) =>
+                          DropdownMenuItem<String>(value: e, child: Text(e)))
+                      .toList(),
+                  onChanged: (value) {
+                    _categorie_ctrl.text = value ?? "";
+                    widget.agent.categorie = value ?? "FIXE";
+                    setState(() {
+                      if (widget.agent.categorie != "FIXE") {
+                        widget.agent.site = null;
+                      }
+                    });
+                  },
+                  onSaved: (value) {
+                    _categorie_ctrl.text = value ?? "";
+                    widget.agent.categorie = value ?? "FIXE";
+                    setState(() {
+                      if (widget.agent.categorie != "FIXE") {
+                        widget.agent.site = null;
+                      }
+                    });
+                  },
                 ),
                 const SizedBox(
                   height: 20,
                 ),
-                _isPointZero
+                widget.agent.categorie == "POINT ZERO" ||
+                        widget.agent.categorie == "RONDIER"
                     ? const SizedBox.shrink()
                     : TextFormField(
                         readOnly: true,
@@ -123,7 +147,8 @@ class _AddSupervisorState extends State<AddAgent> {
                               });
                         },
                         validator: (value) {
-                          return widget.agent.site != null
+                          return widget.agent.categorie == "FIXE" &&
+                                  widget.agent.site != null
                               ? null
                               : "Site obligatoir";
                         },
@@ -133,7 +158,8 @@ class _AddSupervisorState extends State<AddAgent> {
                             border: OutlineInputBorder(),
                             prefixIcon: Icon(Icons.person)),
                       ),
-                _isPointZero
+                widget.agent.categorie == "POINT ZERO" ||
+                        widget.agent.categorie == "RONDIER"
                     ? const SizedBox.shrink()
                     : const SizedBox(
                         height: 20,

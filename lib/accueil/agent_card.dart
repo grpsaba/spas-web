@@ -43,7 +43,9 @@ class AgentCard extends StatelessWidget {
                 if (snapshot.hasData) {
                   var data = snapshot.data
                       ?.where((element) =>
-                          element.type == domaine && element.site != null)
+                          element.type == domaine &&
+                          element.site != null &&
+                          element.actif == true)
                       .toList();
 
                   return Text(

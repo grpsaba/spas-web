@@ -72,8 +72,11 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                       var lst = jsonDecode(jsonEncode(docs));
                       //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
-                      var data =
-                          docs?.map((e) => Supervisor.fromJson(e)).toList();
+                      var data = docs
+                          ?.map((e) => Supervisor.fromJson(e))
+                          .toList()
+                          .where((element) => element.actif == true)
+                          .toList();
                       data = data
                           ?.where((element) => element.firstName
                               .toLowerCase()

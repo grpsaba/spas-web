@@ -9,6 +9,7 @@ import 'package:spas_web/generated/assets.dart';
 import 'package:spas_web/manager/manager_list.dart';
 import 'package:spas_web/site/site_list.dart';
 import 'package:spas_web/supervisor/supervisor_list.dart';
+import 'package:spas_web/timePlanner.dart';
 import 'package:spas_web/tools/tool_list.dart';
 
 import '../accueil/home_page.dart';
@@ -17,6 +18,7 @@ import '../const.dart';
 import '../model.dart';
 import '../services/authentication.dart';
 import '../services/site.dart';
+import '../timePlanner2.dart';
 import 'note_list.dart';
 
 class AdminHome extends StatefulWidget {
@@ -319,6 +321,23 @@ class _AdminHomeState extends State<AdminHome> {
                   style: ListTileStyle.drawer,
                   selected: _menuIdex == 10,
                 ),
+                /*ListTile(
+                  onTap: () {
+                    navigeTo(11);
+                  },
+                  leading: const CircleAvatar(
+                      radius: 18,
+                      child: Image(
+                        fit: BoxFit.contain,
+                        image: AssetImage(Assets.assetsIconAgent),
+                      )),
+                  title: !_howDrawer ? null : const Text("Repos"),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 11,
+                ),*/
               ],
             )
           ],
@@ -351,6 +370,9 @@ class _AdminHomeState extends State<AdminHome> {
         return const NoteList();
       case 10:
         return const Maps();
+        //case 11:
+        return const CalendarPlanner();
+        return const Holyday(title: "Repos");
       default:
         return const Center(
           child: Text("Page non disponible"),

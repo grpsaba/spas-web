@@ -27,7 +27,7 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
   getNbSite() async {
     List<Site> sites =
         await SiteService().allBySupervisor(widget.supervisor.UID);
-    nbSite = sites.length;
+    nbSite = sites.where((element) => element.actif == true).toList().length;
   }
 
   @override

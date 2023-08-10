@@ -35,7 +35,7 @@ class Supervisor {
   bool tracking;
   LatLngModel? latlng;
   String token;
-
+  bool? actif;
   Supervisor(
       {required this.UID,
       required this.code,
@@ -45,7 +45,8 @@ class Supervisor {
       required this.email,
       required this.token,
       required this.tracking,
-      required this.latlng});
+      required this.latlng,
+      required this.actif});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
     return Supervisor(
@@ -56,6 +57,7 @@ class Supervisor {
       phone: json["phone"],
       email: json["email"],
       token: json['token'],
+      actif: json['actif'] ?? true,
       tracking: json["tracking"],
       latlng:
           json["latlng"] != null ? LatLngModel.fromJson(json["latlng"]) : null,
@@ -72,6 +74,7 @@ class Supervisor {
       "email": email,
       'token': token,
       "tracking": tracking,
+      'actif': actif,
       "latlng": latlng?.toJson()
     };
   }
@@ -87,42 +90,35 @@ class Agent extends Equatable {
   bool tracking;
   String type;
   Site? site;
-  bool incumbent;
-  DateTime? start;
-  DateTime? and;
-  bool permission;
-  String permissionType;
-
-  Agent(
-      {required this.code,
-      required this.firstName,
-      required this.lastName,
-      required this.phone,
-      required this.email,
-      required this.tracking,
-      required this.site,
-      required this.incumbent,
-      required this.start,
-      required this.and,
-      required this.permission,
-      required this.permissionType,
-      required this.type});
+  String? categorie;
+  bool? actif;
+  bool? active;
+  Agent({
+    required this.code,
+    required this.firstName,
+    required this.lastName,
+    required this.phone,
+    required this.email,
+    required this.tracking,
+    required this.site,
+    required this.categorie,
+    required this.type,
+    required this.actif,
+  });
 
   factory Agent.fromJson(Map<String, dynamic> json) {
     return Agent(
-        code: json["code"],
-        firstName: json["firstName"],
-        lastName: json["lastName"],
-        phone: json["phone"],
-        email: json["email"],
-        tracking: json["tracking"],
-        type: json["type"] ?? "SECURITÉ",
-        site: json["site"] == null ? null : Site.fromJson(json["site"]),
-        incumbent: json["incumbent"],
-        start: json["start"],
-        and: json["and"],
-        permission: json["permission"],
-        permissionType: json["permissionType"]);
+      code: json["code"],
+      firstName: json["firstName"],
+      lastName: json["lastName"],
+      phone: json["phone"],
+      email: json["email"],
+      tracking: json["tracking"],
+      type: json["type"] ?? "SECURITÉ",
+      site: json["site"] == null ? null : Site.fromJson(json["site"]),
+      actif: json["actif"] ?? true,
+      categorie: json["categorie"] ?? "FIXE",
+    );
   }
 
   Map<String, dynamic> toJson() {
@@ -134,12 +130,9 @@ class Agent extends Equatable {
       "email": email,
       "tracking": tracking,
       "site": site?.toJson(),
-      "incumbent": incumbent,
-      "start": start,
-      "and": and,
-      "permissionType": permissionType,
-      "permission": permission,
-      "type": type
+      "actif": actif,
+      "categorie": categorie,
+      "type": type,
     };
   }
 
@@ -165,21 +158,23 @@ class Site extends Equatable {
   LatLngModel latLng;
   String token;
   int nbAgent;
-
+  bool? actif;
   bool sos;
-  Site(
-      {required this.UID,
-      required this.codeSite,
-      required this.name,
-      required this.adresse,
-      required this.email,
-      required this.phone,
-      required this.latLng,
-      required this.token,
-      required this.nbAgent,
-      required this.supervisor,
-      required this.supervisor_2,
-      this.sos = false});
+  Site({
+    required this.UID,
+    required this.codeSite,
+    required this.name,
+    required this.adresse,
+    required this.email,
+    required this.phone,
+    required this.latLng,
+    required this.token,
+    required this.nbAgent,
+    required this.supervisor,
+    required this.supervisor_2,
+    this.sos = false,
+    required this.actif,
+  });
 
   factory Site.fromJson(Map<String, dynamic> json) {
     return Site(
@@ -189,6 +184,7 @@ class Site extends Equatable {
         adresse: json["adresse"],
         email: json["email"],
         token: json['token'],
+        actif: json['actif'] ?? true,
         nbAgent: json['nbAgent'] ?? 0,
         supervisor: Supervisor.fromJson(json["supervisor"]),
         supervisor_2: json["supervisor_2"] == null
@@ -212,7 +208,8 @@ class Site extends Equatable {
       "sos": sos,
       'token': token,
       'phone': phone,
-      'nbAgent': nbAgent
+      'nbAgent': nbAgent,
+      'actif': actif
     };
   }
 

@@ -19,7 +19,7 @@ class _NbAgentStatusState extends State<NbAgentStatus> {
         builder: (context, snapshot) {
           if (snapshot.hasError) return const SizedBox.shrink();
           if (snapshot.hasData) {
-            var data = snapshot.data;
+            var data = snapshot.data?.where((element) => element.actif == true);
             int? value = data?.length;
             double? purcent = value! * 100 / widget.site.nbAgent;
             return Column(

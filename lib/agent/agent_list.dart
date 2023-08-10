@@ -24,7 +24,8 @@ class _SupervisorListState extends State<AgentList> {
   String _keyword = "";
   int rowParPage = 0;
   int defauldRowParPage = 10;
-
+//filtre
+  bool _actif = true;
   @override
   void initState() {
     // TODO: implement initState
@@ -51,15 +52,15 @@ class _SupervisorListState extends State<AgentList> {
                   var docs = snapshot.data?.docs
                       .map((e) => jsonDecode(jsonEncode(e.data())))
                       .toList();
-                  var data = docs?.map((e) => Agent.fromJson(e)).toList();
+                  var data = docs
+                      ?.map((e) => Agent.fromJson(e))
+                      .toList()
+                      .where((element) => element.actif == _actif)
+                      .toList();
 
                   return PaginatedDataTable(
                     header: Row(
                       children: [
-                        const Text("Liste des agents"),
-                        const SizedBox(
-                          width: 10,
-                        ),
                         SearchTextField(
                             onSearch: (value) {
                               setState(() {
@@ -67,6 +68,86 @@ class _SupervisorListState extends State<AgentList> {
                               });
                             },
                             onPress: () {}),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _keyword = "FIXE";
+                            });
+                          },
+                          child: const Chip(
+                              backgroundColor: Colors.green,
+                              label: Text(
+                                "Fixe",
+                                style: TextStyle(color: Colors.white),
+                              )),
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _keyword = "POINT ZERO";
+                            });
+                          },
+                          child: const Chip(
+                              backgroundColor: Colors.redAccent,
+                              label: Text(
+                                "Point Zéro",
+                                style: TextStyle(color: Colors.white),
+                              )),
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _keyword = "RONDIER";
+                            });
+                          },
+                          child: const Chip(
+                              backgroundColor: Colors.deepOrange,
+                              label: Text(
+                                "Rondier",
+                                style: TextStyle(color: Colors.white),
+                              )),
+                        ),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _actif = _actif ? false : true;
+                            });
+                          },
+                          child: Chip(
+                              backgroundColor:
+                                  _actif ? Colors.green : Colors.redAccent,
+                              label: Row(
+                                children: [
+                                  Checkbox(
+                                      value: _actif,
+                                      onChanged: ((value) {
+                                        setState(() {
+                                          _actif = _actif ? false : true;
+                                        });
+                                      })),
+                                  _actif
+                                      ? const Text(
+                                          "Actif",
+                                          style: TextStyle(color: Colors.white),
+                                        )
+                                      : const Text("Inactif",
+                                          style:
+                                              TextStyle(color: Colors.white)),
+                                ],
+                              )),
+                        ),
                         const SizedBox(
                           width: 10,
                         ),
@@ -78,20 +159,18 @@ class _SupervisorListState extends State<AgentList> {
                                   context,
                                   MaterialPageRoute(
                                       builder: (_) => AddAgent(
-                                          agent: Agent(
-                                              type: "SECURITÉ",
-                                              code: '',
-                                              firstName: '',
-                                              lastName: '',
-                                              phone: '',
-                                              email: '',
-                                              tracking: false,
-                                              site: null,
-                                              incumbent: true,
-                                              start: null,
-                                              and: null,
-                                              permission: false,
-                                              permissionType: ''))));
+                                              agent: Agent(
+                                            type: "SECURITÉ",
+                                            code: '',
+                                            firstName: '',
+                                            lastName: '',
+                                            phone: '',
+                                            email: '',
+                                            tracking: false,
+                                            site: null,
+                                            actif: false,
+                                            categorie: "FIXE",
+                                          ))));
                             },
                             child: const Icon(Icons.add),
                           ),
@@ -155,6 +234,8 @@ class _SupervisorListState extends State<AgentList> {
                       DataColumn(label: Text("Nom")),
                       DataColumn(label: Text("Contact")),
                       DataColumn(label: Text("Site")),
+                      DataColumn(label: Text("Type")),
+                      DataColumn(label: Text("Statut")),
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
@@ -182,21 +263,32 @@ class _DataSource extends DataTableSource {
   String keyword;
   BuildContext context;
 
-  _DataSource(
-      {required this.context, required this.data, required this.keyword});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
     data = data.where((agent) {
-      return agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
-          agent.site!.name.toLowerCase().contains(keyword.toLowerCase()) ||
-          agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
-          agent.phone.toLowerCase().contains(keyword.toLowerCase()) &&
-              agent.site != null;
+      if (agent.site != null) {
+        return (agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.site!.name.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.phone.toLowerCase().contains(keyword.toLowerCase()));
+      } else {
+        return agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.categorie!.toLowerCase().contains(keyword.toLowerCase());
+      }
     }).toList();
     dataForPrint = data;
     if (index >= data.length) {
       return const DataRow(cells: [
+        DataCell(Text("")),
+        DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
@@ -221,37 +313,59 @@ class _DataSource extends DataTableSource {
       DataCell(Text(agent.firstName)),
       DataCell(Text(agent.lastName)),
       DataCell(Text(agent.phone)),
-      DataCell(Text(agent.site!.name)),
-      DataCell(Row(
-        children: [
-          IconButton(
-            icon: Icon(
-              Icons.edit,
-              color: Theme.of(context).primaryColor,
-            ),
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => AddAgent(
-                            agent: agent,
-                            update: true,
-                          )));
-            },
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100))),
-            onPressed: () {
-              CarteGenerator.generateCarteAgent(agent);
-            },
-            child: const Icon(
-              Icons.badge,
-            ),
-          ),
-        ],
+      DataCell(agent.site == null
+          ? const SizedBox.shrink()
+          : Text(agent.site!.name)),
+      DataCell(Chip(
+        label: Text(
+          agent.categorie == "RONDIER"
+              ? "Rondier"
+              : agent.categorie == "POINT ZERO"
+                  ? "Point 0"
+                  : "Fixe",
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: agent.categorie == "POINT ZERO"
+            ? Colors.redAccent
+            : agent.categorie == "RONDIER"
+                ? Colors.deepOrange
+                : Colors.green,
       )),
+      DataCell(AgentStatut(
+        agent: agent,
+      )),
+      DataCell(agent.actif!
+          ? Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.edit,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => AddAgent(
+                                  agent: agent,
+                                  update: true,
+                                )));
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100))),
+                  onPressed: () {
+                    CarteGenerator.generateCarteAgent(agent);
+                  },
+                  child: const Icon(
+                    Icons.badge,
+                  ),
+                ),
+              ],
+            )
+          : const SizedBox.shrink()),
     ]);
   }
 
@@ -266,4 +380,62 @@ class _DataSource extends DataTableSource {
   @override
   // TODO: implement selectedRowCount
   int get selectedRowCount => 0;
+}
+
+//widget d'état de l'agent
+
+class AgentStatut extends StatefulWidget {
+  AgentStatut({super.key, required this.agent});
+  Agent agent;
+  @override
+  _AgentStatutState createState() => _AgentStatutState();
+}
+
+class _AgentStatutState extends State<AgentStatut> {
+  bool _updating = false;
+  @override
+  Widget build(BuildContext context) {
+    return _updating
+        ? Loading(size: 28, inline: false)
+        : GestureDetector(
+            onTap: () {
+              actifInactifAgent();
+            },
+            child: Chip(
+                backgroundColor:
+                    widget.agent.actif! ? Colors.green : Colors.redAccent,
+                label: Row(
+                  children: [
+                    Checkbox(
+                        value: widget.agent.actif!,
+                        onChanged: ((value) {
+                          actifInactifAgent();
+                        })),
+                    widget.agent.actif!
+                        ? const Text(
+                            "Actif",
+                            style: TextStyle(color: Colors.white),
+                          )
+                        : const Text("Inactif",
+                            style: TextStyle(color: Colors.white)),
+                  ],
+                )),
+          );
+  }
+
+  void actifInactifAgent() {
+    setState(() {
+      _updating = true;
+    });
+    widget.agent.actif = widget.agent.actif! ? false : true;
+    AgentService().update(widget.agent).then((value) {
+      setState(() {
+        _updating = false;
+      });
+    }).onError((error, stackTrace) {
+      setState(() {
+        _updating = false;
+      });
+    });
+  }
 }

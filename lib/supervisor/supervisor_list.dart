@@ -80,17 +80,17 @@ class _SupervisorListState extends State<SupervisorList> {
                                   context,
                                   MaterialPageRoute(
                                       builder: (_) => AddSupervisor(
-                                              supervisor: Supervisor(
-                                            code: '',
-                                            firstName: '',
-                                            lastName: '',
-                                            phone: '',
-                                            email: '',
-                                            tracking: false,
-                                            UID: '',
-                                            token: '',
-                                            latlng: null,
-                                          ))));
+                                          supervisor: Supervisor(
+                                              code: '',
+                                              firstName: '',
+                                              lastName: '',
+                                              phone: '',
+                                              email: '',
+                                              tracking: false,
+                                              UID: '',
+                                              token: '',
+                                              latlng: null,
+                                              actif: false))));
                             },
                             child: const Icon(Icons.add),
                           ),
@@ -127,6 +127,7 @@ class _SupervisorListState extends State<SupervisorList> {
                       DataColumn(label: Text("email")),
                       DataColumn(label: Text("Sites"), numeric: true),
                       DataColumn(label: Text("Agents"), numeric: true),
+                      DataColumn(label: Text("Statut")),
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
@@ -176,6 +177,7 @@ class _DataSource extends DataTableSource {
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     Supervisor supervisor = data[index];
@@ -188,19 +190,25 @@ class _DataSource extends DataTableSource {
       DataCell(Text(supervisor.email)),
       DataCell(nbSite(supervisor)),
       DataCell(nbAgent(supervisor)),
+      DataCell(SuperviseurStatut(
+        superviseur: supervisor,
+      )),
       DataCell(
-        IconButton(
-          icon: Icon(
-            Icons.edit,
-            color: Theme.of(context).primaryColor,
-          ),
-          onPressed: () {
-            Navigator.push(
-                context,
-                MaterialPageRoute(
-                    builder: (_) => AddSupervisor(supervisor: supervisor)));
-          },
-        ),
+        supervisor.actif!
+            ? IconButton(
+                icon: Icon(
+                  Icons.edit,
+                  color: Theme.of(context).primaryColor,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) =>
+                              AddSupervisor(supervisor: supervisor)));
+                },
+              )
+            : const SizedBox.shrink(),
       ),
     ]);
   }
@@ -243,5 +251,63 @@ class _DataSource extends DataTableSource {
             return const SizedBox.shrink();
           }
         });
+  }
+}
+
+//widget d'état du superviseur
+
+class SuperviseurStatut extends StatefulWidget {
+  SuperviseurStatut({super.key, required this.superviseur});
+  Supervisor superviseur;
+  @override
+  _SuperviseurStatutState createState() => _SuperviseurStatutState();
+}
+
+class _SuperviseurStatutState extends State<SuperviseurStatut> {
+  bool _updating = false;
+  @override
+  Widget build(BuildContext context) {
+    return _updating
+        ? Loading(size: 28, inline: false)
+        : GestureDetector(
+            onTap: () {
+              actifInactifAgent();
+            },
+            child: Chip(
+                backgroundColor:
+                    widget.superviseur.actif! ? Colors.green : Colors.redAccent,
+                label: Row(
+                  children: [
+                    Checkbox(
+                        value: widget.superviseur.actif!,
+                        onChanged: ((value) {
+                          actifInactifAgent();
+                        })),
+                    widget.superviseur.actif!
+                        ? const Text(
+                            "Actif",
+                            style: TextStyle(color: Colors.white),
+                          )
+                        : const Text("Inactif",
+                            style: TextStyle(color: Colors.white)),
+                  ],
+                )),
+          );
+  }
+
+  void actifInactifAgent() {
+    setState(() {
+      _updating = true;
+    });
+    widget.superviseur.actif = widget.superviseur.actif! ? false : true;
+    SupervisorService().update(widget.superviseur).then((value) {
+      setState(() {
+        _updating = false;
+      });
+    }).onError((error, stackTrace) {
+      setState(() {
+        _updating = false;
+      });
+    });
   }
 }

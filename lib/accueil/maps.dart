@@ -157,7 +157,11 @@ class _MapsState extends State<Maps> {
                     .map((e) => jsonDecode(jsonEncode(e.data())))
                     .toList();
 
-                _sites = docs!.map((e) => Site.fromJson(e)).toList();
+                _sites = docs!
+                    .map((e) => Site.fromJson(e))
+                    .toList()
+                    .where((element) => element.actif == true)
+                    .toList();
                 _Sidesites = _sites
                     .where((element) => element.name
                         .toLowerCase()

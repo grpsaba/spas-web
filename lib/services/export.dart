@@ -479,6 +479,10 @@ class CarteGenerator {
                                   pw.Text(
                                     "Téléphone: ${agent.phone}",
                                     style: const pw.TextStyle(fontSize: 11),
+                                  ),
+                                  pw.Text(
+                                    "Domaine: ${agent.type}",
+                                    style: const pw.TextStyle(fontSize: 11),
                                   )
                                 ],
                               )
@@ -799,6 +803,7 @@ class SiteListToPDF {
       'Contact',
       'Superviseur',
       "Nombre Agent prevu",
+      "Statut",
     ];
     dataSite.sort((Site1, Site2) {
       return Site1.name.compareTo(Site2.name);
@@ -811,6 +816,7 @@ class SiteListToPDF {
         site.phone,
         '${site.supervisor?.firstName} ${site.supervisor?.lastName}',
         site.nbAgent,
+        site.actif!?"Actif":"Inactif"
       ];
     }).toList();
 
@@ -841,7 +847,7 @@ class AgentListToPDF {
     final pdf = Document();
 
     pdf.addPage(MultiPage(
-      //margin: const pw.EdgeInsets.all(5),
+      margin: const pw.EdgeInsets.all(10),
       build: (context) => [
         //Text("Conso part employe"),
         SizedBox(height: 3 * PdfPageFormat.cm),
@@ -880,18 +886,22 @@ class AgentListToPDF {
       'Domaine',
       'Prénom',
       'Nom',
+      'Catégorie',
+      'Statut',
       'Site',
       'Contact',
     ];
-    dataAgent.sort((Agent1, Agent2) {
+    /*dataAgent.sort((Agent1, Agent2) {
       return Agent1.site!.name.compareTo(Agent2.site!.name);
-    });
+    });*/
     final data = dataAgent.map((agent) {
       return [
         agent.type,
         agent.firstName,
         //employe.telephone,
         agent.lastName,
+        agent.categorie,
+        agent.actif! ? "Actif" : "Inactif",
         agent.site?.name,
         agent.phone,
       ];

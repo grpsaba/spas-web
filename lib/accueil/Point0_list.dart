@@ -95,7 +95,8 @@ class _PointZeroListState extends State<PointZeroList> {
                                 element.phone
                                     .toLowerCase()
                                     .contains(_keyword.toLowerCase())) &&
-                            element.site == null)
+                            element.categorie == "POINT ZERO" &&
+                            element.actif == true)
                         .toList()
                         .reversed
                         .toList();

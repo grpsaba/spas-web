@@ -50,7 +50,9 @@ class SiteCard extends StatelessWidget {
                   );
                 }
                 if (snapshot.hasData) {
-                  var data = snapshot.data;
+                  var data = snapshot.data
+                      ?.where((element) => element.actif == true)
+                      .toList();
                   return Text(
                     "${data?.length}",
                     style: const TextStyle(color: Colors.white, fontSize: 30),

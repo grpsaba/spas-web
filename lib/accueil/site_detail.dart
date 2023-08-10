@@ -174,7 +174,9 @@ class _SupervisorDetalState extends State<SiteDetail> {
             );
           }
           if (snapshot.hasData) {
-            var data = snapshot.data;
+            var data = snapshot.data
+                ?.where((element) => element.actif == true)
+                .toList();
             return ListView.builder(
                 itemCount: data!.length,
                 itemBuilder: (context, index) {

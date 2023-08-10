@@ -121,6 +121,8 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                               List<Agent>? agents = collection
                                   ?.map((e) => e.agent)
                                   .toSet()
+                                  .toList()
+                                  .where((element) => element.actif == true)
                                   .toList();
                               //elimination des doublons
                               /*var temps = [];

@@ -24,7 +24,8 @@ class _SupervisorListState extends State<SiteList> {
   String _keyword = "";
   int rowParPage = 0;
   int defauldRowParPage = 10;
-
+  //filtre statut
+  bool _actif = true;
   @override
   void initState() {
     // TODO: implement initState
@@ -51,7 +52,11 @@ class _SupervisorListState extends State<SiteList> {
                   var docs = snapshot.data?.docs
                       .map((e) => jsonDecode(jsonEncode(e.data())))
                       .toList();
-                  var data = docs?.map((e) => Site.fromJson(e)).toList();
+                  var data = docs
+                      ?.map((e) => Site.fromJson(e))
+                      .toList()
+                      .where((element) => element.actif == _actif)
+                      .toList();
 
                   //copy to _dataToexport
                   //_dataToexport = data!;
@@ -69,6 +74,38 @@ class _SupervisorListState extends State<SiteList> {
                               });
                             },
                             onPress: () {}),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        GestureDetector(
+                          onTap: () {
+                            setState(() {
+                              _actif = _actif ? false : true;
+                            });
+                          },
+                          child: Chip(
+                              backgroundColor:
+                                  _actif ? Colors.green : Colors.redAccent,
+                              label: Row(
+                                children: [
+                                  Checkbox(
+                                      value: _actif,
+                                      onChanged: ((value) {
+                                        setState(() {
+                                          _actif = _actif ? false : true;
+                                        });
+                                      })),
+                                  _actif
+                                      ? const Text(
+                                          "Actif",
+                                          style: TextStyle(color: Colors.white),
+                                        )
+                                      : const Text("Inactif",
+                                          style:
+                                              TextStyle(color: Colors.white)),
+                                ],
+                              )),
+                        ),
                         const SizedBox(
                           width: 10,
                         ),
@@ -92,7 +129,8 @@ class _SupervisorListState extends State<SiteList> {
                                               token: "",
                                               nbAgent: 0,
                                               supervisor_2: null,
-                                              supervisor: null))));
+                                              supervisor: null,
+                                              actif: false))));
                             },
                             child: const Icon(Icons.add),
                           ),
@@ -159,6 +197,7 @@ class _SupervisorListState extends State<SiteList> {
                       DataColumn(label: Text("Position GPS")),
                       DataColumn(label: Text("Superviseur 1")),
                       DataColumn(label: Text("Superviseur 2")),
+                      DataColumn(label: Text("Statut")),
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
@@ -229,6 +268,7 @@ class _DataSource extends DataTableSource {
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     Site site = data[index];
@@ -247,31 +287,36 @@ class _DataSource extends DataTableSource {
           ? const Text("")
           : Text(
               "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}")),
-      DataCell(Row(
-        children: [
-          IconButton(
-            icon: Icon(
-              Icons.edit,
-              color: Theme.of(context).primaryColor,
-            ),
-            onPressed: () {
-              Navigator.push(context,
-                  MaterialPageRoute(builder: (_) => AddSite(site: site)));
-            },
-          ),
-          ElevatedButton(
-            style: ElevatedButton.styleFrom(
-                shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(100))),
-            onPressed: () {
-              CarteGenerator.generateQrSite(site);
-            },
-            child: const Icon(
-              Icons.badge,
-            ),
-          ),
-        ],
+      DataCell(SiteStatut(
+        site: site,
       )),
+      DataCell(site.actif!
+          ? Row(
+              children: [
+                IconButton(
+                  icon: Icon(
+                    Icons.edit,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  onPressed: () {
+                    Navigator.push(context,
+                        MaterialPageRoute(builder: (_) => AddSite(site: site)));
+                  },
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100))),
+                  onPressed: () {
+                    CarteGenerator.generateQrSite(site);
+                  },
+                  child: const Icon(
+                    Icons.badge,
+                  ),
+                ),
+              ],
+            )
+          : const SizedBox.shrink()),
     ]);
   }
 
@@ -286,4 +331,62 @@ class _DataSource extends DataTableSource {
   @override
   // TODO: implement selectedRowCount
   int get selectedRowCount => 0;
+}
+
+//widget d'état du superviseur
+
+class SiteStatut extends StatefulWidget {
+  SiteStatut({super.key, required this.site});
+  Site site;
+  @override
+  _SiteStatutState createState() => _SiteStatutState();
+}
+
+class _SiteStatutState extends State<SiteStatut> {
+  bool _updating = false;
+  @override
+  Widget build(BuildContext context) {
+    return _updating
+        ? Loading(size: 28, inline: false)
+        : GestureDetector(
+            onTap: () {
+              actifInactifAgent();
+            },
+            child: Chip(
+                backgroundColor:
+                    widget.site.actif! ? Colors.green : Colors.redAccent,
+                label: Row(
+                  children: [
+                    Checkbox(
+                        value: widget.site.actif!,
+                        onChanged: ((value) {
+                          actifInactifAgent();
+                        })),
+                    widget.site.actif!
+                        ? const Text(
+                            "Actif",
+                            style: TextStyle(color: Colors.white),
+                          )
+                        : const Text("Inactif",
+                            style: TextStyle(color: Colors.white)),
+                  ],
+                )),
+          );
+  }
+
+  void actifInactifAgent() {
+    setState(() {
+      _updating = true;
+    });
+    widget.site.actif = widget.site.actif! ? false : true;
+    SiteService().update(widget.site).then((value) {
+      setState(() {
+        _updating = false;
+      });
+    }).onError((error, stackTrace) {
+      setState(() {
+        _updating = false;
+      });
+    });
+  }
 }

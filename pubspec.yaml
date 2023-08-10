@@ -58,6 +58,8 @@ dependencies:
   firebase_messaging: ^14.6.5
   overlay_support: ^2.1.0
   google_fonts: ^5.1.0
+  time_planner: ^0.1.1
+  syncfusion_flutter_calendar: ^22.2.7
 
 dev_dependencies:
   flutter_test:
