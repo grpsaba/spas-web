@@ -52,7 +52,16 @@ class ManagerService {
               firstName: "",
               lastName: "",
               token: "",
-              role: ''),
+              profil: Profil(name: "Administrateur", modules: [
+                Module(
+                    moduleName: ModuleName.MANAGER,
+                    add: true,
+                    delete: true,
+                    validation: true,
+                    view: true,
+                    print: true,
+                    generBadge: true)
+              ])),
           "managerSpas@2023");
       AuthService().logOut();
     }

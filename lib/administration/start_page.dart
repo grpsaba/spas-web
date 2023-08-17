@@ -27,6 +27,13 @@ class _StarterAgentState extends State<Starter> {
   }
 
   @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    AuthService().logOut();
+  }
+
+  @override
   Widget build(BuildContext context) {
     //initializing the firebase notification
 
@@ -56,6 +63,7 @@ class _StarterAgentState extends State<Starter> {
             );
           }
           if (snapshot.hasData) {
+            print(snapshot.data!.profil?.toJson());
             if (snapshot.data != null) {
               return AdminHome(manager: snapshot.data!);
             } else {

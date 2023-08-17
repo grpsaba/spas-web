@@ -12,8 +12,8 @@ import '../services/site.dart';
 import '../services/supervisor.dart';
 
 class SupervisorList extends StatefulWidget {
-  const SupervisorList({super.key});
-
+  SupervisorList({super.key, required this.manager});
+  Manager manager;
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -72,29 +72,35 @@ class _SupervisorListState extends State<SupervisorList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Ajouter un Agent",
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => AddSupervisor(
-                                          supervisor: Supervisor(
-                                              code: '',
-                                              firstName: '',
-                                              lastName: '',
-                                              phone: '',
-                                              email: '',
-                                              tracking: false,
-                                              UID: '',
-                                              token: '',
-                                              latlng: null,
-                                              actif: false))));
-                            },
-                            child: const Icon(Icons.add),
-                          ),
-                        ),
+                        widget.manager.profil!
+                                .getModule(ModuleName.SUPERVISEUR)!
+                                .add
+                            ? Tooltip(
+                                message: "Ajouter un superviseur",
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => AddSupervisor(
+                                                  supervisor: Supervisor(
+                                                      code: '',
+                                                      firstName: '',
+                                                      lastName: '',
+                                                      phone: '',
+                                                      email: '',
+                                                      tracking: false,
+                                                      UID: '',
+                                                      token: '',
+                                                      latlng: null,
+                                                      actif: false),
+                                                  manager: widget.manager,
+                                                )));
+                                  },
+                                  child: const Icon(Icons.add),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                       ],
                     ),
                     actions: [
@@ -131,10 +137,10 @@ class _SupervisorListState extends State<SupervisorList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data,
-                    ),
+                        context: context,
+                        keyword: _keyword,
+                        data: data,
+                        manager: widget.manager),
                   );
                 } else {
                   return Center(
@@ -153,9 +159,13 @@ class _DataSource extends DataTableSource {
   List<Supervisor> data;
   String keyword;
   BuildContext context;
+  Manager manager;
 
   _DataSource(
-      {required this.context, required this.data, required this.keyword});
+      {required this.context,
+      required this.data,
+      required this.keyword,
+      required this.manager});
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -192,6 +202,7 @@ class _DataSource extends DataTableSource {
       DataCell(nbAgent(supervisor)),
       DataCell(SuperviseurStatut(
         superviseur: supervisor,
+        manager: manager,
       )),
       DataCell(
         supervisor.actif!
@@ -201,11 +212,14 @@ class _DataSource extends DataTableSource {
                   color: Theme.of(context).primaryColor,
                 ),
                 onPressed: () {
+                  // ignore: use_build_context_synchronously
                   Navigator.push(
                       context,
                       MaterialPageRoute(
-                          builder: (_) =>
-                              AddSupervisor(supervisor: supervisor)));
+                          builder: (_) => AddSupervisor(
+                                supervisor: supervisor,
+                                manager: manager,
+                              )));
                 },
               )
             : const SizedBox.shrink(),
@@ -257,8 +271,10 @@ class _DataSource extends DataTableSource {
 //widget d'état du superviseur
 
 class SuperviseurStatut extends StatefulWidget {
-  SuperviseurStatut({super.key, required this.superviseur});
+  SuperviseurStatut(
+      {super.key, required this.superviseur, required this.manager});
   Supervisor superviseur;
+  Manager manager;
   @override
   _SuperviseurStatutState createState() => _SuperviseurStatutState();
 }
@@ -271,18 +287,26 @@ class _SuperviseurStatutState extends State<SuperviseurStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              actifInactifAgent();
+              if (widget.manager.profil!
+                  .getModule(ModuleName.SUPERVISEUR)!
+                  .validation) {
+                actifInactifAgent();
+              }
             },
             child: Chip(
                 backgroundColor:
                     widget.superviseur.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    Checkbox(
-                        value: widget.superviseur.actif!,
-                        onChanged: ((value) {
-                          actifInactifAgent();
-                        })),
+                    widget.manager.profil!
+                            .getModule(ModuleName.SUPERVISEUR)!
+                            .validation
+                        ? Checkbox(
+                            value: widget.superviseur.actif!,
+                            onChanged: ((value) {
+                              actifInactifAgent();
+                            }))
+                        : const SizedBox.shrink(),
                     widget.superviseur.actif!
                         ? const Text(
                             "Actif",

@@ -12,13 +12,13 @@ import '../services/export.dart';
 import '../services/loading.dart';
 
 class AgentList extends StatefulWidget {
-  const AgentList({super.key});
-
+  AgentList({super.key, required Manager this.manager});
+  Manager manager;
   @override
-  _SupervisorListState createState() => _SupervisorListState();
+  _AgentListState createState() => _AgentListState();
 }
 
-class _SupervisorListState extends State<AgentList> {
+class _AgentListState extends State<AgentList> {
   final AgentService _service = AgentService();
   final TextEditingController _texController = TextEditingController();
   String _keyword = "";
@@ -30,6 +30,7 @@ class _SupervisorListState extends State<AgentList> {
   void initState() {
     // TODO: implement initState
     super.initState();
+
     rowParPage = defauldRowParPage;
     _texController.text = defauldRowParPage.toString();
   }
@@ -151,58 +152,71 @@ class _SupervisorListState extends State<AgentList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Ajouter un Agent",
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => AddAgent(
-                                              agent: Agent(
-                                            type: "SECURITÉ",
-                                            code: '',
-                                            firstName: '',
-                                            lastName: '',
-                                            phone: '',
-                                            email: '',
-                                            tracking: false,
-                                            site: null,
-                                            actif: false,
-                                            categorie: "FIXE",
-                                          ))));
-                            },
-                            child: const Icon(Icons.add),
-                          ),
-                        ),
+                        widget.manager.profil!.getModule(ModuleName.AGENT)!.add
+                            ? Tooltip(
+                                message: "Ajouter un Agent",
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => AddAgent(
+                                                  agent: Agent(
+                                                    type: "SECURITÉ",
+                                                    code: '',
+                                                    firstName: '',
+                                                    lastName: '',
+                                                    phone: '',
+                                                    email: '',
+                                                    tracking: false,
+                                                    site: null,
+                                                    actif: false,
+                                                    categorie: "FIXE",
+                                                  ),
+                                                  manager: widget.manager,
+                                                )));
+                                  },
+                                  child: const Icon(Icons.add),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Générer les QR CODES",
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(100))),
-                            onPressed: () {
-                              CarteGenerator.generateMiltiCarteAgent(
-                                  _DataSource.dataForPrint);
-                            },
-                            child: const Icon(
-                              Icons.badge,
-                            ),
-                          ),
-                        ),
+                        widget.manager.profil!
+                                .getModule(ModuleName.AGENT)!
+                                .generBadge
+                            ? Tooltip(
+                                message: "Générer les QR CODES",
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(100))),
+                                  onPressed: () {
+                                    CarteGenerator.generateMiltiCarteAgent(
+                                        _DataSource.dataForPrint);
+                                  },
+                                  child: const Icon(
+                                    Icons.badge,
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                         const SizedBox(
                           width: 10,
                         ),
-                        IconButton(
-                            onPressed: () async {
-                              var document = await AgentListToPDF.export(
-                                  _DataSource.dataForPrint);
-                              PdfApi.openFile(document);
-                            },
-                            icon: const Icon(Icons.print)),
+                        widget.manager.profil!
+                                .getModule(ModuleName.AGENT)!
+                                .print
+                            ? IconButton(
+                                onPressed: () async {
+                                  var document = await AgentListToPDF.export(
+                                      _DataSource.dataForPrint);
+                                  PdfApi.openFile(document);
+                                },
+                                icon: const Icon(Icons.print))
+                            : const SizedBox.shrink(),
                       ],
                     ),
                     actions: [
@@ -239,10 +253,10 @@ class _SupervisorListState extends State<AgentList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data!,
-                    ),
+                        context: context,
+                        keyword: _keyword,
+                        data: data!,
+                        manager: widget.manager),
                   );
                 } else {
                   return Center(
@@ -262,12 +276,13 @@ class _DataSource extends DataTableSource {
   List<Agent> data = [];
   String keyword;
   BuildContext context;
+  Manager manager;
 
-  _DataSource({
-    required this.context,
-    required this.data,
-    required this.keyword,
-  });
+  _DataSource(
+      {required this.context,
+      required this.data,
+      required this.keyword,
+      required this.manager});
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -333,6 +348,7 @@ class _DataSource extends DataTableSource {
       )),
       DataCell(AgentStatut(
         agent: agent,
+        manager: manager,
       )),
       DataCell(agent.actif!
           ? Row(
@@ -343,12 +359,14 @@ class _DataSource extends DataTableSource {
                     color: Theme.of(context).primaryColor,
                   ),
                   onPressed: () {
+                    // ignore: use_build_context_synchronously
                     Navigator.push(
                         context,
                         MaterialPageRoute(
                             builder: (_) => AddAgent(
                                   agent: agent,
                                   update: true,
+                                  manager: manager,
                                 )));
                   },
                 ),
@@ -385,8 +403,9 @@ class _DataSource extends DataTableSource {
 //widget d'état de l'agent
 
 class AgentStatut extends StatefulWidget {
-  AgentStatut({super.key, required this.agent});
+  AgentStatut({super.key, required this.agent, required this.manager});
   Agent agent;
+  Manager manager;
   @override
   _AgentStatutState createState() => _AgentStatutState();
 }
@@ -399,18 +418,26 @@ class _AgentStatutState extends State<AgentStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              actifInactifAgent();
+              if (widget.manager.profil!
+                  .getModule(ModuleName.AGENT)!
+                  .validation) {
+                actifInactifAgent();
+              }
             },
             child: Chip(
                 backgroundColor:
                     widget.agent.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    Checkbox(
-                        value: widget.agent.actif!,
-                        onChanged: ((value) {
-                          actifInactifAgent();
-                        })),
+                    widget.manager.profil!
+                            .getModule(ModuleName.AGENT)!
+                            .validation
+                        ? Checkbox(
+                            value: widget.agent.actif!,
+                            onChanged: ((value) {
+                              actifInactifAgent();
+                            }))
+                        : const SizedBox.shrink(),
                     widget.agent.actif!
                         ? const Text(
                             "Actif",

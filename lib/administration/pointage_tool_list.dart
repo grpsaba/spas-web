@@ -13,7 +13,7 @@ import '../services/loading.dart';
 import '../services/pointerTool.dart';
 
 class PointageToolList extends StatefulWidget {
-  const PointageToolList({super.key});
+  const PointageToolList({super.key, required Manager manager});
 
   @override
   _PointageToolListState createState() => _PointageToolListState();

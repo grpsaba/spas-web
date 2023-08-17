@@ -30,8 +30,9 @@ class _AlertState extends State<Sos> {
             //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
             List<Site>? data = docs?.map((e) => Site.fromJson(e)).toList();
-            data = data?.where((site) => site.sos == true).toList();
-
+            data = data
+                ?.where((site) => site.sos == true && site.actif == true)
+                .toList();
             if (data == null) {
               Audio().stopSOs();
               return const SizedBox.shrink();

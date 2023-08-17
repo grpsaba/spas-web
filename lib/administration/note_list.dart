@@ -9,7 +9,7 @@ import '../services/loading.dart';
 import '../services/note.dart';
 
 class NoteList extends StatefulWidget {
-  const NoteList({super.key});
+  const NoteList({super.key, required Manager manager});
 
   @override
   _SupervisorListState createState() => _SupervisorListState();

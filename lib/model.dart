@@ -352,7 +352,7 @@ class Manager {
   String email;
   String token;
   String poste;
-  String role;
+  Profil? profil;
   Manager(
       {required this.UID,
       required this.email,
@@ -361,7 +361,7 @@ class Manager {
       required this.lastName,
       required this.poste,
       required this.token,
-      required this.role});
+      required this.profil});
 
   factory Manager.fromJson(Map<String, dynamic> json) {
     return Manager(
@@ -372,7 +372,18 @@ class Manager {
         email: json["email"],
         poste: json["poste"],
         token: json["token"],
-        role: json["role"]);
+        profil: json["profil"] == null
+            ? Profil(name: "Inconnu", modules: [
+                Module(
+                    moduleName: ModuleName.MANAGER,
+                    add: true,
+                    delete: false,
+                    validation: false,
+                    view: false,
+                    print: true,
+                    generBadge: true)
+              ])
+            : Profil.fromJson(json["profil"]));
   }
 
   Map<String, dynamic> toJson() {
@@ -384,7 +395,7 @@ class Manager {
       "email": email,
       "token": token,
       "poste": poste,
-      "role": role
+      "profil": profil?.toJson()
     };
   }
 //
@@ -394,13 +405,19 @@ class Tool {
   String label;
   String serialNumber;
   Site? site;
-  Tool({required this.label, required this.serialNumber, required this.site});
+  CategorieTool? catTool;
+  Tool(
+      {required this.label,
+      required this.serialNumber,
+      required this.site,
+      required this.catTool});
 
   factory Tool.fromJson(Map<String, dynamic> json) {
     return Tool(
       label: json["label"],
       serialNumber: json["serialNumber"],
       site: Site.fromJson(json["site"]),
+      catTool: CategorieTool.fromJson(json["catTool"]),
     );
   }
 
@@ -409,6 +426,24 @@ class Tool {
       "label": label,
       "serialNumber": serialNumber,
       "site": site?.toJson(),
+      "site": catTool?.toJson(),
+    };
+  }
+//
+}
+
+class CategorieTool {
+  String label;
+  CategorieTool({required this.label});
+  factory CategorieTool.fromJson(Map<String, dynamic> json) {
+    return CategorieTool(
+      label: json["label"],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "label": label,
     };
   }
 //
@@ -449,6 +484,147 @@ class PointingTools {
       "supported": supported
     };
   }
+}
+
+class ToolsPresence {
+  Site site;
+  CategorieTool cattool;
+  bool status;
+  ToolsPresence({
+    required this.cattool,
+    required this.status,
+    required this.site,
+  });
+
+  factory ToolsPresence.fromJson(Map<String, dynamic> json) {
+    return ToolsPresence(
+      site: Site.fromJson(json["site"]),
+      cattool: CategorieTool.fromJson(json["cattool"]),
+      status: json["status"],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "site": site.toJson(),
+      "cattool": cattool.toJson(),
+      "status": status,
+    };
+  }
+}
+
+class Profil extends Equatable {
+  String name;
+  List<Module> modules;
+  Profil({required this.name, required this.modules});
+
+  factory Profil.fromJson(Map<String, dynamic> jsonData) {
+    List<dynamic> jsonModules = jsonData["modules"] ?? [];
+    List<Module> modules = jsonModules.isEmpty
+        ? []
+        : jsonModules.map((data) => Module.fromJson(data)).toList();
+    return Profil(name: jsonData['name'], modules: modules);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'name': name,
+        'modules': modules.map((e) => e.toJson()).toList(),
+      };
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [name];
+
+  Module? getModule(ModuleName name) {
+    if (modules.isEmpty) return null;
+    return modules.firstWhere((element) => element.moduleName == name,
+        orElse: () => Module(
+            moduleName: ModuleName.MANAGER,
+            add: true,
+            delete: false,
+            validation: false,
+            view: false,
+            print: true,
+            generBadge: true));
+  }
+}
+
+class Module {
+  ModuleName moduleName;
+  bool validation;
+  bool delete;
+  bool add;
+  bool view;
+  bool print;
+  bool generBadge;
+  Module(
+      {required this.moduleName,
+      required this.add,
+      required this.delete,
+      required this.validation,
+      required this.view,
+      required this.print,
+      required this.generBadge});
+
+  factory Module.fromJson(Map<String, dynamic> json) {
+    ModuleName moduleName = ModuleName.MANAGER;
+    switch (json['moduleName'] ?? "") {
+      case "TABLEAU_DE_BORD":
+        moduleName = ModuleName.TABLEAU_DE_BORD;
+        break;
+      case "MANAGER":
+        moduleName = ModuleName.MANAGER;
+        break;
+      case "AGENT":
+        moduleName = ModuleName.AGENT;
+        break;
+      case "NOTE":
+        moduleName = ModuleName.NOTE;
+        break;
+      case "SITE":
+        moduleName = ModuleName.SITE;
+        break;
+      case "SUPERVISEUR":
+        moduleName = ModuleName.SUPERVISEUR;
+        break;
+      case "TOOL":
+        moduleName = ModuleName.TOOL;
+        break;
+      default:
+        moduleName = ModuleName.MANAGER;
+    }
+    return Module(
+        moduleName: moduleName,
+        validation: json['validation'],
+        delete: json['delete'],
+        add: json['add'],
+        print: json['print'],
+        generBadge: json['generBadge'],
+        view: json['view']);
+  }
+
+  Map<String, dynamic> toJson() => {
+        'moduleName': moduleName.name,
+        'validation': validation,
+        'delete': delete,
+        'add': add,
+        'view': view,
+        'print': print,
+        'generBadge': generBadge
+      };
+
+//
+}
+
+enum ModuleName {
+  TABLEAU_DE_BORD,
+  AGENT,
+  SUPERVISEUR,
+  SITE,
+  TOOL,
+  NOTE,
+  MANAGER,
+  CATEGORIE_TOOL
 }
 
 class PushNotification {

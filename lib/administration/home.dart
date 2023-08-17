@@ -6,7 +6,6 @@ import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/administration/start_page.dart';
 import 'package:spas_web/agent/agent_list.dart';
 import 'package:spas_web/generated/assets.dart';
-import 'package:spas_web/manager/manager_list.dart';
 import 'package:spas_web/site/site_list.dart';
 import 'package:spas_web/supervisor/supervisor_list.dart';
 import 'package:spas_web/timePlanner.dart';
@@ -15,6 +14,7 @@ import 'package:spas_web/tools/tool_list.dart';
 import '../accueil/home_page.dart';
 import '../accueil/maps.dart';
 import '../const.dart';
+import '../manager/user_page.dart';
 import '../model.dart';
 import '../services/authentication.dart';
 import '../services/site.dart';
@@ -349,25 +349,67 @@ class _AdminHomeState extends State<AdminHome> {
   Widget switchPage() {
     switch (_menuIdex) {
       case 0:
-        return const HomePage();
+        return widget.manager.profil!
+                .getModule(ModuleName.TABLEAU_DE_BORD)!
+                .view
+            ? HomePage(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 1:
-        return const ManagerList();
+        return widget.manager.profil!.getModule(ModuleName.MANAGER)!.view
+            ? UserPage(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 2:
-        return const SiteList();
+        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
+            ? SiteList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 3:
-        return const AgentList();
+        return widget.manager.profil!.getModule(ModuleName.AGENT)!.view
+            ? AgentList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 4:
-        return const SupervisorList();
+        return widget.manager.profil!.getModule(ModuleName.SUPERVISEUR)!.view
+            ? SupervisorList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 5:
-        return const ToolList();
+        return widget.manager.profil!.getModule(ModuleName.TOOL)!.view
+            ? ToolList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 6:
-        return const PointageSiteList();
+        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
+            ? PointageSiteList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 7:
-        return const PointageAgentList();
+        return widget.manager.profil!.getModule(ModuleName.AGENT)!.view
+            ? PointageAgentList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 8:
-        return const PointageToolList();
+        return widget.manager.profil!.getModule(ModuleName.TOOL)!.view
+            ? PointageToolList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 9:
-        return const NoteList();
+        return widget.manager.profil!.getModule(ModuleName.NOTE)!.view
+            ? NoteList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       case 10:
         return const Maps();
         //case 11:

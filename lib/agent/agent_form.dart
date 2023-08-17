@@ -6,9 +6,14 @@ import '../services/agent.dart';
 import '../services/loading.dart';
 
 class AddAgent extends StatefulWidget {
-  AddAgent({super.key, required this.agent, this.update = false});
+  AddAgent(
+      {super.key,
+      required this.agent,
+      this.update = false,
+      required this.manager});
   Agent agent;
   bool update;
+  Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -343,50 +348,56 @@ class _AddSupervisorState extends State<AddAgent> {
                           ),
                           widget.update == false
                               ? const SizedBox.shrink()
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      fixedSize: const Size(150, 50),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(20))),
-                                  onPressed: () async {
-                                    if (_key.currentState!.validate()) {
-                                      setState(() {
-                                        _adding = true;
-                                      });
+                              : widget.manager.profil!
+                                      .getModule(ModuleName.AGENT)!
+                                      .delete
+                                  ? ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          fixedSize: const Size(150, 50),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20))),
+                                      onPressed: () async {
+                                        if (_key.currentState!.validate()) {
+                                          setState(() {
+                                            _adding = true;
+                                          });
 
-                                      await AgentService()
-                                          .delete(widget.agent)
-                                          .then((value) {
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                        Navigator.of(context).pop();
-                                      }).onError((error, stackTrace) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                                content:
-                                                    Text(error.toString())));
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                      });
-                                    }
-                                  },
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.delete),
-                                      SizedBox(
-                                        width: 5,
-                                      ),
-                                      Text(
-                                        'Supprimer',
-                                        style: TextStyle(color: Colors.white),
-                                      )
-                                    ],
-                                  ))
+                                          await AgentService()
+                                              .delete(widget.agent)
+                                              .then((value) {
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                            Navigator.of(context).pop();
+                                          }).onError((error, stackTrace) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(SnackBar(
+                                                    content: Text(
+                                                        error.toString())));
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                          });
+                                        }
+                                      },
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.delete),
+                                          SizedBox(
+                                            width: 5,
+                                          ),
+                                          Text(
+                                            'Supprimer',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          )
+                                        ],
+                                      ))
+                                  : const SizedBox.shrink()
                         ],
                       )
               ],

@@ -6,13 +6,14 @@ import 'package:spas_web/accueil/site_pointing_staus_list.dart';
 import 'package:spas_web/accueil/site_staus_list.dart';
 import 'package:spas_web/accueil/supervisor_card.dart';
 import 'package:spas_web/accueil/tool_status_card.dart';
+import 'package:spas_web/model.dart';
 
 import 'absenceAgent.dart';
 import 'agent_card.dart';
 import 'note_card.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key});
+  const HomePage({super.key, required Manager manager});
 
   @override
   _HomePageState createState() => _HomePageState();

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/services/profil.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -10,8 +11,8 @@ import '../services/manager.dart';
 import 'manager_form.dart';
 
 class ManagerList extends StatefulWidget {
-  const ManagerList({super.key});
-
+  ManagerList({super.key, required this.manager});
+  Manager manager;
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -70,28 +71,32 @@ class _SupervisorListState extends State<ManagerList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Ajouter un controleur",
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => AddManager(
-                                              manager: Manager(
-                                            poste: '',
-                                            firstName: '',
-                                            lastName: '',
-                                            phone: '',
-                                            email: '',
-                                            role: 'Controleur',
-                                            UID: '',
-                                            token: '',
-                                          ))));
-                            },
-                            child: const Icon(Icons.add),
-                          ),
-                        ),
+                        widget.manager.profil!
+                                .getModule(ModuleName.MANAGER)!
+                                .add
+                            ? Tooltip(
+                                message: "Ajouter un controleur",
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => AddManager(
+                                                    manager: Manager(
+                                                  poste: '',
+                                                  firstName: '',
+                                                  lastName: '',
+                                                  phone: '',
+                                                  email: '',
+                                                  profil: null,
+                                                  UID: '',
+                                                  token: '',
+                                                ))));
+                                  },
+                                  child: const Icon(Icons.add),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                         const SizedBox(
                           width: 10,
                         ),
@@ -138,14 +143,14 @@ class _SupervisorListState extends State<ManagerList> {
                       DataColumn(label: Text("Nom")),
                       DataColumn(label: Text("Email")),
                       DataColumn(label: Text("Poste")),
-                      DataColumn(label: Text("Rôle")),
+                      DataColumn(label: Text("Profil")),
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data,
-                    ),
+                        context: context,
+                        keyword: _keyword,
+                        data: data,
+                        managerLoged: widget.manager),
                   );
                 } else {
                   return Center(
@@ -164,9 +169,13 @@ class _DataSource extends DataTableSource {
   List<Manager> data;
   String keyword;
   BuildContext context;
+  Manager managerLoged;
 
   _DataSource(
-      {required this.context, required this.data, required this.keyword});
+      {required this.context,
+      required this.data,
+      required this.keyword,
+      required this.managerLoged});
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -192,25 +201,23 @@ class _DataSource extends DataTableSource {
       DataCell(Text(manager.lastName)),
       DataCell(Text(manager.email)),
       DataCell(Text(manager.poste)),
-      DataCell(manager.role == "Administrateur"
-          ? Chip(
-              label: Text(manager.role,
-                  style: const TextStyle(color: Colors.white)),
-              backgroundColor: Colors.green,
-            )
-          : manager.role == "Controleur"
-              ? Chip(
-                  label: Text(
-                    manager.role,
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                  backgroundColor: Colors.orange,
-                )
-              : Chip(
-                  label: Text(manager.role,
-                      style: const TextStyle(color: Colors.white)),
-                  backgroundColor: Colors.blue,
-                )),
+      DataCell(FutureBuilder(
+          future: ProfilService().one(manager.profil?.name ?? ""),
+          builder: (context, snapshot) {
+            if (snapshot.hasData) {
+              var profil = snapshot.data;
+              return Chip(
+                label: Text(profil?.name ?? "Inconnu",
+                    style: const TextStyle(color: Colors.white)),
+                backgroundColor: Theme.of(context).primaryColor,
+              );
+            } else {
+              return const Chip(
+                label: Text("Inconnu", style: TextStyle(color: Colors.white)),
+                backgroundColor: Colors.red,
+              );
+            }
+          })),
       DataCell(Row(
         children: [
           IconButton(
@@ -223,7 +230,7 @@ class _DataSource extends DataTableSource {
                   context,
                   MaterialPageRoute(
                       builder: (_) => AddManager(
-                            manager: manager,
+                            manager: managerLoged,
                           )));
             },
           ),

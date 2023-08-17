@@ -12,8 +12,8 @@ import '../services/export.dart';
 import '../services/loading.dart';
 
 class SiteList extends StatefulWidget {
-  const SiteList({super.key});
-
+  SiteList({super.key, required this.manager});
+  Manager manager;
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -26,6 +26,7 @@ class _SupervisorListState extends State<SiteList> {
   int defauldRowParPage = 10;
   //filtre statut
   bool _actif = true;
+
   @override
   void initState() {
     // TODO: implement initState
@@ -109,60 +110,71 @@ class _SupervisorListState extends State<SiteList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Ajouter un site",
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => AddSite(
-                                          site: Site(
-                                              UID: "",
-                                              codeSite: "",
-                                              name: "",
-                                              adresse: "",
-                                              email: "",
-                                              phone: "",
-                                              latLng:
-                                                  LatLngModel(lat: 0, lng: 0),
-                                              token: "",
-                                              nbAgent: 0,
-                                              supervisor_2: null,
-                                              supervisor: null,
-                                              actif: false))));
-                            },
-                            child: const Icon(Icons.add),
-                          ),
-                        ),
+                        widget.manager.profil!.getModule(ModuleName.SITE)!.add
+                            ? Tooltip(
+                                message: "Ajouter un site",
+                                child: ElevatedButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) => AddSite(
+                                                  site: Site(
+                                                      UID: "",
+                                                      codeSite: "",
+                                                      name: "",
+                                                      adresse: "",
+                                                      email: "",
+                                                      phone: "",
+                                                      latLng: LatLngModel(
+                                                          lat: 0, lng: 0),
+                                                      token: "",
+                                                      nbAgent: 0,
+                                                      supervisor_2: null,
+                                                      supervisor: null,
+                                                      actif: false),
+                                                  manager: widget.manager,
+                                                )));
+                                  },
+                                  child: const Icon(Icons.add),
+                                ),
+                              )
+                            : const SizedBox(),
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Générer les QR CODES",
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(100))),
-                            onPressed: () {
-                              CarteGenerator.generateMiltiQrSite(
-                                  _DataSource.dataToprint);
-                            },
-                            child: const Icon(
-                              Icons.badge,
-                            ),
-                          ),
-                        ),
+                        widget.manager.profil!
+                                .getModule(ModuleName.SITE)!
+                                .generBadge
+                            ? Tooltip(
+                                message: "Générer les QR CODES",
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(100))),
+                                  onPressed: () {
+                                    CarteGenerator.generateMiltiQrSite(
+                                        _DataSource.dataToprint);
+                                  },
+                                  child: const Icon(
+                                    Icons.badge,
+                                  ),
+                                ),
+                              )
+                            : const SizedBox(),
                         const SizedBox(
                           width: 10,
                         ),
-                        IconButton(
-                            onPressed: () async {
-                              var document = await SiteListToPDF.export(
-                                  _DataSource.dataToprint);
-                              PdfApi.openFile(document);
-                            },
-                            icon: const Icon(Icons.print)),
+                        widget.manager.profil!.getModule(ModuleName.SITE)!.print
+                            ? IconButton(
+                                onPressed: () async {
+                                  var document = await SiteListToPDF.export(
+                                      _DataSource.dataToprint);
+                                  PdfApi.openFile(document);
+                                },
+                                icon: const Icon(Icons.print))
+                            : const SizedBox(),
                       ],
                     ),
                     actions: [
@@ -201,10 +213,10 @@ class _SupervisorListState extends State<SiteList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data!,
-                    ),
+                        context: context,
+                        keyword: _keyword,
+                        data: data!,
+                        manager: widget.manager),
                   );
                 } else {
                   return Center(
@@ -224,9 +236,13 @@ class _DataSource extends DataTableSource {
   List<Site> data;
   String keyword;
   BuildContext context;
+  Manager manager;
 
   _DataSource(
-      {required this.context, required this.data, required this.keyword});
+      {required this.context,
+      required this.data,
+      required this.keyword,
+      required this.manager});
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -289,6 +305,7 @@ class _DataSource extends DataTableSource {
               "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}")),
       DataCell(SiteStatut(
         site: site,
+        manager: manager,
       )),
       DataCell(site.actif!
           ? Row(
@@ -299,8 +316,14 @@ class _DataSource extends DataTableSource {
                     color: Theme.of(context).primaryColor,
                   ),
                   onPressed: () {
-                    Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => AddSite(site: site)));
+                    // ignore: use_build_context_synchronously
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => AddSite(
+                                  site: site,
+                                  manager: manager,
+                                )));
                   },
                 ),
                 ElevatedButton(
@@ -336,8 +359,9 @@ class _DataSource extends DataTableSource {
 //widget d'état du superviseur
 
 class SiteStatut extends StatefulWidget {
-  SiteStatut({super.key, required this.site});
+  SiteStatut({super.key, required this.site, required this.manager});
   Site site;
+  Manager manager;
   @override
   _SiteStatutState createState() => _SiteStatutState();
 }
@@ -350,18 +374,26 @@ class _SiteStatutState extends State<SiteStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              actifInactifAgent();
+              if (widget.manager.profil!
+                  .getModule(ModuleName.SITE)!
+                  .validation) {
+                actifInactifAgent();
+              }
             },
             child: Chip(
                 backgroundColor:
                     widget.site.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    Checkbox(
-                        value: widget.site.actif!,
-                        onChanged: ((value) {
-                          actifInactifAgent();
-                        })),
+                    widget.manager.profil!
+                            .getModule(ModuleName.SITE)!
+                            .validation
+                        ? Checkbox(
+                            value: widget.site.actif!,
+                            onChanged: ((value) {
+                              actifInactifAgent();
+                            }))
+                        : const SizedBox.shrink(),
                     widget.site.actif!
                         ? const Text(
                             "Actif",

@@ -7,8 +7,9 @@ import '../services/loading.dart';
 import '../services/site.dart';
 
 class AddSite extends StatefulWidget {
-  AddSite({super.key, required this.site});
+  AddSite({super.key, required this.site, required this.manager});
   Site site;
+  Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -475,50 +476,56 @@ class _AddSupervisorState extends State<AddSite> {
                           ),
                           widget.site.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      fixedSize: const Size(150, 50),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(20))),
-                                  onPressed: () async {
-                                    if (_key.currentState!.validate()) {
-                                      setState(() {
-                                        _adding = true;
-                                      });
+                              : widget.manager.profil!
+                                      .getModule(ModuleName.SITE)!
+                                      .delete
+                                  ? ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          fixedSize: const Size(150, 50),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20))),
+                                      onPressed: () async {
+                                        if (_key.currentState!.validate()) {
+                                          setState(() {
+                                            _adding = true;
+                                          });
 
-                                      await SiteService()
-                                          .delete(widget.site)
-                                          .then((value) {
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                        Navigator.of(context).pop();
-                                      }).onError((error, stackTrace) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                                content:
-                                                    Text(error.toString())));
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                      });
-                                    }
-                                  },
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.delete),
-                                      SizedBox(
-                                        width: 5,
-                                      ),
-                                      Text(
-                                        'Supprimer',
-                                        style: TextStyle(color: Colors.white),
-                                      )
-                                    ],
-                                  ))
+                                          await SiteService()
+                                              .delete(widget.site)
+                                              .then((value) {
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                            Navigator.of(context).pop();
+                                          }).onError((error, stackTrace) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(SnackBar(
+                                                    content: Text(
+                                                        error.toString())));
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                          });
+                                        }
+                                      },
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.delete),
+                                          SizedBox(
+                                            width: 5,
+                                          ),
+                                          Text(
+                                            'Supprimer',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          )
+                                        ],
+                                      ))
+                                  : const SizedBox.shrink()
                         ],
                       )
               ],

@@ -1,9 +1,12 @@
+import 'dart:convert';
+
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
 import '../services/manager.dart';
+import '../services/profil.dart';
 
 class AddManager extends StatefulWidget {
   AddManager({super.key, required this.manager});
@@ -20,15 +23,10 @@ class _AddSupervisorState extends State<AddManager> {
   final TextEditingController _email_ctrl = TextEditingController();
   final TextEditingController _pass_ctrl = TextEditingController();
   final TextEditingController _poste_ctrl = TextEditingController();
-  final TextEditingController _role_ctrl = TextEditingController();
+
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
   bool _obscurePass = true;
   bool _adding = false;
-  List<String> listRole = [
-    "RH",
-    "Administrateur",
-    "Controleur",
-  ];
 
   @override
   void initState() {
@@ -39,7 +37,6 @@ class _AddSupervisorState extends State<AddManager> {
     _firstName_ctrl.text = widget.manager.firstName;
     _lastName_ctrl.text = widget.manager.lastName;
     _phone_ctrl.text = widget.manager.phone;
-    _role_ctrl.text = widget.manager.role;
   }
 
   @override
@@ -50,7 +47,7 @@ class _AddSupervisorState extends State<AddManager> {
     _lastName_ctrl.dispose();
     _firstName_ctrl.dispose();
     _phone_ctrl.dispose();
-    _role_ctrl.dispose();
+
     _email_ctrl.dispose();
     _pass_ctrl.dispose();
   }
@@ -139,28 +136,43 @@ class _AddSupervisorState extends State<AddManager> {
                 const SizedBox(
                   height: 20,
                 ),
-                DropdownButtonFormField(
-                  hint: const Text("Rôle"),
-                  decoration: const InputDecoration(
-                      hintText: "Rôle",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.task)),
-                  validator: (value) {
-                    return value!.isNotEmpty ? null : "Rôle obligatoir";
-                  },
-                  isExpanded: true,
-                  value: _role_ctrl.text,
-                  items: listRole
-                      .map((e) =>
-                          DropdownMenuItem<String>(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    _role_ctrl.text = value ?? "";
-                  },
-                  onSaved: (value) {
-                    _role_ctrl.text = value ?? "";
-                  },
-                ),
+                StreamBuilder(
+                    stream: ProfilService().all(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var docs = snapshot.data?.docs
+                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                            .toList();
+                        List<Profil>? data =
+                            docs?.map((e) => Profil.fromJson(e)).toList();
+
+                        return DropdownButtonFormField<Profil>(
+                          hint: const Text("Profil"),
+                          decoration: const InputDecoration(
+                              hintText: "Profil",
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person)),
+                          validator: (value) {
+                            return value != null ? null : "Profil obligatoir";
+                          },
+                          isExpanded: true,
+                          value: widget.manager.profil,
+                          items: data
+                              ?.map((Profil profil) => DropdownMenuItem<Profil>(
+                                  value: profil, child: Text(profil.name)))
+                              .toList(),
+                          onChanged: (value) {
+                            widget.manager.profil = value;
+                          },
+                          onSaved: (value) {
+                            widget.manager.profil = value;
+                          },
+                        );
+                      } else {
+                        return const Text(
+                            "Chargements des profils en cours...");
+                      }
+                    }),
                 const SizedBox(
                   height: 20,
                 ),
@@ -223,7 +235,6 @@ class _AddSupervisorState extends State<AddManager> {
                                       borderRadius: BorderRadius.circular(20))),
                               onPressed: () async {
                                 widget.manager.poste = _poste_ctrl.text;
-                                widget.manager.role = _role_ctrl.text;
                                 widget.manager.firstName = _firstName_ctrl.text;
                                 widget.manager.lastName = _lastName_ctrl.text;
                                 widget.manager.email = _email_ctrl.text;
@@ -283,50 +294,56 @@ class _AddSupervisorState extends State<AddManager> {
                           ),
                           widget.manager.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      fixedSize: const Size(150, 50),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(20))),
-                                  onPressed: () async {
-                                    if (_key.currentState!.validate()) {
-                                      setState(() {
-                                        _adding = true;
-                                      });
+                              : widget.manager.profil!
+                                      .getModule(ModuleName.MANAGER)!
+                                      .delete
+                                  ? ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          fixedSize: const Size(150, 50),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20))),
+                                      onPressed: () async {
+                                        if (_key.currentState!.validate()) {
+                                          setState(() {
+                                            _adding = true;
+                                          });
 
-                                      await ManagerService()
-                                          .delete(widget.manager)
-                                          .then((value) {
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                        Navigator.of(context).pop();
-                                      }).onError((error, stackTrace) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                                content:
-                                                    Text(error.toString())));
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                      });
-                                    }
-                                  },
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.delete),
-                                      SizedBox(
-                                        width: 5,
-                                      ),
-                                      Text(
-                                        'Supprimer',
-                                        style: TextStyle(color: Colors.white),
-                                      )
-                                    ],
-                                  ))
+                                          await ManagerService()
+                                              .delete(widget.manager)
+                                              .then((value) {
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                            Navigator.of(context).pop();
+                                          }).onError((error, stackTrace) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(SnackBar(
+                                                    content: Text(
+                                                        error.toString())));
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                          });
+                                        }
+                                      },
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.delete),
+                                          SizedBox(
+                                            width: 5,
+                                          ),
+                                          Text(
+                                            'Supprimer',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          )
+                                        ],
+                                      ))
+                                  : const SizedBox.shrink()
                         ],
                       )
               ],

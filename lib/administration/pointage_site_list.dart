@@ -13,7 +13,7 @@ import '../services/loading.dart';
 import '../services/pointerSite.dart';
 
 class PointageSiteList extends StatefulWidget {
-  const PointageSiteList({super.key});
+  const PointageSiteList({super.key, required Manager manager});
 
   @override
   _SupervisorListState createState() => _SupervisorListState();

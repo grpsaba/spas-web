@@ -6,8 +6,9 @@ import '../services/loading.dart';
 import '../services/supervisor.dart';
 
 class AddSupervisor extends StatefulWidget {
-  AddSupervisor({super.key, required this.supervisor});
+  AddSupervisor({super.key, required this.supervisor, required this.manager});
   Supervisor supervisor;
+  Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -254,50 +255,56 @@ class _AddSupervisorState extends State<AddSupervisor> {
                           ),
                           widget.supervisor.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      backgroundColor: Colors.red,
-                                      fixedSize: const Size(150, 50),
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(20))),
-                                  onPressed: () async {
-                                    if (_key.currentState!.validate()) {
-                                      setState(() {
-                                        _adding = true;
-                                      });
+                              : widget.manager.profil!
+                                      .getModule(ModuleName.SUPERVISEUR)!
+                                      .delete
+                                  ? ElevatedButton(
+                                      style: ElevatedButton.styleFrom(
+                                          backgroundColor: Colors.red,
+                                          fixedSize: const Size(150, 50),
+                                          shape: RoundedRectangleBorder(
+                                              borderRadius:
+                                                  BorderRadius.circular(20))),
+                                      onPressed: () async {
+                                        if (_key.currentState!.validate()) {
+                                          setState(() {
+                                            _adding = true;
+                                          });
 
-                                      await SupervisorService()
-                                          .delete(widget.supervisor)
-                                          .then((value) {
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                        Navigator.of(context).pop();
-                                      }).onError((error, stackTrace) {
-                                        ScaffoldMessenger.of(context)
-                                            .showSnackBar(SnackBar(
-                                                content:
-                                                    Text(error.toString())));
-                                        setState(() {
-                                          _adding = false;
-                                        });
-                                      });
-                                    }
-                                  },
-                                  child: const Row(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(Icons.delete),
-                                      SizedBox(
-                                        width: 5,
-                                      ),
-                                      Text(
-                                        'Supprimer',
-                                        style: TextStyle(color: Colors.white),
-                                      )
-                                    ],
-                                  ))
+                                          await SupervisorService()
+                                              .delete(widget.supervisor)
+                                              .then((value) {
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                            Navigator.of(context).pop();
+                                          }).onError((error, stackTrace) {
+                                            ScaffoldMessenger.of(context)
+                                                .showSnackBar(SnackBar(
+                                                    content: Text(
+                                                        error.toString())));
+                                            setState(() {
+                                              _adding = false;
+                                            });
+                                          });
+                                        }
+                                      },
+                                      child: const Row(
+                                        mainAxisAlignment:
+                                            MainAxisAlignment.center,
+                                        children: [
+                                          Icon(Icons.delete),
+                                          SizedBox(
+                                            width: 5,
+                                          ),
+                                          Text(
+                                            'Supprimer',
+                                            style:
+                                                TextStyle(color: Colors.white),
+                                          )
+                                        ],
+                                      ))
+                                  : const SizedBox.shrink(),
                         ],
                       )
               ],

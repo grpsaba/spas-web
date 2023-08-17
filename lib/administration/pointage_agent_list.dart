@@ -12,7 +12,7 @@ import '../services/loading.dart';
 import '../services/pointerAgent.dart';
 
 class PointageAgentList extends StatefulWidget {
-  const PointageAgentList({super.key});
+  const PointageAgentList({super.key, required Manager manager});
 
   @override
   _SupervisorListState createState() => _SupervisorListState();

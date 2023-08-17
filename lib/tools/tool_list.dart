@@ -13,8 +13,8 @@ import '../services/site.dart';
 import '../services/tool.dart';
 
 class ToolList extends StatefulWidget {
-  const ToolList({super.key});
-
+  ToolList({super.key, required this.manager});
+  Manager manager;
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -73,40 +73,48 @@ class _SupervisorListState extends State<ToolList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Ajouter un matériel",
-                          child: ElevatedButton(
-                            onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => AddTool(
-                                              tool: Tool(
-                                            serialNumber: '',
-                                            label: '',
-                                            site: null,
-                                          ))));
-                            },
-                            child: const Icon(Icons.add),
-                          ),
-                        ),
+                        widget.manager.profil!.getModule(ModuleName.TOOL)!.add
+                            ? ElevatedButton(
+                                onPressed: () {
+                                  Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                          builder: (_) => AddTool(
+                                                tool: Tool(
+                                                  serialNumber: '',
+                                                  label: '',
+                                                  site: null,
+                                                  catTool: null,
+                                                ),
+                                                manager: widget.manager,
+                                              )));
+                                },
+                                child: const Icon(Icons.add),
+                              )
+                            : const SizedBox.shrink(),
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
-                          message: "Générer les QR CODES",
-                          child: ElevatedButton(
-                            style: ElevatedButton.styleFrom(
-                                shape: RoundedRectangleBorder(
-                                    borderRadius: BorderRadius.circular(100))),
-                            onPressed: () {
-                              CarteGenerator.generateMiltiQrTool(_dataToexport);
-                            },
-                            child: const Icon(
-                              Icons.badge,
-                            ),
-                          ),
-                        )
+                        widget.manager.profil!
+                                .getModule(ModuleName.TOOL)!
+                                .generBadge
+                            ? Tooltip(
+                                message: "Générer les QR CODES",
+                                child: ElevatedButton(
+                                  style: ElevatedButton.styleFrom(
+                                      shape: RoundedRectangleBorder(
+                                          borderRadius:
+                                              BorderRadius.circular(100))),
+                                  onPressed: () {
+                                    CarteGenerator.generateMiltiQrTool(
+                                        _dataToexport);
+                                  },
+                                  child: const Icon(
+                                    Icons.badge,
+                                  ),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
                       ],
                     ),
                     actions: [
@@ -138,10 +146,10 @@ class _SupervisorListState extends State<ToolList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data,
-                    ),
+                        context: context,
+                        keyword: _keyword,
+                        data: data,
+                        manager: widget.manager),
                   );
                 } else {
                   return Center(
@@ -160,9 +168,13 @@ class _DataSource extends DataTableSource {
   List<Tool> data;
   String keyword;
   BuildContext context;
+  Manager manager;
 
   _DataSource(
-      {required this.context, required this.data, required this.keyword});
+      {required this.context,
+      required this.data,
+      required this.keyword,
+      required this.manager});
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -194,12 +206,14 @@ class _DataSource extends DataTableSource {
                 color: Theme.of(context).primaryColor,
               ),
               onPressed: () {
+                // ignore: use_build_context_synchronously
                 Navigator.push(
                     context,
                     MaterialPageRoute(
                         builder: (_) => AddTool(
                               tool: tool,
                               update: true,
+                              manager: manager,
                             )));
               },
             ),
