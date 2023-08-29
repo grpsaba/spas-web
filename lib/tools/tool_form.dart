@@ -1,4 +1,7 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:spas_web/services/Categorietool.dart';
 
 import '../liste_selection_pages/site_search_dialog.dart';
 import '../model.dart';
@@ -139,6 +142,45 @@ class _AddSupervisorState extends State<AddTool> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person)),
                 ),
+                const SizedBox(
+                  height: 20,
+                ),
+                StreamBuilder(
+                    stream: CategorieToolService().all(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var docs = snapshot.data?.docs
+                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                            .toList();
+                        List<CategorieTool>? data = docs
+                            ?.map((e) => CategorieTool.fromJson(e))
+                            .toList();
+
+                        return DropdownButtonFormField<CategorieTool>(
+                          hint: const Text("Equipement"),
+                          decoration: const InputDecoration(
+                              hintText: "Equipement",
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person)),
+                          isExpanded: true,
+                          value: widget.tool.catTool,
+                          items: data
+                              ?.map((CategorieTool tool) =>
+                                  DropdownMenuItem<CategorieTool>(
+                                      value: tool, child: Text(tool.label)))
+                              .toList(),
+                          onChanged: (value) {
+                            widget.tool.catTool = value;
+                          },
+                          onSaved: (value) {
+                            widget.tool.catTool = value;
+                          },
+                        );
+                      } else {
+                        return const Text(
+                            "Chargements des équipements en cours...");
+                      }
+                    }),
                 const SizedBox(
                   height: 20,
                 ),

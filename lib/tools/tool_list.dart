@@ -142,6 +142,7 @@ class _SupervisorListState extends State<ToolList> {
                     columns: const [
                       DataColumn(label: Text("SN")),
                       DataColumn(label: Text("Libellé")),
+                      DataColumn(label: Text("Equipement")),
                       DataColumn(label: Text("Site")),
                       DataColumn(label: Text("Action")),
                     ],
@@ -189,6 +190,7 @@ class _DataSource extends DataTableSource {
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     Tool tool = data[index];
@@ -196,6 +198,13 @@ class _DataSource extends DataTableSource {
     return DataRow(cells: [
       DataCell(Text(tool.serialNumber)),
       DataCell(Text(tool.label)),
+      DataCell(Chip(
+        label: Text(
+          tool.catTool?.label ?? "Inconnu",
+          style: const TextStyle(color: Colors.white),
+        ),
+        backgroundColor: Colors.blueGrey,
+      )),
       DataCell(Text(tool.site!.name)),
       DataCell(
         Row(

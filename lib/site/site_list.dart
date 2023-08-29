@@ -24,6 +24,8 @@ class _SupervisorListState extends State<SiteList> {
   String _keyword = "";
   int rowParPage = 0;
   int defauldRowParPage = 10;
+  bool _sortAscending = false;
+  int _sortColumnIndex = 0;
   //filtre statut
   bool _actif = true;
 
@@ -58,10 +60,15 @@ class _SupervisorListState extends State<SiteList> {
                       .toList()
                       .where((element) => element.actif == _actif)
                       .toList();
+                  data!.sort((site1, site2) {
+                    return site1.name.compareTo(site2.name);
+                  });
 
                   //copy to _dataToexport
                   //_dataToexport = data!;
                   return PaginatedDataTable(
+                    sortColumnIndex: _sortColumnIndex,
+                    sortAscending: _sortAscending,
                     header: Row(
                       children: [
                         const Text("Liste des  sites"),
@@ -175,6 +182,17 @@ class _SupervisorListState extends State<SiteList> {
                                 },
                                 icon: const Icon(Icons.print))
                             : const SizedBox(),
+                        const SizedBox(
+                          width: 5,
+                        ),
+                        widget.manager.profil!.getModule(ModuleName.SITE)!.print
+                            ? IconButton(
+                                onPressed: () async {
+                                  ExportData.SitesToExcel(
+                                      _DataSource.dataToprint);
+                                },
+                                icon: const Icon(Icons.import_export))
+                            : const SizedBox(),
                       ],
                     ),
                     actions: [
@@ -199,23 +217,29 @@ class _SupervisorListState extends State<SiteList> {
                     ],
                     rowsPerPage: rowParPage,
                     showFirstLastButtons: true,
-                    columns: const [
-                      DataColumn(label: Text("Code")),
-                      DataColumn(label: Text("Nom")),
-                      DataColumn(label: Text("Email")),
-                      DataColumn(label: Text("Contact")),
-                      DataColumn(label: Text("Adresse")),
-                      DataColumn(label: Text("NB Agent"), numeric: true),
-                      DataColumn(label: Text("Position GPS")),
-                      DataColumn(label: Text("Superviseur 1")),
-                      DataColumn(label: Text("Superviseur 2")),
-                      DataColumn(label: Text("Statut")),
-                      DataColumn(label: Text("Action")),
+                    columns: [
+                      // const DataColumn(label: Text("Code")),
+                      DataColumn(
+                          onSort: (columnIndex, _) {
+                            setState(() {
+                              sortSite(columnIndex, data);
+                            });
+                          },
+                          label: const Text("Nom")),
+                      //const DataColumn(label: Text("Email")),
+                      const DataColumn(label: Text("Contact")),
+                      // const DataColumn(label: Text("Adresse")),
+                      const DataColumn(label: Text("NB Agent"), numeric: true),
+                      const DataColumn(label: Text("Position GPS")),
+                      const DataColumn(label: Text("Superviseur 1")),
+                      const DataColumn(label: Text("Superviseur 2")),
+                      const DataColumn(label: Text("Statut")),
+                      const DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
                         context: context,
                         keyword: _keyword,
-                        data: data!,
+                        data: data,
                         manager: widget.manager),
                   );
                 } else {
@@ -229,11 +253,27 @@ class _SupervisorListState extends State<SiteList> {
               })),
     );
   }
+
+  sortSite(index, List<Site> data) {
+    _sortColumnIndex = index;
+    if (_sortAscending == true) {
+      _sortAscending = false;
+      data.sort((site1, site2) {
+        return site1.name.compareTo(site2.name);
+      });
+    } else {
+      _sortAscending = true;
+      data.sort((site1, site2) {
+        return site2.name.compareTo(site1.name);
+      });
+    }
+  }
 }
 
 class _DataSource extends DataTableSource {
   static List<Site> dataToprint = [];
   List<Site> data;
+
   String keyword;
   BuildContext context;
   Manager manager;
@@ -248,7 +288,7 @@ class _DataSource extends DataTableSource {
     // TODO: implement getRow
     data = data.where((element) {
       if (element.supervisor_2 != null) {
-        return element.name.toLowerCase().contains(keyword.toLowerCase()) ||
+        return element.name.toLowerCase().startsWith(keyword.toLowerCase()) ||
             element.supervisor!.firstName
                 .toLowerCase()
                 .contains(keyword.toLowerCase()) ||
@@ -274,9 +314,9 @@ class _DataSource extends DataTableSource {
     dataToprint = data;
     if (index >= data.length) {
       return const DataRow(cells: [
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
+        //DataCell(Text("")),
+        //DataCell(Text("")),
+        //DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
@@ -290,11 +330,11 @@ class _DataSource extends DataTableSource {
     Site site = data[index];
 
     return DataRow(cells: [
-      DataCell(Text(site.codeSite)),
+      //DataCell(Text(site.codeSite)),
       DataCell(Text(site.name)),
-      DataCell(Text(site.email)),
+      //DataCell(Text(site.email)),
       DataCell(Text(site.phone)),
-      DataCell(Text(site.adresse)),
+      // DataCell(Text(site.adresse)),
       DataCell(Text(site.nbAgent.toString())),
       DataCell(Text("${site.latLng.lat} , ${site.latLng.lng}")),
       DataCell(
@@ -307,10 +347,10 @@ class _DataSource extends DataTableSource {
         site: site,
         manager: manager,
       )),
-      DataCell(site.actif!
-          ? Row(
-              children: [
-                IconButton(
+      DataCell(Row(
+        children: [
+          site.actif!
+              ? IconButton(
                   icon: Icon(
                     Icons.edit,
                     color: Theme.of(context).primaryColor,
@@ -325,8 +365,10 @@ class _DataSource extends DataTableSource {
                                   manager: manager,
                                 )));
                   },
-                ),
-                ElevatedButton(
+                )
+              : const SizedBox.shrink(),
+          site.actif!
+              ? ElevatedButton(
                   style: ElevatedButton.styleFrom(
                       shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(100))),
@@ -336,10 +378,15 @@ class _DataSource extends DataTableSource {
                   child: const Icon(
                     Icons.badge,
                   ),
-                ),
-              ],
-            )
-          : const SizedBox.shrink()),
+                )
+              : const SizedBox.shrink(),
+          site.actif!
+              ? const SizedBox.shrink()
+              : manager.profil!.getModule(ModuleName.SITE)!.delete
+                  ? DeleteSite(site: site)
+                  : const SizedBox.shrink()
+        ],
+      )),
     ]);
   }
 
@@ -356,7 +403,7 @@ class _DataSource extends DataTableSource {
   int get selectedRowCount => 0;
 }
 
-//widget d'état du superviseur
+//widget d'état du site
 
 class SiteStatut extends StatefulWidget {
   SiteStatut({super.key, required this.site, required this.manager});
@@ -377,7 +424,7 @@ class _SiteStatutState extends State<SiteStatut> {
               if (widget.manager.profil!
                   .getModule(ModuleName.SITE)!
                   .validation) {
-                actifInactifAgent();
+                actifInactifSite();
               }
             },
             child: Chip(
@@ -391,7 +438,7 @@ class _SiteStatutState extends State<SiteStatut> {
                         ? Checkbox(
                             value: widget.site.actif!,
                             onChanged: ((value) {
-                              actifInactifAgent();
+                              actifInactifSite();
                             }))
                         : const SizedBox.shrink(),
                     widget.site.actif!
@@ -406,7 +453,7 @@ class _SiteStatutState extends State<SiteStatut> {
           );
   }
 
-  void actifInactifAgent() {
+  void actifInactifSite() {
     setState(() {
       _updating = true;
     });
@@ -418,6 +465,47 @@ class _SiteStatutState extends State<SiteStatut> {
     }).onError((error, stackTrace) {
       setState(() {
         _updating = false;
+      });
+    });
+  }
+}
+
+//widget btn delete du site
+
+class DeleteSite extends StatefulWidget {
+  DeleteSite({super.key, required this.site});
+  Site site;
+  @override
+  _DeleteSiteState createState() => _DeleteSiteState();
+}
+
+class _DeleteSiteState extends State<DeleteSite> {
+  bool _deleting = false;
+  @override
+  Widget build(BuildContext context) {
+    return _deleting
+        ? Loading(size: 28, inline: false)
+        : IconButton(
+            onPressed: () {
+              deleteSite();
+            },
+            icon: const Icon(
+              Icons.delete,
+              color: Colors.red,
+            ));
+  }
+
+  void deleteSite() {
+    setState(() {
+      _deleting = true;
+    });
+    SiteService().delete(widget.site).then((value) {
+      setState(() {
+        _deleting = false;
+      });
+    }).onError((error, stackTrace) {
+      setState(() {
+        _deleting = false;
       });
     });
   }

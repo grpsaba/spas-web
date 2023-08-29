@@ -12,7 +12,10 @@ class UserPage extends StatelessWidget {
         length: 2,
         child: Scaffold(
           appBar: const TabBar(
-            tabs: [Tab(text: "Utilisateurs"), Tab(text: "Profils")],
+            tabs: [
+              Tab(icon: Icon(Icons.person), text: "Utilisateurs"),
+              Tab(icon: Icon(Icons.work), text: "Profils")
+            ],
           ),
           body: TabBarView(children: [
             ManagerList(

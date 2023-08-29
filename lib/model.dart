@@ -417,7 +417,9 @@ class Tool {
       label: json["label"],
       serialNumber: json["serialNumber"],
       site: Site.fromJson(json["site"]),
-      catTool: CategorieTool.fromJson(json["catTool"]),
+      catTool: json["catTool"] == null
+          ? null
+          : CategorieTool.fromJson(json["catTool"]),
     );
   }
 
@@ -589,6 +591,9 @@ class Module {
         break;
       case "TOOL":
         moduleName = ModuleName.TOOL;
+        break;
+      case "CATEGORIE_TOOL":
+        moduleName = ModuleName.CATEGORIE_TOOL;
         break;
       default:
         moduleName = ModuleName.MANAGER;

@@ -13,6 +13,7 @@ import 'package:spas_web/tools/tool_list.dart';
 
 import '../accueil/home_page.dart';
 import '../accueil/maps.dart';
+import '../categorieTools/catTool_list.dart';
 import '../const.dart';
 import '../manager/user_page.dart';
 import '../model.dart';
@@ -321,7 +322,24 @@ class _AdminHomeState extends State<AdminHome> {
                   style: ListTileStyle.drawer,
                   selected: _menuIdex == 10,
                 ),
-                /*ListTile(
+                ListTile(
+                  onTap: () {
+                    navigeTo(11);
+                  },
+                  leading: CircleAvatar(
+                      radius: 18,
+                      child: Icon(
+                        Icons.category_rounded,
+                        color: Theme.of(context).primaryColor,
+                      )),
+                  title: !_howDrawer ? null : const Text("Equipements"),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 11,
+                ),
+                /* ListTile(
                   onTap: () {
                     navigeTo(11);
                   },
@@ -415,6 +433,14 @@ class _AdminHomeState extends State<AdminHome> {
         //case 11:
         return const CalendarPlanner();
         return const Holyday(title: "Repos");
+
+      case 11:
+        return widget.manager.profil!.getModule(ModuleName.CATEGORIE_TOOL)!.view
+            ? CatToolList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
+
       default:
         return const Center(
           child: Text("Page non disponible"),

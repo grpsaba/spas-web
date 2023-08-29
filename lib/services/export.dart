@@ -240,6 +240,109 @@ class ExportData {
       ..setAttribute("download", "pointageSites.xlsx")
       ..click();
   }
+
+  static void SitesToExcel(List<Site> data) {
+    int rowIndex = 1;
+    var workbook = Workbook();
+    var sheet = workbook.worksheets[0];
+    sheet.showGridlines = true;
+    // set borders line style and color for cell.
+    final Style style = workbook.styles.add('style');
+    style.borders.all.lineStyle = LineStyle.thin;
+    style.borders.all.color = '#000000';
+    style.fontSize = 12;
+    style.bold = true;
+    style.backColor = "#32CD32";
+
+    sheet.getRangeByIndex(1, 1).setText("Nom");
+    sheet.getRangeByIndex(1, 1).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 2).setText("Adresse");
+    sheet.getRangeByIndex(1, 2).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 3).setText("Email");
+    sheet.getRangeByIndex(1, 3).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 4).setText("Contact");
+    sheet.getRangeByIndex(1, 4).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 5).setText("NB Agent prévu");
+    sheet.getRangeByIndex(1, 5).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 6).setText("Position GPS");
+    sheet.getRangeByIndex(1, 6).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 7).setText("Superviseur 1");
+    sheet.getRangeByIndex(1, 7).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 8).setText("Superviseur 2");
+    sheet.getRangeByIndex(1, 8).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 9).setText("Statut");
+    sheet.getRangeByIndex(1, 9).cellStyle = style;
+
+    style.fontSize = 10;
+    style.bold = false;
+    style.backColor = "#FFFFFF";
+
+    for (var site in data) {
+      rowIndex++;
+      sheet.getRangeByIndex(rowIndex, 1).setText(site.name);
+      sheet.getRangeByIndex(rowIndex, 1).columnWidth = 12;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.color =
+          '#000000';
+
+      sheet.getRangeByIndex(rowIndex, 2).setText(site.adresse);
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 3).setText(site.email);
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 4).setText(site.phone);
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 5).setNumber(site.nbAgent as double?);
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle = style;
+
+      sheet
+          .getRangeByIndex(rowIndex, 6)
+          .setText("${site.latLng.lat}  ${site.latLng.lng}");
+      sheet.getRangeByIndex(rowIndex, 6).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 7).setText(
+          "${site.supervisor?.firstName ?? ""} ${site.supervisor?.lastName ?? ""}");
+      sheet.getRangeByIndex(rowIndex, 7).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 8).setText(
+          "${site.supervisor_2?.firstName ?? ""} ${site.supervisor_2?.lastName ?? ""}");
+      sheet.getRangeByIndex(rowIndex, 8).cellStyle = style;
+
+      String statut = site.actif == null
+          ? "Inconnu"
+          : site.actif!
+              ? "Actif"
+              : "Inactif";
+      sheet.getRangeByIndex(rowIndex, 9).setText(statut);
+      sheet.getRangeByIndex(rowIndex, 9).cellStyle = style;
+    }
+    //Save and launch the excel.
+    final List<int> bytes = workbook.saveAsStream();
+    var file = File(bytes, "Sites.xlsx");
+
+    //Dispose the document.
+    workbook.dispose();
+    //Save and launch file.
+
+    final content = base64Encode(bytes);
+    final anchor = AnchorElement(
+        href: "data:application/octet-stream;charset=utf-16le;base64,$content")
+      ..setAttribute("download", "Sites.xlsx")
+      ..click();
+  }
 }
 
 class CarteGenerator {
@@ -816,7 +919,7 @@ class SiteListToPDF {
         site.phone,
         '${site.supervisor?.firstName} ${site.supervisor?.lastName}',
         site.nbAgent,
-        site.actif!?"Actif":"Inactif"
+        site.actif! ? "Actif" : "Inactif"
       ];
     }).toList();
 

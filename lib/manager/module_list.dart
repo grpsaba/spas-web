@@ -224,7 +224,7 @@ class _ModuleListState extends State<ModuleList> {
               if (snapshot.hasData) {
                 var profil = snapshot.data;
                 return SizedBox(
-                  height: MediaQuery.of(context).size.height - 135,
+                  height: MediaQuery.of(context).size.height - 160,
                   child: ListView.builder(
                       itemCount: profil?.modules.length,
                       itemBuilder: (context, index) {
