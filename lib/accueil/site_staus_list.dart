@@ -62,8 +62,7 @@ class _SupervisorListState extends State<SiteListWithStatus> {
               ],
             ),
             const Divider(),
-            SizedBox(
-              height: MediaQuery.of(context).size.height - 264,
+            Expanded(
               child: StreamBuilder(
                   stream: _siteService.all(),
                   builder: (context, snapshot) {

@@ -6,6 +6,7 @@ import 'package:intl/intl.dart';
 import 'package:spas_web/search_textField.dart';
 
 import '../model.dart';
+import '../pdf/api/pdf_api.dart';
 import '../rowperPageWidget.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
@@ -28,11 +29,19 @@ class _SupervisorListState extends State<PointageAgentList> {
   List<Map<String, dynamic>> _dataToexport = [];
   int rowParPage = 0;
   int defauldRowParPage = 10;
+
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     rowParPage = defauldRowParPage;
+  }
+
+  //basculer entre les tables comptage de presence et liste de presence
+  bool _isPresenceList = false;
+  void toogleTable() {
+    _isPresenceList = _isPresenceList ? false : true;
+    setState(() {});
   }
 
   @override
@@ -48,12 +57,22 @@ class _SupervisorListState extends State<PointageAgentList> {
                       .toList();
                   var data =
                       docs?.map((e) => PointingAgent.fromJson(e)).toList();
+                  //données de présence avec l'heure
+                  var pointagesPresence = data
+                      ?.where((element) => (element.date.isAfter(_debut) &&
+                          element.date
+                              .isBefore(_fin.add(const Duration(days: 1)))))
+                      .toList();
 
+                  //filtrage des données de comptage de présence
                   data = data?.where((element) {
                     return (element.agent.firstName
                                 .toLowerCase()
                                 .contains(_keyword.toLowerCase()) ||
                             element.agent.code
+                                .toLowerCase()
+                                .contains(_keyword.toLowerCase()) ||
+                            element.agent.type
                                 .toLowerCase()
                                 .contains(_keyword.toLowerCase())) &&
                         (element.date.isAfter(_debut) &&
@@ -85,182 +104,391 @@ class _SupervisorListState extends State<PointageAgentList> {
                   }
                   //copy to _dataToexport
                   _dataToexport = pointages;
-                  return PaginatedDataTable(
-                    rowsPerPage: rowParPage,
-                    header: Row(
-                      children: [
-                        const Text("Pointages Agent"),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        SearchTextField(
-                            onSearch: (value) {
-                              _keyword = value;
-                              setState(() {});
-                            },
-                            onPress: () {})
-                      ],
-                    ),
-                    actions: [
-                      Row(
-                        children: [
-                          Checkbox(
-                              value: _isBefore30,
-                              onChanged: (newValue) {
-                                setState(() {
-                                  _isBefore30 = _isBefore30 ? false : true;
-                                });
-                              }),
-                          const Text(
-                            "Nombre de jours inferieur à 30",
-                            style: TextStyle(fontSize: 12),
-                          )
-                        ],
-                      ),
-                      const SizedBox(
-                        width: 10,
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          ExportData.pointageAgentToExcel(_dataToexport,
-                              _debut.toString(), _fin.toString(), _isBefore30);
-                        },
-                        child: const Icon(Icons.download),
-                      ),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      ElevatedButton(
-                        onPressed: () {
-                          showDialog(
-                              context: context,
-                              builder: (_) {
-                                return AlertDialog(
-                                  content: Container(
-                                    height: 300,
-                                    decoration: BoxDecoration(
-                                        borderRadius:
-                                            BorderRadius.circular(20.0)),
-                                    child: Column(
-                                      children: [
-                                        Container(
-                                          child: Padding(
-                                            padding: EdgeInsets.all(8.0),
-                                            child: Text(
-                                              "Sélctionner une période",
-                                              style: TextStyle(
-                                                  color: Theme.of(context)
-                                                      .primaryColor),
-                                            ),
-                                          ),
-                                        ),
-                                        const SizedBox(
-                                          height: 10,
-                                        ),
-                                        Padding(
-                                          padding: const EdgeInsets.all(8.0),
+                  return _isPresenceList
+                      ? PaginatedDataTable(
+                          rowsPerPage: rowParPage,
+                          header: Row(
+                            children: [
+                              const Text("Pointages Agent"),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              SearchTextField(
+                                  onSearch: (value) {
+                                    _keyword = value;
+                                    setState(() {});
+                                  },
+                                  onPress: () {}),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              ElevatedButton(
+                                  onPressed: () {
+                                    toogleTable();
+                                  },
+                                  child: Text(_isPresenceList
+                                      ? "Comptage de présence"
+                                      : "Liste de présence"))
+                            ],
+                          ),
+                          actions: [
+                            ElevatedButton(
+                              onPressed: () async {
+                                var document =
+                                    await PointageAgentListToPDF.export(
+                                        _DataPresence.dataToExport);
+                                PdfApi.openFile(document);
+                              },
+                              child: const Icon(Icons.print),
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                showDialog(
+                                    context: context,
+                                    builder: (_) {
+                                      return AlertDialog(
+                                        content: Container(
+                                          height: 300,
+                                          decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20.0)),
                                           child: Column(
                                             children: [
-                                              DateTimeField(
-                                                  decoration:
-                                                      const InputDecoration(
-                                                          hintText:
-                                                              "Date début"),
-                                                  format: DateFormat.yMd(),
-                                                  onChanged: (value) {
-                                                    _debut =
-                                                        value ?? DateTime.now();
+                                              Container(
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(8.0),
+                                                  child: Text(
+                                                    "Sélctionner une période",
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .primaryColor),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.all(8.0),
+                                                child: Column(
+                                                  children: [
+                                                    DateTimeField(
+                                                        decoration:
+                                                            const InputDecoration(
+                                                                hintText:
+                                                                    "Date début"),
+                                                        format:
+                                                            DateFormat.yMd(),
+                                                        onChanged: (value) {
+                                                          _debut = value ??
+                                                              DateTime.now();
+                                                        },
+                                                        onShowPicker:
+                                                            (context, date) {
+                                                          return showDatePicker(
+                                                              context: context,
+                                                              initialDate:
+                                                                  DateTime
+                                                                      .now(),
+                                                              firstDate:
+                                                                  DateTime(
+                                                                      1900),
+                                                              lastDate:
+                                                                  DateTime(
+                                                                      3000));
+                                                        }),
+                                                    const SizedBox(height: 10),
+                                                    DateTimeField(
+                                                        decoration:
+                                                            const InputDecoration(
+                                                                hintText:
+                                                                    "Date Fin"),
+                                                        format:
+                                                            DateFormat.yMd(),
+                                                        onChanged: (value) {
+                                                          _fin = value ??
+                                                              DateTime.now().add(
+                                                                  const Duration(
+                                                                      days: 1));
+                                                        },
+                                                        onShowPicker:
+                                                            (context, date) {
+                                                          return showDatePicker(
+                                                              context: context,
+                                                              initialDate:
+                                                                  DateTime
+                                                                      .now(),
+                                                              firstDate:
+                                                                  DateTime(
+                                                                      1900),
+                                                              lastDate:
+                                                                  DateTime(
+                                                                      3000));
+                                                        }),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 30),
+                                              ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      Navigator.of(context)
+                                                          .pop();
+                                                    });
                                                   },
-                                                  onShowPicker:
-                                                      (context, date) {
-                                                    return showDatePicker(
-                                                        context: context,
-                                                        initialDate:
-                                                            DateTime.now(),
-                                                        firstDate:
-                                                            DateTime(1900),
-                                                        lastDate:
-                                                            DateTime(3000));
-                                                  }),
-                                              const SizedBox(height: 10),
-                                              DateTimeField(
-                                                  decoration:
-                                                      const InputDecoration(
-                                                          hintText: "Date Fin"),
-                                                  format: DateFormat.yMd(),
-                                                  onChanged: (value) {
-                                                    _fin = value ??
-                                                        DateTime.now().add(
-                                                            const Duration(
-                                                                days: 1));
-                                                  },
-                                                  onShowPicker:
-                                                      (context, date) {
-                                                    return showDatePicker(
-                                                        context: context,
-                                                        initialDate:
-                                                            DateTime.now(),
-                                                        firstDate:
-                                                            DateTime(1900),
-                                                        lastDate:
-                                                            DateTime(3000));
-                                                  }),
+                                                  child: const Text("Valider"))
                                             ],
                                           ),
                                         ),
-                                        const SizedBox(height: 30),
-                                        ElevatedButton(
-                                            onPressed: () {
-                                              setState(() {
-                                                Navigator.of(context).pop();
-                                              });
-                                            },
-                                            child: const Text("Valider"))
-                                      ],
-                                    ),
-                                  ),
-                                );
-                              });
-                        },
-                        child: const Icon(Icons.calendar_month),
-                      ),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      RowPerPageWidget(
-                        controller: _texController,
-                        incremente: () {
-                          setState(() {
-                            rowParPage += 1;
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                        decremente: () {
-                          setState(() {
-                            rowParPage = rowParPage <= defauldRowParPage
-                                ? defauldRowParPage
-                                : rowParPage - 1;
+                                      );
+                                    });
+                              },
+                              child: const Icon(Icons.calendar_month),
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            RowPerPageWidget(
+                              controller: _texController,
+                              incremente: () {
+                                setState(() {
+                                  rowParPage += 1;
+                                  _texController.text = rowParPage.toString();
+                                });
+                              },
+                              decremente: () {
+                                setState(() {
+                                  rowParPage = rowParPage <= defauldRowParPage
+                                      ? defauldRowParPage
+                                      : rowParPage - 1;
 
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                      ),
-                    ],
-                    showFirstLastButtons: true,
-                    columns: const [
-                      DataColumn(label: Text("Période")),
-                      DataColumn(label: Text("code")),
-                      DataColumn(label: Text("Prénom")),
-                      DataColumn(label: Text("Nom")),
-                      DataColumn(label: Text("contact")),
-                      DataColumn(label: Text("Présence"), numeric: true),
-                    ],
-                    source: _DataSource(
-                        context: context,
-                        data: pointages,
-                        debut: _debut,
-                        fin: _fin),
-                  );
+                                  _texController.text = rowParPage.toString();
+                                });
+                              },
+                            ),
+                          ],
+                          showFirstLastButtons: true,
+                          columns: const [
+                            DataColumn(label: Text("Date")),
+                            DataColumn(label: Text("Heure")),
+                            DataColumn(label: Text("code")),
+                            DataColumn(label: Text("Prénom")),
+                            DataColumn(label: Text("Nom")),
+                            DataColumn(label: Text("contact")),
+                            DataColumn(label: Text("Domaine")),
+                          ],
+                          source: _DataPresence(
+                            context: context,
+                            data: pointagesPresence ?? [],
+                            keyword: _keyword,
+                          ),
+                        )
+                      : PaginatedDataTable(
+                          rowsPerPage: rowParPage,
+                          header: Row(
+                            children: [
+                              const Text("Pointages Agent"),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              SearchTextField(
+                                  onSearch: (value) {
+                                    _keyword = value;
+                                    setState(() {});
+                                  },
+                                  onPress: () {}),
+                              const SizedBox(
+                                width: 10,
+                              ),
+                              ElevatedButton(
+                                  onPressed: () {
+                                    toogleTable();
+                                  },
+                                  child: Text(_isPresenceList
+                                      ? "Comptage de présence"
+                                      : "Liste de présence"))
+                            ],
+                          ),
+                          actions: [
+                            Row(
+                              children: [
+                                Checkbox(
+                                    value: _isBefore30,
+                                    onChanged: (newValue) {
+                                      setState(() {
+                                        _isBefore30 =
+                                            _isBefore30 ? false : true;
+                                      });
+                                    }),
+                                const Text(
+                                  "Nombre de jours inferieur à 30",
+                                  style: TextStyle(fontSize: 12),
+                                )
+                              ],
+                            ),
+                            const SizedBox(
+                              width: 10,
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                ExportData.pointageAgentToExcel(
+                                    _dataToexport,
+                                    _debut.toString(),
+                                    _fin.toString(),
+                                    _isBefore30);
+                              },
+                              child: const Icon(Icons.download),
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            ElevatedButton(
+                              onPressed: () {
+                                showDialog(
+                                    context: context,
+                                    builder: (_) {
+                                      return AlertDialog(
+                                        content: Container(
+                                          height: 300,
+                                          decoration: BoxDecoration(
+                                              borderRadius:
+                                                  BorderRadius.circular(20.0)),
+                                          child: Column(
+                                            children: [
+                                              Container(
+                                                child: Padding(
+                                                  padding: EdgeInsets.all(8.0),
+                                                  child: Text(
+                                                    "Sélctionner une période",
+                                                    style: TextStyle(
+                                                        color: Theme.of(context)
+                                                            .primaryColor),
+                                                  ),
+                                                ),
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.all(8.0),
+                                                child: Column(
+                                                  children: [
+                                                    DateTimeField(
+                                                        decoration:
+                                                            const InputDecoration(
+                                                                hintText:
+                                                                    "Date début"),
+                                                        format:
+                                                            DateFormat.yMd(),
+                                                        onChanged: (value) {
+                                                          _debut = value ??
+                                                              DateTime.now();
+                                                        },
+                                                        onShowPicker:
+                                                            (context, date) {
+                                                          return showDatePicker(
+                                                              context: context,
+                                                              initialDate:
+                                                                  DateTime
+                                                                      .now(),
+                                                              firstDate:
+                                                                  DateTime(
+                                                                      1900),
+                                                              lastDate:
+                                                                  DateTime(
+                                                                      3000));
+                                                        }),
+                                                    const SizedBox(height: 10),
+                                                    DateTimeField(
+                                                        decoration:
+                                                            const InputDecoration(
+                                                                hintText:
+                                                                    "Date Fin"),
+                                                        format:
+                                                            DateFormat.yMd(),
+                                                        onChanged: (value) {
+                                                          _fin = value ??
+                                                              DateTime.now().add(
+                                                                  const Duration(
+                                                                      days: 1));
+                                                        },
+                                                        onShowPicker:
+                                                            (context, date) {
+                                                          return showDatePicker(
+                                                              context: context,
+                                                              initialDate:
+                                                                  DateTime
+                                                                      .now(),
+                                                              firstDate:
+                                                                  DateTime(
+                                                                      1900),
+                                                              lastDate:
+                                                                  DateTime(
+                                                                      3000));
+                                                        }),
+                                                  ],
+                                                ),
+                                              ),
+                                              const SizedBox(height: 30),
+                                              ElevatedButton(
+                                                  onPressed: () {
+                                                    setState(() {
+                                                      Navigator.of(context)
+                                                          .pop();
+                                                    });
+                                                  },
+                                                  child: const Text("Valider"))
+                                            ],
+                                          ),
+                                        ),
+                                      );
+                                    });
+                              },
+                              child: const Icon(Icons.calendar_month),
+                            ),
+                            const SizedBox(
+                              height: 20,
+                            ),
+                            RowPerPageWidget(
+                              controller: _texController,
+                              incremente: () {
+                                setState(() {
+                                  rowParPage += 1;
+                                  _texController.text = rowParPage.toString();
+                                });
+                              },
+                              decremente: () {
+                                setState(() {
+                                  rowParPage = rowParPage <= defauldRowParPage
+                                      ? defauldRowParPage
+                                      : rowParPage - 1;
+
+                                  _texController.text = rowParPage.toString();
+                                });
+                              },
+                            ),
+                          ],
+                          showFirstLastButtons: true,
+                          columns: const [
+                            DataColumn(label: Text("Période")),
+                            DataColumn(label: Text("code")),
+                            DataColumn(label: Text("Prénom")),
+                            DataColumn(label: Text("Nom")),
+                            DataColumn(label: Text("contact")),
+                            DataColumn(label: Text("Domaine")),
+                            DataColumn(label: Text("Présence"), numeric: true),
+                          ],
+                          source: _DataSource(
+                              context: context,
+                              data: pointages,
+                              debut: _debut,
+                              fin: _fin),
+                        );
                 } else {
                   return Center(
                     child: Loading(
@@ -297,6 +525,7 @@ class _DataSource extends DataTableSource {
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     Agent agent = data[index]["agent"];
@@ -308,7 +537,83 @@ class _DataSource extends DataTableSource {
       DataCell(Text(agent.firstName)),
       DataCell(Text(agent.lastName)),
       DataCell(Text(agent.phone)),
-      DataCell(Text(pointages.length.toString())),
+      DataCell(Chip(label: Text(agent.type))),
+      DataCell(Chip(
+        label: Text(pointages.length.toString()),
+        backgroundColor: Colors.orangeAccent,
+      )),
+    ]);
+  }
+
+  @override
+  // TODO: implement isRowCountApproximate
+  bool get isRowCountApproximate => false;
+
+  @override
+  // TODO: implement rowCount
+  int get rowCount => data.length;
+
+  @override
+  // TODO: implement selectedRowCount
+  int get selectedRowCount => 0;
+}
+
+class _DataPresence extends DataTableSource {
+  List<PointingAgent> data;
+  static List<PointingAgent> dataToExport = [];
+  String keyword;
+
+  BuildContext context;
+
+  _DataPresence({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
+  @override
+  DataRow? getRow(int index) {
+    // TODO: implement getRow
+    data.sort((p1, p2) {
+      return p1.date.compareTo(p2.date);
+    });
+    data = data
+        .where((element) =>
+            element.agent.firstName
+                .toLowerCase()
+                .contains(keyword.toLowerCase()) ||
+            element.agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
+            element.agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
+            element.agent.type.toLowerCase().contains(keyword.toLowerCase()))
+        .toList();
+    dataToExport = data;
+    if (index >= data.length) {
+      return const DataRow(cells: [
+        DataCell(Text("")),
+        DataCell(Text("")),
+        DataCell(Text("")),
+        DataCell(Text("")),
+        DataCell(Text("")),
+        DataCell(Text("")),
+        DataCell(Text("")),
+      ]);
+    }
+
+    PointingAgent pointage = data[index];
+    return DataRow(cells: [
+      DataCell(Chip(
+          side: BorderSide.none,
+          label: Text(pointage.date.toString().split(" ")[0]))),
+      DataCell(Chip(
+        label: Text(
+            "${pointage.date.hour}:${pointage.date.minute}:${pointage.date.second}"),
+      )),
+      DataCell(Text(pointage.agent.code)),
+      DataCell(Text(pointage.agent.firstName)),
+      DataCell(Text(pointage.agent.lastName)),
+      DataCell(Text(pointage.agent.phone)),
+      DataCell(Chip(
+        label: Text(pointage.agent.type),
+      )),
     ]);
   }
 

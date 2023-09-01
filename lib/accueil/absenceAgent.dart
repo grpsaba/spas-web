@@ -79,8 +79,7 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
               ],
             ),
             const Divider(),
-            SizedBox(
-              height: MediaQuery.of(context).size.height - 264,
+            Expanded(
               child: StreamBuilder(
                   stream: AgentService().all(),
                   builder: (context, snapshot) {
