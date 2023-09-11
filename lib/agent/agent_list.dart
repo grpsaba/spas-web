@@ -10,6 +10,7 @@ import '../rowperPageWidget.dart';
 import '../services/agent.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
+import 'import_agent.dart';
 
 class AgentList extends StatefulWidget {
   AgentList({super.key, required Manager this.manager});
@@ -177,6 +178,24 @@ class _AgentListState extends State<AgentList> {
                                                 )));
                                   },
                                   child: const Icon(Icons.add),
+                                ),
+                              )
+                            : const SizedBox.shrink(),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        widget.manager.profil!.getModule(ModuleName.AGENT)!.add
+                            ? Tooltip(
+                                message: "Importer Agents",
+                                child: ElevatedButton(
+                                  onPressed: () async {
+                                    Navigator.push(
+                                        context,
+                                        MaterialPageRoute(
+                                            builder: (_) =>
+                                                const ImportAgent()));
+                                  },
+                                  child: const Icon(Icons.upload_file),
                                 ),
                               )
                             : const SizedBox.shrink(),

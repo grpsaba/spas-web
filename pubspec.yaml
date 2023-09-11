@@ -60,6 +60,8 @@ dependencies:
   google_fonts: ^5.1.0
   time_planner: ^0.1.1
   syncfusion_flutter_calendar: ^22.2.7
+  excel: ^2.1.0
+  file_picker: ^5.5.0
 
 dev_dependencies:
   flutter_test:
