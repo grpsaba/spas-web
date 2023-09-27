@@ -43,12 +43,9 @@ class SiteService {
         })
         .toList()
         .where((element) {
-          if (element.supervisor_2 != null) {
-            return element.supervisor?.UID == uid ||
-                element.supervisor_2?.UID == uid;
-          } else {
-            return element.supervisor?.UID == uid;
-          }
+          return element.actif == true &&
+              (element.supervisor?.UID == uid ||
+                  element.supervisor_2?.UID == uid);
         })
         .toList();
 

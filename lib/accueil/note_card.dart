@@ -3,14 +3,13 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/note_list_tb.dart';
 
+import '../administration/noteStat_wiget.dart';
 import '../model.dart';
 import '../services/note.dart';
 
 class NoteCard extends StatelessWidget {
-  const NoteCard({
-    super.key,
-  });
-
+  NoteCard({super.key, required this.manager});
+  Manager manager;
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -27,9 +26,11 @@ class NoteCard extends StatelessWidget {
                     var height = MediaQuery.of(context).size.height;
                     var width = MediaQuery.of(context).size.width;
 
-                    return Container(
+                    return SizedBox(
                       width: width - (width - 500),
-                      child: const NoteListTB(),
+                      child: NoteListTB(
+                        manager: manager,
+                      ),
                     );
                   },
                 ),
@@ -79,9 +80,16 @@ class NoteCard extends StatelessWidget {
                     List<Note>? data =
                         docs?.map((e) => Note.fromJson(e)).toList();
                     data = data?.where((note) => note.viewed == false).toList();
-                    return Text(
-                      "${data?.length}",
-                      style: const TextStyle(color: Colors.white, fontSize: 30),
+                    return Row(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const NoteStat(),
+                        Text(
+                          "${data?.length}",
+                          style: const TextStyle(
+                              color: Colors.white, fontSize: 30),
+                        ),
+                      ],
                     );
                   } else {
                     return const Text(

@@ -29,7 +29,8 @@ class _SupervisorListState extends State<PointageAgentList> {
   List<Map<String, dynamic>> _dataToexport = [];
   int rowParPage = 0;
   int defauldRowParPage = 10;
-
+  bool _sortAscending = true;
+  int _sortIndex = 0;
   @override
   void initState() {
     // TODO: implement initState
@@ -87,6 +88,7 @@ class _SupervisorListState extends State<PointageAgentList> {
                   for (Agent agent in agents ?? []) {
                     var Listpointage = data
                         ?.where((element) => element.agent.code == agent.code)
+                        .toSet()
                         .toList();
                     pointages
                         .add({"agent": agent, "pointages": Listpointage ?? []});
@@ -106,6 +108,8 @@ class _SupervisorListState extends State<PointageAgentList> {
                   _dataToexport = pointages;
                   return _isPresenceList
                       ? PaginatedDataTable(
+                          sortAscending: _sortAscending,
+                          sortColumnIndex: _sortIndex,
                           rowsPerPage: rowParPage,
                           header: Row(
                             children: [
@@ -272,14 +276,88 @@ class _SupervisorListState extends State<PointageAgentList> {
                             ),
                           ],
                           showFirstLastButtons: true,
-                          columns: const [
-                            DataColumn(label: Text("Date")),
-                            DataColumn(label: Text("Heure")),
-                            DataColumn(label: Text("code")),
-                            DataColumn(label: Text("Prénom")),
-                            DataColumn(label: Text("Nom")),
-                            DataColumn(label: Text("contact")),
-                            DataColumn(label: Text("Domaine")),
+                          columns: [
+                            DataColumn(
+                                label: const Text("Date"),
+                                onSort: (index, _) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P1.date.compareTo(P2.date);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P2.date.compareTo(P1.date);
+                                      });
+                                    }
+                                  });
+                                }),
+                            const DataColumn(label: Text("Heure")),
+                            const DataColumn(label: Text("code")),
+                            DataColumn(
+                                label: const Text("Prénom"),
+                                onSort: (index, ascending) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P1.agent.firstName
+                                            .compareTo(P2.agent.firstName);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P2.agent.firstName
+                                            .compareTo(P1.agent.firstName);
+                                      });
+                                    }
+                                  });
+                                }),
+                            DataColumn(
+                                label: const Text("Nom"),
+                                onSort: (index, ascending) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P1.agent.lastName
+                                            .compareTo(P2.agent.lastName);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P2.agent.lastName
+                                            .compareTo(P1.agent.lastName);
+                                      });
+                                    }
+                                  });
+                                }),
+                            DataColumn(
+                                label: const Text("contact"),
+                                onSort: (index, ascending) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P1.agent.phone
+                                            .compareTo(P2.agent.phone);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointagesPresence?.sort((P1, P2) {
+                                        return P2.agent.phone
+                                            .compareTo(P1.agent.phone);
+                                      });
+                                    }
+                                  });
+                                }),
+                            const DataColumn(label: Text("Domaine")),
                           ],
                           source: _DataPresence(
                             context: context,
@@ -288,6 +366,8 @@ class _SupervisorListState extends State<PointageAgentList> {
                           ),
                         )
                       : PaginatedDataTable(
+                          sortColumnIndex: _sortIndex,
+                          sortAscending: _sortAscending,
                           rowsPerPage: rowParPage,
                           header: Row(
                             children: [
@@ -474,14 +554,84 @@ class _SupervisorListState extends State<PointageAgentList> {
                             ),
                           ],
                           showFirstLastButtons: true,
-                          columns: const [
-                            DataColumn(label: Text("Période")),
-                            DataColumn(label: Text("code")),
-                            DataColumn(label: Text("Prénom")),
-                            DataColumn(label: Text("Nom")),
-                            DataColumn(label: Text("contact")),
-                            DataColumn(label: Text("Domaine")),
-                            DataColumn(label: Text("Présence"), numeric: true),
+                          columns: [
+                            const DataColumn(label: Text("Période")),
+                            const DataColumn(label: Text("code")),
+                            DataColumn(
+                                label: const Text("Prénom"),
+                                onSort: (index, ascending) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointages.sort((P1, P2) {
+                                        Agent agent1 = P1["agent"];
+                                        Agent agent2 = P2["agent"];
+                                        return agent1.firstName
+                                            .compareTo(agent2.firstName);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointages.sort((P1, P2) {
+                                        Agent agent1 = P1["agent"];
+                                        Agent agent2 = P2["agent"];
+                                        return agent2.firstName
+                                            .compareTo(agent1.firstName);
+                                      });
+                                    }
+                                  });
+                                }),
+                            DataColumn(
+                                label: const Text("Nom"),
+                                onSort: (index, ascending) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointages.sort((P1, P2) {
+                                        Agent agent1 = P1["agent"];
+                                        Agent agent2 = P2["agent"];
+                                        return agent1.lastName
+                                            .compareTo(agent2.lastName);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointages.sort((P1, P2) {
+                                        Agent agent1 = P1["agent"];
+                                        Agent agent2 = P2["agent"];
+                                        return agent2.lastName
+                                            .compareTo(agent1.lastName);
+                                      });
+                                    }
+                                  });
+                                }),
+                            DataColumn(
+                                label: Text("contact"),
+                                onSort: (index, ascending) {
+                                  setState(() {
+                                    _sortIndex = index;
+                                    if (_sortAscending == true) {
+                                      _sortAscending = false;
+                                      pointages.sort((P1, P2) {
+                                        Agent agent1 = P1["agent"];
+                                        Agent agent2 = P2["agent"];
+                                        return agent1.phone
+                                            .compareTo(agent2.phone);
+                                      });
+                                    } else {
+                                      _sortAscending = true;
+                                      pointages.sort((P1, P2) {
+                                        Agent agent1 = P1["agent"];
+                                        Agent agent2 = P2["agent"];
+                                        return agent2.phone
+                                            .compareTo(agent1.phone);
+                                      });
+                                    }
+                                  });
+                                }),
+                            const DataColumn(label: Text("Domaine")),
+                            const DataColumn(
+                                label: Text("Présence"), numeric: true),
                           ],
                           source: _DataSource(
                               context: context,

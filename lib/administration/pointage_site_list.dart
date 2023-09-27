@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:spas_web/supervisor/site_pointage_map.dart';
 
 import '../model.dart';
 import '../pdf/api/pdf_api.dart';
@@ -23,10 +24,13 @@ class _SupervisorListState extends State<PointageSiteList> {
   final PointingSiteService _service = PointingSiteService();
   final TextEditingController _texController = TextEditingController();
   String _keyword = "";
+  DateTime _datePointage = DateTime.now();
   DateTime _debut = DateTime.now().subtract(const Duration(days: 1));
   DateTime _fin = DateTime.now().add(const Duration(days: 1));
   int rowParPage = 0;
   int defauldRowParPage = 10;
+  int _sortIndex = 0;
+  bool _sortAscending = true;
   @override
   void initState() {
     // TODO: implement initState
@@ -52,11 +56,19 @@ class _SupervisorListState extends State<PointageSiteList> {
                   var docs = snapshot.data?.docs
                       .map((e) => jsonDecode(jsonEncode(e.data())))
                       .toList();
-                  var lst = jsonDecode(jsonEncode(docs));
+                  //var lst = jsonDecode(jsonEncode(docs));
                   //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
                   var data =
                       docs?.map((e) => PointingSite.fromJson(e)).toList();
+                  //tri sur la date et le supervieur
+                  data?.sort((p1, p2) {
+                    var a =
+                        "${p1.supervisor!.UID}${p1.date.year}${p1.date.month}${p1.date.day}";
+                    var b =
+                        "${p2.supervisor!.UID}${p2.date.year}${p2.date.month}${p2.date.day}";
+                    return a.compareTo(b);
+                  });
 
                   /* List<Map<String, dynamic>> pointages = [];
                   var sitesList = data?.map((e) => e.site).toSet().toList();
@@ -73,6 +85,8 @@ class _SupervisorListState extends State<PointageSiteList> {
 */
                   return PaginatedDataTable(
                     rowsPerPage: rowParPage,
+                    sortAscending: _sortAscending,
+                    sortColumnIndex: _sortIndex,
                     header: Row(
                       children: [
                         const Text("Pointages Site"),
@@ -95,6 +109,79 @@ class _SupervisorListState extends State<PointageSiteList> {
                               PdfApi.openFile(document);
                             },
                             icon: const Icon(Icons.print)),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        //button de la page pointage par superviseur
+                        IconButton(
+                            tooltip: "Télecharger le tableau de pointage",
+                            onPressed: () async {
+                              showDialog(
+                                  context: context,
+                                  builder: (_) {
+                                    return AlertDialog(
+                                      content: Container(
+                                        height: 300,
+                                        decoration: BoxDecoration(
+                                            borderRadius:
+                                                BorderRadius.circular(20.0)),
+                                        child: Column(
+                                          children: [
+                                            Container(
+                                              child: Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Text(
+                                                  "Sélctionner une date",
+                                                  style: TextStyle(
+                                                      color: Theme.of(context)
+                                                          .primaryColor),
+                                                ),
+                                              ),
+                                            ),
+                                            const SizedBox(
+                                              height: 10,
+                                            ),
+                                            Padding(
+                                              padding:
+                                                  const EdgeInsets.all(8.0),
+                                              child: Column(
+                                                children: [
+                                                  DateTimeField(
+                                                      decoration:
+                                                          const InputDecoration(
+                                                              hintText: "Date"),
+                                                      format: DateFormat.yMd(),
+                                                      onChanged: (value) {
+                                                        _datePointage = value ??
+                                                            DateTime.now();
+                                                        setState(() {});
+                                                      },
+                                                      onShowPicker:
+                                                          (context, date) {
+                                                        return showDatePicker(
+                                                            context: context,
+                                                            initialDate:
+                                                                DateTime.now(),
+                                                            firstDate:
+                                                                DateTime(1900),
+                                                            lastDate:
+                                                                DateTime(3000));
+                                                      }),
+                                                  const SizedBox(height: 20),
+                                                  SitePointageMap(
+                                                    date: _datePointage,
+                                                  )
+                                                ],
+                                              ),
+                                            ),
+                                            const SizedBox(height: 30),
+                                          ],
+                                        ),
+                                      ),
+                                    );
+                                  });
+                            },
+                            icon: const Icon(Icons.calendar_today)),
                       ],
                     ),
                     actions: [
@@ -226,12 +313,65 @@ class _SupervisorListState extends State<PointageSiteList> {
                       ),
                     ],
                     showFirstLastButtons: true,
-                    columns: const [
-                      DataColumn(label: Text("Date")),
-                      DataColumn(label: Text("Heure")),
-                      DataColumn(label: Text("Site")),
-                      DataColumn(label: Text("Superviseur")),
-                      DataColumn(label: Text("Contact")),
+                    columns: [
+                      DataColumn(
+                          label: const Text("Date"),
+                          onSort: (index, _) {
+                            setState(() {
+                              _sortIndex = index;
+                              if (_sortAscending == true) {
+                                _sortAscending = false;
+                                data?.sort((p1, p2) {
+                                  return p1.date.compareTo(p2.date);
+                                });
+                              } else {
+                                _sortAscending = true;
+                                data?.sort((p1, p2) {
+                                  return p2.date.compareTo(p1.date);
+                                });
+                              }
+                            });
+                          }),
+                      const DataColumn(label: Text("Heure")),
+                      DataColumn(
+                          label: const Text("Site"),
+                          onSort: (index, _) {
+                            setState(() {
+                              _sortIndex = index;
+                              if (_sortAscending == true) {
+                                _sortAscending = false;
+                                data?.sort((p1, p2) {
+                                  return p1.site.UID.compareTo(p2.site.UID);
+                                });
+                              } else {
+                                _sortAscending = true;
+                                data?.sort((p1, p2) {
+                                  return p2.site.UID.compareTo(p1.site.UID);
+                                });
+                              }
+                            });
+                          }),
+                      DataColumn(
+                          label: const Text("Superviseur"),
+                          onSort: (index, _) {
+                            setState(() {
+                              _sortIndex = index;
+                              if (_sortAscending == true) {
+                                _sortAscending = false;
+                                data?.sort((p1, p2) {
+                                  return p1.supervisor!.UID
+                                      .compareTo(p2.supervisor!.UID);
+                                });
+                              } else {
+                                _sortAscending = true;
+                                data?.sort((p1, p2) {
+                                  return p2.supervisor!.UID
+                                      .compareTo(p1.supervisor!.UID);
+                                });
+                              }
+                            });
+                          }),
+                      const DataColumn(label: Text("Contact")),
                     ],
                     source: _DataSource(
                         context: context,
@@ -286,9 +426,9 @@ class _DataSource extends DataTableSource {
                 element.date.isBefore(fin.add(const Duration(days: 1)))))
         .toList();
     //sort the data
-    data.sort((p1, p2) {
+    /*data.sort((p1, p2) {
       return p1.site.name.compareTo(p2.site.name);
-    });
+    });*/
     dataForprint = data;
     if (index >= data.length) {
       return const DataRow(cells: [
@@ -303,9 +443,15 @@ class _DataSource extends DataTableSource {
     //Site site = data[index]["site"];
     // List<PointingSite> pointages = data[index]["pointages"];
     return DataRow(cells: [
-      DataCell(Text(pointage.date.toString().split(" ")[0])),
-      DataCell(Text(
-          "${pointage.date.hour}:${pointage.date.minute}:${pointage.date.second}")),
+      DataCell(Chip(
+        label: Text(pointage.date.toString().split(" ")[0]),
+        side: BorderSide.none,
+      )),
+      DataCell(Chip(
+        label: Text(
+            "${pointage.date.hour}:${pointage.date.minute}:${pointage.date.second}"),
+        backgroundColor: Colors.orangeAccent,
+      )),
       DataCell(Text(pointage.site.name)),
       DataCell(Text(
           "${pointage.supervisor?.firstName} ${pointage.supervisor?.lastName}")),

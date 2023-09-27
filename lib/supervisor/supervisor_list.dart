@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:spas_web/accueil/supervisor_maps.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/supervisor/supervisor_form.dart';
 
@@ -58,7 +59,7 @@ class _SupervisorListState extends State<SupervisorList> {
                   return PaginatedDataTable(
                     header: Row(
                       children: [
-                        const Text("Liste des Superviseurs"),
+                        const Text("Superviseurs"),
                         const SizedBox(
                           width: 10,
                         ),
@@ -101,6 +102,21 @@ class _SupervisorListState extends State<SupervisorList> {
                                 ),
                               )
                             : const SizedBox.shrink(),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Tooltip(
+                          message: "Dernières Position des superviseurs",
+                          child: ElevatedButton(
+                            onPressed: () {
+                              Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                      builder: (_) => const SupervisorMaps()));
+                            },
+                            child: const Icon(Icons.location_on),
+                          ),
+                        )
                       ],
                     ),
                     actions: [
@@ -126,13 +142,14 @@ class _SupervisorListState extends State<SupervisorList> {
                     rowsPerPage: rowParPage,
                     showFirstLastButtons: true,
                     columns: const [
-                      DataColumn(label: Text("Code")),
+                      //DataColumn(label: Text("Code")),
                       DataColumn(label: Text("Prénom")),
                       DataColumn(label: Text("Nom")),
                       DataColumn(label: Text("Contact")),
                       DataColumn(label: Text("email")),
                       DataColumn(label: Text("Sites"), numeric: true),
                       DataColumn(label: Text("Agents"), numeric: true),
+                      DataColumn(label: Text("Position")),
                       DataColumn(label: Text("Statut")),
                       DataColumn(label: Text("Action")),
                     ],
@@ -179,6 +196,7 @@ class _DataSource extends DataTableSource {
     }).toList();
     if (index >= data.length) {
       return const DataRow(cells: [
+        //DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
@@ -193,13 +211,15 @@ class _DataSource extends DataTableSource {
     Supervisor supervisor = data[index];
 
     return DataRow(cells: [
-      DataCell(Text(supervisor.code)),
+      //DataCell(Text(supervisor.code)),
       DataCell(Text(supervisor.firstName)),
       DataCell(Text(supervisor.lastName)),
       DataCell(Text(supervisor.phone)),
       DataCell(Text(supervisor.email)),
       DataCell(nbSite(supervisor)),
       DataCell(nbAgent(supervisor)),
+      DataCell(Text(
+          "${supervisor.latlng?.lat ?? ""} ; ${supervisor.latlng?.lng ?? ""}")),
       DataCell(SuperviseurStatut(
         superviseur: supervisor,
         manager: manager,

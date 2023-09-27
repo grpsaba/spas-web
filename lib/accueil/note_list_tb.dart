@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:spas_web/services/export.dart';
 
 import '../generated/assets.dart';
 import '../model.dart';
@@ -9,8 +10,8 @@ import '../services/loading.dart';
 import '../services/note.dart';
 
 class NoteListTB extends StatefulWidget {
-  const NoteListTB({super.key});
-
+  NoteListTB({super.key, required this.manager});
+  Manager manager;
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -64,6 +65,20 @@ class _SupervisorListState extends State<NoteListTB> {
                     });
                   },
                   onPress: () {}),
+              Tooltip(
+                message: "Imprimer",
+                child: ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                      shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(100))),
+                  onPressed: () {
+                    NoteListToPDF.printNote(_dataToexport);
+                  },
+                  child: const Icon(
+                    Icons.print,
+                  ),
+                ),
+              ),
               const Spacer(),
               IconButton(
                   onPressed: () {
@@ -197,24 +212,28 @@ class _SupervisorListState extends State<NoteListTB> {
                                   padding: const EdgeInsets.all(8.0),
                                   child: SizedBox(
                                     width: 100,
-                                    child: TextButton(
-                                        onPressed: () {
-                                          note.viewed = true;
-                                          _service.update(note);
-                                        },
-                                        child: const Row(
-                                          children: [
-                                            Icon(
-                                              Icons.check_circle,
-                                              color: Colors.black54,
-                                            ),
-                                            Text(
-                                              "Noté",
-                                              style: TextStyle(
-                                                  color: Colors.black54),
-                                            )
-                                          ],
-                                        )),
+                                    child: widget.manager.profil!
+                                            .getModule(ModuleName.NOTE)!
+                                            .add
+                                        ? TextButton(
+                                            onPressed: () {
+                                              note.viewed = true;
+                                              _service.update(note);
+                                            },
+                                            child: const Row(
+                                              children: [
+                                                Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.black54,
+                                                ),
+                                                Text(
+                                                  "Noté",
+                                                  style: TextStyle(
+                                                      color: Colors.black54),
+                                                )
+                                              ],
+                                            ))
+                                        : const SizedBox.shrink(),
                                   ),
                                 )
                               ],

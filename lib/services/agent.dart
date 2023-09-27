@@ -32,12 +32,10 @@ class AgentService {
         })
         .toList()
         .where((element) {
-          if (element.site?.supervisor_2 != null) {
-            return element.site?.supervisor?.UID == uid ||
-                element.site?.supervisor_2?.UID == uid;
-          } else {
-            return element.site?.supervisor?.UID == uid;
-          }
+          return element.actif == true &&
+              element.site?.actif == true &&
+              (element.site?.supervisor?.UID == uid ||
+                  element.site?.supervisor_2?.UID == uid);
         })
         .toList();
     return collection;

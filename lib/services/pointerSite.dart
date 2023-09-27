@@ -27,6 +27,15 @@ class PointingSiteService {
     return _collectionReference.doc(child).update(point.toJson());
   }
 
+  Future<List<PointingSite>> allFuture() async {
+    var snpshot = await _collectionReference.get();
+    List<PointingSite> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+            PointingSite.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data;
+  }
+
   Future<List<Map<String, dynamic>>> nbSiteCheckedToDAyBySupervisor(
       Supervisor supervisor) async {
     DateTime _debut = DateTime.now().subtract(const Duration(days: 1));

@@ -13,8 +13,8 @@ import 'agent_card.dart';
 import 'note_card.dart';
 
 class HomePage extends StatefulWidget {
-  const HomePage({super.key, required Manager manager});
-
+  HomePage({super.key, required this.manager});
+  Manager manager;
   @override
   _HomePageState createState() => _HomePageState();
 }
@@ -66,7 +66,7 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(
                     width: 10,
                   ),
-                  const NoteCard(),
+                  NoteCard(manager: widget.manager),
                   const SizedBox(
                     width: 10,
                   ),

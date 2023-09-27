@@ -22,11 +22,12 @@ class AddTool extends StatefulWidget {
 }
 
 class _AddSupervisorState extends State<AddTool> {
-  TextEditingController _sn_ctrl = TextEditingController();
-  TextEditingController _label_ctrl = TextEditingController();
+  final TextEditingController _sn_ctrl = TextEditingController();
+  final TextEditingController _label_ctrl = TextEditingController();
 
-  TextEditingController _site_ctrl = TextEditingController();
-  GlobalKey<FormState> _key = GlobalKey<FormState>();
+  final TextEditingController _site_ctrl = TextEditingController();
+  final TextEditingController _cat_ctrl = TextEditingController();
+  final GlobalKey<FormState> _key = GlobalKey<FormState>();
 
   bool _adding = false;
 
@@ -37,7 +38,8 @@ class _AddSupervisorState extends State<AddTool> {
 
     _sn_ctrl.text = widget.tool.serialNumber;
     _label_ctrl.text = widget.tool.label;
-
+    _cat_ctrl.text =
+        widget.tool.catTool == null ? '' : '${widget.tool.catTool?.label}';
     _site_ctrl.text =
         widget.tool.site == null ? '' : '${widget.tool.site?.name}';
   }
@@ -49,6 +51,7 @@ class _AddSupervisorState extends State<AddTool> {
     _sn_ctrl.dispose();
     _label_ctrl.dispose();
     _site_ctrl.dispose();
+    _cat_ctrl.dispose();
   }
 
   @override
@@ -163,7 +166,7 @@ class _AddSupervisorState extends State<AddTool> {
                               border: OutlineInputBorder(),
                               prefixIcon: Icon(Icons.person)),
                           isExpanded: true,
-                          value: widget.tool.catTool,
+                          value: widget.tool.catTool ?? data?.first,
                           items: data
                               ?.map((CategorieTool tool) =>
                                   DropdownMenuItem<CategorieTool>(

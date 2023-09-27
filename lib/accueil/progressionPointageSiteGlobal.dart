@@ -28,7 +28,7 @@ class _PointageSiteGlobalState extends State<PointageSiteGlobal> {
 
   getNbSite() async {
     List<Site> sites = await SiteService().allAsModel();
-    nbSite = sites.length;
+    nbSite = sites.where((element) => element.actif == true).toList().length;
   }
 
   @override

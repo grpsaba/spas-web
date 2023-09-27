@@ -5,6 +5,7 @@ import 'package:spas_web/search_textField.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
+import '../services/export.dart';
 import '../services/loading.dart';
 import '../services/note.dart';
 
@@ -22,7 +23,7 @@ class _SupervisorListState extends State<NoteList> {
   bool _checked = false;
   int rowParPage = 0;
   int defauldRowParPage = 10;
-  List<Note> _dataToexport = [];
+
   @override
   void initState() {
     // TODO: implement initState
@@ -52,7 +53,7 @@ class _SupervisorListState extends State<NoteList> {
                   var data = docs?.map((e) => Note.fromJson(e)).toList();
 
                   //copy to _dataToexport
-                  _dataToexport = data!;
+
                   return PaginatedDataTable(
                     header: Row(
                       children: [
@@ -67,6 +68,23 @@ class _SupervisorListState extends State<NoteList> {
                               });
                             },
                             onPress: () {}),
+                        const SizedBox(
+                          width: 10,
+                        ),
+                        Tooltip(
+                          message: "Imprimer",
+                          child: ElevatedButton(
+                            style: ElevatedButton.styleFrom(
+                                shape: RoundedRectangleBorder(
+                                    borderRadius: BorderRadius.circular(100))),
+                            onPressed: () {
+                              NoteListToPDF.printNote(_DataSource.dataToPrint);
+                            },
+                            child: const Icon(
+                              Icons.print,
+                            ),
+                          ),
+                        ),
                         /* const SizedBox(
                           width: 10,
                         ),
@@ -159,7 +177,7 @@ class _SupervisorListState extends State<NoteList> {
                       context: context,
                       keyword: _keyword,
                       checked: _checked,
-                      data: data,
+                      data: data!,
                     ),
                   );
                 } else {
@@ -176,6 +194,7 @@ class _SupervisorListState extends State<NoteList> {
 }
 
 class _DataSource extends DataTableSource {
+  static List<Note> dataToPrint = [];
   List<Note> data;
   String keyword;
   bool checked;
@@ -196,6 +215,7 @@ class _DataSource extends DataTableSource {
               note.site!.name.toLowerCase().contains(keyword.toLowerCase()) ||
               note.source.toLowerCase().contains(keyword.toLowerCase()));
     }).toList();
+    dataToPrint = data;
     if (index >= data.length) {
       return const DataRow(cells: [
         DataCell(Text("")),

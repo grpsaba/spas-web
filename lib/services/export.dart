@@ -1281,3 +1281,111 @@ class PointageToolListToPDF {
     );
   }
 }
+
+class NoteListToPDF {
+  static void printNote(List<Note> data) async {
+    final pdf = pw.Document();
+
+    var avatar = pw.MemoryImage(
+      (await rootBundle.load("assets/agent.png")).buffer.asUint8List(),
+    );
+    //get avatar
+    pw.Image avatarImage = pw.Image(avatar);
+
+    pw.Widget listCarte = pw.Wrap(
+        children: data.map((note) {
+      return pw.Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8.0),
+            child: pw.Row(
+              children: [
+                pw.Container(
+                    height: 50,
+                    width: 50,
+                    child: pw.ClipOval(child: avatarImage)),
+                pw.SizedBox(
+                  width: 10,
+                ),
+                pw.Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    pw.Text(note.source),
+                    pw.Text(
+                      "Date: ${note.date.toString().split(" ")[0]}",
+                      style: const pw.TextStyle(
+                          color: PdfColors.black, fontSize: 12),
+                    ),
+                    pw.Text(
+                      "Site: ${note.site!.name}",
+                      style: const pw.TextStyle(
+                          color: PdfColors.indigo, fontSize: 15),
+                    ),
+                  ],
+                )
+              ],
+            ),
+          ),
+          pw.SizedBox(
+            height: 10,
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8.0),
+            child: pw.Text(
+              note.title,
+              style: const pw.TextStyle(color: PdfColors.black, fontSize: 15),
+            ),
+          ),
+          pw.SizedBox(
+            height: 5,
+          ),
+          pw.Container(
+            width: 600,
+            padding: const pw.EdgeInsets.all(8.0),
+            color: PdfColors.white,
+            child: pw.Text(
+              note.note,
+              style: const pw.TextStyle(color: PdfColors.black, fontSize: 18),
+            ),
+          ),
+          pw.Padding(
+            padding: const pw.EdgeInsets.all(8.0),
+            child: note.viewed
+                ? pw.Text(
+                    "Traitée",
+                    style:
+                        const pw.TextStyle(color: PdfColors.red, fontSize: 12),
+                  )
+                : pw.Text(
+                    "En attente",
+                    style:
+                        const pw.TextStyle(color: PdfColors.red, fontSize: 12),
+                  ),
+          ),
+          pw.Divider(
+            color: PdfColors.grey,
+          )
+        ],
+      );
+    }).toList());
+
+    pdf.addPage(pw.MultiPage(
+      /*theme: pw.ThemeData.withFont(
+        base: await PdfGoogleFonts.varelaRoundRegular(),
+        bold: await PdfGoogleFonts.varelaRoundRegular(),
+        icons: await PdfGoogleFonts.materialIcons(),
+      ),*/
+      margin: const pw.EdgeInsets.all(10),
+      pageFormat: PdfPageFormat.a4,
+      build: (context) {
+        return [listCarte];
+      },
+    ));
+    final bytes = await pdf.save();
+    final blob = html.Blob([bytes], 'application/pdf');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    html.window.open(url, "_blank");
+    html.Url.revokeObjectUrl(url);
+  }
+}

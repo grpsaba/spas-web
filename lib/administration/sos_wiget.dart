@@ -16,6 +16,12 @@ class Sos extends StatefulWidget {
 
 class _AlertState extends State<Sos> {
   SiteService _siteService = SiteService();
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    Audio().stopSOs();
+  }
 
   @override
   Widget build(BuildContext context) {

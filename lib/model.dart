@@ -223,7 +223,7 @@ class Site extends Equatable {
 //
 }
 
-class PointingAgent {
+class PointingAgent extends Equatable {
   DateTime date;
   LatLngModel latlng;
   Agent agent;
@@ -261,6 +261,10 @@ class PointingAgent {
         date.day == today.day &&
         date.month == today.month;
   }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [date.day, date.month, date.year];
 }
 
 class PointingSite {
@@ -428,7 +432,7 @@ class Tool {
       "label": label,
       "serialNumber": serialNumber,
       "site": site?.toJson(),
-      "site": catTool?.toJson(),
+      "catTool": catTool?.toJson(),
     };
   }
 //

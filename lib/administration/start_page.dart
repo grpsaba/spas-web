@@ -63,7 +63,6 @@ class _StarterAgentState extends State<Starter> {
             );
           }
           if (snapshot.hasData) {
-            print(snapshot.data!.profil?.toJson());
             if (snapshot.data != null) {
               return AdminHome(manager: snapshot.data!);
             } else {
