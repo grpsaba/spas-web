@@ -95,6 +95,7 @@ class RapportPointage {
 
   static void printRepportToExcel(List<Map<String, dynamic>> pointages) {
     int rowIndex = 2;
+    int nbJours = 0;
     var workbook = Workbook();
     var sheet = workbook.worksheets[0];
     sheet.showGridlines = true;
@@ -110,6 +111,7 @@ class RapportPointage {
     //Supervisor superviseur = pointageSite['supervisor'];
     //int nbSite = pointageSite['nbSite'];
     List<Map<String, dynamic>> pointing = pointageSite['Pointages'];
+    nbJours = pointing.length;
     //titre
     DateTime date = pointing.first["date"];
     sheet
@@ -118,9 +120,22 @@ class RapportPointage {
     sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 18;
     sheet.getRangeByIndex(1, 1).cellStyle.bold = true;
 //header
-    int colIndex = 2;
+    int colIndex = 6;
     sheet.getRangeByIndex(2, 1).setText("Superviseurs");
     sheet.getRangeByIndex(2, 1).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 2).setText("Pointage Max");
+    sheet.getRangeByIndex(2, 2).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 3).setText("Pointage éffectué");
+    sheet.getRangeByIndex(2, 3).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 4).setText("Performance");
+    sheet.getRangeByIndex(2, 4).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 5).setText("Nombre de site");
+    sheet.getRangeByIndex(2, 5).cellStyle = style;
+
     for (Map<String, dynamic> p in pointing) {
       DateTime date = p["date"];
       sheet.getRangeByIndex(2, colIndex).setValue(date.day);
@@ -132,12 +147,24 @@ class RapportPointage {
     style.bold = false;
     style.backColor = "#FFFFFF";
 
-    for (Map<String, dynamic> pointageSite in pointages) {
+    for (Map<String, dynamic> pointage in pointages) {
       rowIndex++;
-      int colIndex = 2;
-      Supervisor superviseur = pointageSite['supervisor'];
-      int nbSite = pointageSite['nbSite'];
-      List<Map<String, dynamic>> pointing = pointageSite['Pointages'];
+      int colIndex = 6;
+      Supervisor superviseur = pointage['supervisor'];
+      int nbSite = pointage['nbSite'];
+      int maxPointage = nbSite * nbJours;
+
+      int nbPointages = 0;
+      List<Map<String, dynamic>> pointings = pointage['Pointages'];
+
+      for (var element in pointings) {
+        int nbPointage = element["nbPointage"];
+        nbPointages += nbPointage;
+      }
+      //calcul du pourcentage du nombre de pointage
+      double performance =
+          maxPointage == 0 ? 0 : nbPointages * 100 / maxPointage;
+
       sheet
           .getRangeByIndex(rowIndex, 1)
           .setText("${superviseur.firstName} ${superviseur.lastName}");
@@ -148,12 +175,53 @@ class RapportPointage {
           LineStyle.thin;
       sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.color =
           '#000000';
-      for (Map<String, dynamic> p in pointing) {
-        DateTime date = p["date"];
-        int nbPointage = p["nbPointage"];
+      sheet.getRangeByIndex(rowIndex, 2).setValue(maxPointage);
+      sheet.getRangeByIndex(rowIndex, 2).columnWidth = 12;
+
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.color =
+          '#000000';
+      sheet.getRangeByIndex(rowIndex, 3).setValue(nbPointages);
+      sheet.getRangeByIndex(rowIndex, 3).columnWidth = 12;
+
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.borders.all.color =
+          '#000000';
+
+      sheet
+          .getRangeByIndex(rowIndex, 4)
+          .setValue("${performance.toStringAsFixed(2)}%");
+      sheet.getRangeByIndex(rowIndex, 4).columnWidth = 12;
+
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.borders.all.color =
+          '#000000';
+
+      sheet.getRangeByIndex(rowIndex, 5).setValue(nbSite);
+      sheet.getRangeByIndex(rowIndex, 5).columnWidth = 12;
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle.backColor = "#00afff";
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle.borders.all.color =
+          '#000000';
+
+      for (Map<String, dynamic> point in pointings) {
+        DateTime date = point["date"];
+        int nbPointage = point["nbPointage"];
         sheet
             .getRangeByIndex(rowIndex, colIndex)
-            .setText("$nbPointage/$nbSite");
+            .setValue(nbPointage == 0 ? "" : nbPointage);
         sheet.getRangeByIndex(rowIndex, colIndex).cellStyle = style;
         colIndex++;
       }

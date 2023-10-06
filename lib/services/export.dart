@@ -27,23 +27,23 @@ class ExportData {
       style.bold = true;
       style.backColor = "#32CD32";
 
-      /*sheet.getRangeByIndex(1, 1).setText("Période");
-          sheet.getRangeByIndex(1, 1).cellStyle = style;
+      sheet.getRangeByIndex(1, 1).setText("Immatricule");
+      sheet.getRangeByIndex(1, 1).cellStyle = style;
 
-          sheet.getRangeByIndex(1, 2).setText("Immatricule");
-          sheet.getRangeByIndex(1, 2).cellStyle = style;
+      sheet.getRangeByIndex(1, 2).setText("Prénom et nom");
+      sheet.getRangeByIndex(1, 2).cellStyle = style;
 
-          sheet.getRangeByIndex(1, 3).setText("Prénom");
-          sheet.getRangeByIndex(1, 3).cellStyle = style;
+      sheet.getRangeByIndex(1, 3).setText("Site");
+      sheet.getRangeByIndex(1, 3).cellStyle = style;
 
-          sheet.getRangeByIndex(1, 4).setText("Nom");
-          sheet.getRangeByIndex(1, 4).cellStyle = style;
+      sheet.getRangeByIndex(1, 4).setText(" ");
+      sheet.getRangeByIndex(1, 4).cellStyle = style;
 
-          sheet.getRangeByIndex(1, 5).setText("Contact");
-          sheet.getRangeByIndex(1, 5).cellStyle = style;
+      sheet.getRangeByIndex(1, 5).setText(" ");
+      sheet.getRangeByIndex(1, 5).cellStyle = style;
 
-          sheet.getRangeByIndex(1, 6).setText("Présence");
-          sheet.getRangeByIndex(1, 6).cellStyle = style;*/
+      sheet.getRangeByIndex(1, 6).setText("Présence");
+      sheet.getRangeByIndex(1, 6).cellStyle = style;
 
       style.fontSize = 10;
       style.bold = false;
@@ -62,15 +62,22 @@ class ExportData {
             LineStyle.thin;
         sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.color =
             '#000000';
-
-        sheet.getRangeByIndex(rowIndex, 2).setText("255");
+        sheet
+            .getRangeByIndex(rowIndex, 2)
+            .setText("${agent.firstName} ${agent.lastName}");
         sheet.getRangeByIndex(rowIndex, 2).cellStyle = style;
 
-        sheet.getRangeByIndex(rowIndex, 3).setText("HA10");
+        sheet.getRangeByIndex(rowIndex, 3).setText(agent.site?.name ?? "");
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = style;
 
-        sheet.getRangeByIndex(rowIndex, 4).setText("${30 - pointages.length}");
+        sheet.getRangeByIndex(rowIndex, 4).setText("255");
         sheet.getRangeByIndex(rowIndex, 4).cellStyle = style;
+
+        sheet.getRangeByIndex(rowIndex, 5).setText("HA10");
+        sheet.getRangeByIndex(rowIndex, 5).cellStyle = style;
+
+        sheet.getRangeByIndex(rowIndex, 6).setText("${30 - pointages.length}");
+        sheet.getRangeByIndex(rowIndex, 6).cellStyle = style;
 
         /*sheet.getRangeByIndex(rowIndex, 5).setText(agent.phone);
             sheet.getRangeByIndex(rowIndex, 5).cellStyle = style;
@@ -643,7 +650,7 @@ class CarteGenerator {
     );
 
     pdf.addPage(pw.Page(
-      pageFormat: PdfPageFormat.a6,
+      pageFormat: PdfPageFormat.a4,
       build: (context) {
         return pw.Container(
             margin: const pw.EdgeInsets.all(10),
@@ -672,6 +679,7 @@ class CarteGenerator {
                         fontSize: 15,
                         color: PdfColors.indigo,
                         fontWeight: pw.FontWeight.bold)),
+                pw.SizedBox(height: 10.0),
               ],
             ));
       },

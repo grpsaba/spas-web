@@ -74,12 +74,12 @@ class NoteCard extends StatelessWidget {
                     var docs = snapshot.data?.docs
                         .map((e) => jsonDecode(jsonEncode(e.data())))
                         .toList();
-                    var lst = jsonDecode(jsonEncode(docs));
-                    //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
                     List<Note>? data =
                         docs?.map((e) => Note.fromJson(e)).toList();
+
                     data = data?.where((note) => note.viewed == false).toList();
+
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [

@@ -116,6 +116,9 @@ class _SupervisorListState extends State<NoteListTB> {
                         .reversed
                         .toList();
 
+                    data?.sort((n1, n2) {
+                      return n2.date.compareTo(n1.date);
+                    });
                     //copy to _dataToexport
                     _dataToexport = data!;
                     return ListView.builder(

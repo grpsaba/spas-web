@@ -220,20 +220,22 @@ class _DataSource extends DataTableSource {
           })),
       DataCell(Row(
         children: [
-          IconButton(
-            icon: Icon(
-              Icons.edit,
-              color: Theme.of(context).primaryColor,
-            ),
-            onPressed: () {
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => AddManager(
-                            manager: managerLoged,
-                          )));
-            },
-          ),
+          managerLoged.profil!.getModule(ModuleName.MANAGER)!.add
+              ? IconButton(
+                  icon: Icon(
+                    Icons.edit,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  onPressed: () {
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => AddManager(
+                                  manager: manager,
+                                )));
+                  },
+                )
+              : const SizedBox.shrink(),
           /* ElevatedButton(
             style: ElevatedButton.styleFrom(
                 shape: RoundedRectangleBorder(

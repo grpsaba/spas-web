@@ -32,61 +32,99 @@ class _SitePointageMapState extends State<SitePointageMap> {
 
   @override
   Widget build(BuildContext context) {
-    return FutureBuilder(
-      future: PointingSiteService().allFuture(),
-      builder:
-          (BuildContext context, AsyncSnapshot<List<PointingSite>> snapshot) {
-        List<DateTime> days = UtilsClass().jourDuMois(widget.date);
-        if (snapshot.hasData) {
-          var pointageSite = snapshot.data;
-          return FutureBuilder(
-            future: SupervisorService().allFuture(""),
-            builder: (BuildContext context,
-                AsyncSnapshot<List<Supervisor>> snapshot) {
-              List<Map<String, dynamic>> pointing = [];
-              if (snapshot.hasData) {
-                var supervisors = snapshot.data;
-                for (var supervisor in supervisors ?? []) {
-                  pointing.clear();
-                  var nbSite = _listeSites
-                      .where((element) =>
-                          element.actif == true &&
-                          (element.supervisor?.UID == supervisor.UID ||
-                              element.supervisor_2?.UID == supervisor.UID))
-                      .toList()
-                      .length;
+    return Scaffold(
+      appBar: AppBar(
+        backgroundColor: Theme.of(context).primaryColor,
+        title: const Text(
+          "Nombre de pointage par superviseur",
+          style: TextStyle(color: Colors.white),
+        ),
+      ),
+      body: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.print,
+              size: 68,
+              color: Theme.of(context).primaryColor,
+            ),
+            const Text(
+              "Le fichier prend tout les jours du mois sélectionné",
+              style: TextStyle(
+                  fontSize: 25, fontWeight: FontWeight.bold, color: Colors.red),
+            ),
+            const SizedBox(
+              height: 20,
+            ),
+            FutureBuilder(
+              future: PointingSiteService().allFuture(),
+              builder: (BuildContext context,
+                  AsyncSnapshot<List<PointingSite>> snapshot) {
+                List<DateTime> days = UtilsClass().jourDuMois(widget.date);
+                if (snapshot.hasData) {
+                  var pointageSite = snapshot.data;
+                  return FutureBuilder(
+                    future: SupervisorService().allFuture(""),
+                    builder: (BuildContext context,
+                        AsyncSnapshot<List<Supervisor>> snapshot) {
+                      if (snapshot.hasData) {
+                        var supervisors = snapshot.data;
+                        for (Supervisor supervisor in supervisors ?? []) {
+                          var nbSite = _listeSites
+                              .where((element) =>
+                                  element.actif == true &&
+                                  (element.supervisor?.UID == supervisor.UID ||
+                                      element.supervisor_2?.UID ==
+                                          supervisor.UID))
+                              .toList()
+                              .length;
+                          List<Map<String, dynamic>> pointing = [];
+                          for (DateTime date in days) {
+                            var pointage = pointageSite?.where((element) {
+                              return element.date.year == date.year &&
+                                  element.date.month == date.month &&
+                                  element.date.day == date.day &&
+                                  element.supervisor?.UID == supervisor.UID;
+                            }).toList();
+                            pointing.add(
+                                {"date": date, "nbPointage": pointage?.length});
+                          }
 
-                  for (DateTime date in days) {
-                    var pointage = pointageSite?.where((element) {
-                      return element.date.isAtSameMomentAs(date) &&
-                          element.supervisor?.UID == supervisor.UID;
-                    }).toList();
-                    pointing
-                        .add({"date": date, "nbPointage": pointage?.length});
-                  }
-                  _pointageSupervisor.add({
-                    "supervisor": supervisor,
-                    "nbSite": nbSite,
-                    "Pointages": pointing
-                  });
+                          _pointageSupervisor.add({
+                            "supervisor": supervisor,
+                            "nbSite": nbSite,
+                            "Pointages": pointing
+                          });
+                          pointing = [];
+                        }
+                        return FittedBox(
+                          child: ElevatedButton(
+                            onPressed: () {
+                              RapportPointage.printRepportToExcel(
+                                  _pointageSupervisor);
+                            },
+                            child: const Row(
+                              children: [
+                                Icon(Icons.download),
+                                Text('Imprimer')
+                              ],
+                            ),
+                          ),
+                        );
+                      } else {
+                        return Loading(size: 64, inline: true);
+                      }
+                    },
+                  );
+                } else {
+                  return Loading(size: 64, inline: true);
                 }
-                return ElevatedButton(
-                  onPressed: () {
-                    RapportPointage.printRepportToExcel(_pointageSupervisor);
-                  },
-                  child: const Row(
-                    children: [Icon(Icons.download), Text('Imprimer')],
-                  ),
-                );
-              } else {
-                return Loading(size: 64, inline: true);
-              }
-            },
-          );
-        } else {
-          return Loading(size: 64, inline: true);
-        }
-      },
+              },
+            ),
+          ],
+        ),
+      ),
     );
   }
 }

@@ -147,30 +147,46 @@ class _SupervisorListState extends State<PointageSiteList> {
                                               child: Column(
                                                 children: [
                                                   DateTimeField(
-                                                      decoration:
-                                                          const InputDecoration(
-                                                              hintText: "Date"),
-                                                      format: DateFormat.yMd(),
-                                                      onChanged: (value) {
-                                                        _datePointage = value ??
-                                                            DateTime.now();
-                                                        setState(() {});
+                                                    decoration:
+                                                        const InputDecoration(
+                                                            hintText: "Date"),
+                                                    format: DateFormat.yMd(),
+                                                    onChanged: (value) {
+                                                      _datePointage = value ??
+                                                          DateTime.now();
+                                                      setState(() {});
+                                                    },
+                                                    onShowPicker:
+                                                        (context, date) {
+                                                      return showDatePicker(
+                                                          context: context,
+                                                          initialDate:
+                                                              DateTime.now(),
+                                                          firstDate:
+                                                              DateTime(1900),
+                                                          lastDate:
+                                                              DateTime(3000));
+                                                    },
+                                                    onSaved: (value) {
+                                                      _datePointage = value ??
+                                                          DateTime.now();
+                                                      setState(() {});
+                                                    },
+                                                  ),
+                                                  const SizedBox(height: 40),
+                                                  ElevatedButton(
+                                                      onPressed: () {
+                                                        Navigator.push(
+                                                            context,
+                                                            MaterialPageRoute(
+                                                                builder: (_) =>
+                                                                    SitePointageMap(
+                                                                      date:
+                                                                          _datePointage,
+                                                                    )));
                                                       },
-                                                      onShowPicker:
-                                                          (context, date) {
-                                                        return showDatePicker(
-                                                            context: context,
-                                                            initialDate:
-                                                                DateTime.now(),
-                                                            firstDate:
-                                                                DateTime(1900),
-                                                            lastDate:
-                                                                DateTime(3000));
-                                                      }),
-                                                  const SizedBox(height: 20),
-                                                  SitePointageMap(
-                                                    date: _datePointage,
-                                                  )
+                                                      child:
+                                                          const Text('Générer'))
                                                 ],
                                               ),
                                             ),

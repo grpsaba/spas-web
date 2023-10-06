@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:spas_web/administration/start_page.dart';
 
 import '../services/authentication.dart';
@@ -99,19 +100,32 @@ class _LoginState extends State<Login> {
                               height: 48,
                               padding:
                                   const EdgeInsets.only(left: 8.0, right: 8.0),
-                              child: TextFormField(
-                                controller: _pass_ctrl,
-                                obscureText: true,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: const InputDecoration(
-                                    hintText: "Mot de passe",
-                                    hintStyle: TextStyle(color: Colors.white),
-                                    labelStyle: TextStyle(color: Colors.white),
-                                    prefixIcon: Icon(
-                                      Icons.sms,
-                                      color: Colors.white,
-                                    ),
-                                    border: InputBorder.none),
+                              child: CallbackShortcuts(
+                                bindings: <ShortcutActivator, VoidCallback>{
+                                  const SingleActivator(
+                                      LogicalKeyboardKey.enter): () {
+                                    login();
+                                  }
+                                },
+                                child: Focus(
+                                  autofocus: true,
+                                  child: TextFormField(
+                                    controller: _pass_ctrl,
+                                    obscureText: true,
+                                    style: const TextStyle(color: Colors.white),
+                                    decoration: const InputDecoration(
+                                        hintText: "Mot de passe",
+                                        hintStyle:
+                                            TextStyle(color: Colors.white),
+                                        labelStyle:
+                                            TextStyle(color: Colors.white),
+                                        prefixIcon: Icon(
+                                          Icons.sms,
+                                          color: Colors.white,
+                                        ),
+                                        border: InputBorder.none),
+                                  ),
+                                ),
                               ),
                             ),
                           ),
@@ -122,15 +136,27 @@ class _LoginState extends State<Login> {
                       ),
                       _isLogin
                           ? Loading(size: 64, inline: false)
-                          : ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  fixedSize: const Size(200, 48),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20))),
-                              onPressed: () {
-                                login();
+                          : CallbackShortcuts(
+                              bindings: <ShortcutActivator, VoidCallback>{
+                                const SingleActivator(LogicalKeyboardKey.enter):
+                                    () {
+                                  login();
+                                }
                               },
-                              child: const Text("Connectez-vous")),
+                              child: Focus(
+                                autofocus: true,
+                                child: ElevatedButton(
+                                    style: ElevatedButton.styleFrom(
+                                        fixedSize: const Size(200, 48),
+                                        shape: RoundedRectangleBorder(
+                                            borderRadius:
+                                                BorderRadius.circular(20))),
+                                    onPressed: () {
+                                      login();
+                                    },
+                                    child: const Text("Connectez-vous")),
+                              ),
+                            ),
                       const SizedBox(
                         height: 30,
                       ),

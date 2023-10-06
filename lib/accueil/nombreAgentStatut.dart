@@ -28,7 +28,7 @@ class _NbAgentStatusState extends State<NbAgentStatus> {
                 FAProgressBar(
                   //progressType: LinearProgressBar.progressTypeLinear,
                   displayText: "%",
-                  size: 15,
+                  size: 12,
                   maxValue: 100.0,
                   currentValue: purcent,
                   progressColor: purcent <= 30
@@ -38,7 +38,10 @@ class _NbAgentStatusState extends State<NbAgentStatus> {
                           : Colors.green,
                   backgroundColor: Colors.grey,
                 ),
-                Text("Agent $value/${widget.site.nbAgent}"),
+                Text(
+                  "Agent $value/${widget.site.nbAgent}",
+                  style: const TextStyle(fontSize: 12),
+                ),
               ],
             );
           } else {

@@ -152,21 +152,21 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                                         title: Text(
                                             "${agent.firstName} ${agent.lastName}",
                                             style: TextStyle(
-                                              color: Theme.of(context)
-                                                  .primaryColor,
-                                            )),
+                                                color: Theme.of(context)
+                                                    .primaryColor,
+                                                fontSize: 12)),
                                         subtitle: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text("IM : ${agent.code}",
                                                 style: const TextStyle(
-                                                  color: Colors.black54,
-                                                )),
+                                                    color: Colors.black54,
+                                                    fontSize: 12)),
                                             Text("Site : ${agent.site?.name}",
                                                 style: const TextStyle(
                                                     color: Colors.black54,
-                                                    fontSize: 13)),
+                                                    fontSize: 12)),
                                           ],
                                         ),
                                       ),

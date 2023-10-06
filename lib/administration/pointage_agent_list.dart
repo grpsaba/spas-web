@@ -439,15 +439,13 @@ class _SupervisorListState extends State<PointageAgentList> {
                                                   BorderRadius.circular(20.0)),
                                           child: Column(
                                             children: [
-                                              Container(
-                                                child: Padding(
-                                                  padding: EdgeInsets.all(8.0),
-                                                  child: Text(
-                                                    "Sélctionner une période",
-                                                    style: TextStyle(
-                                                        color: Theme.of(context)
-                                                            .primaryColor),
-                                                  ),
+                                              Padding(
+                                                padding: EdgeInsets.all(8.0),
+                                                child: Text(
+                                                  "Sélctionner une période",
+                                                  style: TextStyle(
+                                                      color: Theme.of(context)
+                                                          .primaryColor),
                                                 ),
                                               ),
                                               const SizedBox(
@@ -606,7 +604,7 @@ class _SupervisorListState extends State<PointageAgentList> {
                                   });
                                 }),
                             DataColumn(
-                                label: Text("contact"),
+                                label: const Text("contact"),
                                 onSort: (index, ascending) {
                                   setState(() {
                                     _sortIndex = index;

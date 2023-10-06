@@ -102,8 +102,8 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                                 subtitle:
                                     NbPointageStatus(supervisor: supervisor),
                                 leading: const SizedBox(
-                                    width: 64,
-                                    height: 64,
+                                    width: 24,
+                                    height: 24,
                                     child: CircleAvatar(
                                       radius: 24,
                                       backgroundImage:

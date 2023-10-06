@@ -51,7 +51,9 @@ class _SupervisorListState extends State<NoteList> {
                       .map((e) => jsonDecode(jsonEncode(e.data())))
                       .toList();
                   var data = docs?.map((e) => Note.fromJson(e)).toList();
-
+                  data?.sort((n1, n2) {
+                    return n2.date.compareTo(n1.date);
+                  });
                   //copy to _dataToexport
 
                   return PaginatedDataTable(
