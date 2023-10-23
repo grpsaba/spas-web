@@ -17,10 +17,10 @@ import '../categorieTools/catTool_list.dart';
 import '../const.dart';
 import '../manager/user_page.dart';
 import '../model.dart';
+import '../notes/note_list.dart';
 import '../services/authentication.dart';
 import '../services/site.dart';
 import '../timePlanner2.dart';
-import 'note_list.dart';
 
 class AdminHome extends StatefulWidget {
   AdminHome({super.key, required this.manager});

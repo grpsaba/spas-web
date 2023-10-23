@@ -7,6 +7,7 @@ import '../generated/assets.dart';
 import '../model.dart';
 import '../services/loading.dart';
 import '../services/supervisor.dart';
+import 'Site_non_visite_par_sup.dart';
 import 'nombrePointageStatut.dart';
 
 class SitePointingListWithStatus extends StatefulWidget {
@@ -110,9 +111,31 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                                           AssetImage(Assets.assetsAgent),
                                     )),
                                 onTap: () {
-                                  /*  setState(() {
-                                            _selectedSite = site;
-                                          });*/
+                                  showDialog(
+                                      context: context,
+                                      builder: (_) {
+                                        return AlertDialog(
+                                          contentPadding:
+                                              const EdgeInsets.all(0.0),
+                                          alignment: Alignment.center,
+                                          content: Builder(
+                                            builder: (context) {
+                                              // Get available height and width of the build area of this widget. Make a choice depending on the size.
+
+                                              var width = MediaQuery.of(context)
+                                                  .size
+                                                  .width;
+
+                                              return Container(
+                                                width: width - (width - 500),
+                                                child: SiteNonVisite(
+                                                  supervisor: supervisor,
+                                                ),
+                                              );
+                                            },
+                                          ),
+                                        );
+                                      });
                                 },
                               ),
                             );

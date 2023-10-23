@@ -504,6 +504,14 @@ packages:
       url: "https://pub.dev"
     source: hosted
     version: "4.0.17"
+  info_popup:
+    dependency: "direct main"
+    description:
+      name: info_popup
+      sha256: "2cfc657db0037cc8a87eeceee0a3e078438fd22c3877fa0f20595f44d5b81ece"
+      url: "https://pub.dev"
+    source: hosted
+    version: "3.0.6"
   intersperse:
     dependency: transitive
     description:

@@ -73,9 +73,9 @@ class _PointZeroListState extends State<PointZeroList> {
             ],
           ),
           const Divider(),
-          SizedBox(
-            height: MediaQuery.of(context).size.height -
-                (MediaQuery.of(context).size.height - 556),
+          Expanded(
+            //height: MediaQuery.of(context).size.height -
+            //   (MediaQuery.of(context).size.height - 556),
             child: StreamBuilder(
                 stream: _service.all(),
                 builder: (context, snapshot) {

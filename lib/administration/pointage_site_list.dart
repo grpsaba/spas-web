@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'package:spas_web/site/site_monthly_pointage.dart';
 import 'package:spas_web/supervisor/site_pointage_map.dart';
 
 import '../model.dart';
@@ -174,19 +175,41 @@ class _SupervisorListState extends State<PointageSiteList> {
                                                     },
                                                   ),
                                                   const SizedBox(height: 40),
-                                                  ElevatedButton(
-                                                      onPressed: () {
-                                                        Navigator.push(
-                                                            context,
-                                                            MaterialPageRoute(
-                                                                builder: (_) =>
-                                                                    SitePointageMap(
-                                                                      date:
-                                                                          _datePointage,
-                                                                    )));
-                                                      },
-                                                      child:
-                                                          const Text('Générer'))
+                                                  Tooltip(
+                                                    message:
+                                                        "Nombre de pointage par superviseur",
+                                                    child: ElevatedButton(
+                                                        onPressed: () {
+                                                          Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                  builder: (_) =>
+                                                                      SitePointageMap(
+                                                                        date:
+                                                                            _datePointage,
+                                                                      )));
+                                                        },
+                                                        child: const Text(
+                                                            'Nombre de pointage par superviseur')),
+                                                  ),
+                                                  const SizedBox(height: 40),
+                                                  Tooltip(
+                                                    message:
+                                                        "Nombre de visite par site",
+                                                    child: ElevatedButton(
+                                                        onPressed: () {
+                                                          Navigator.push(
+                                                              context,
+                                                              MaterialPageRoute(
+                                                                  builder: (_) =>
+                                                                      SiteMonthlyPointage(
+                                                                        date:
+                                                                            _datePointage,
+                                                                      )));
+                                                        },
+                                                        child: const Text(
+                                                            'Nombre de visite par site')),
+                                                  )
                                                 ],
                                               ),
                                             ),

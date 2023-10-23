@@ -107,7 +107,7 @@ class _SitePointageMapState extends State<SitePointageMap> {
                             child: const Row(
                               children: [
                                 Icon(Icons.download),
-                                Text('Imprimer')
+                                Text('Télécharger')
                               ],
                             ),
                           ),

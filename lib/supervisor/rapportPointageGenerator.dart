@@ -240,4 +240,107 @@ class RapportPointage {
       ..setAttribute("download", "PointageSiteParSuperviseur.xlsx")
       ..click();
   }
+
+  static void printMonthlySiteRepportToExcel(
+      List<Map<String, dynamic>> pointages) {
+    pointages.sort((p1, p2) {
+      int nbPointage1 = p1['nbPointage'];
+      int nbPointage2 = p2['nbPointage'];
+      return nbPointage2.compareTo(nbPointage1);
+    });
+    int rowIndex = 2;
+
+    var workbook = Workbook();
+    var sheet = workbook.worksheets[0];
+    sheet.showGridlines = true;
+// set borders line style and color for cell.
+    final Style style = workbook.styles.add('style');
+    style.borders.all.lineStyle = LineStyle.thin;
+    style.borders.all.color = '#000000';
+    style.fontSize = 14;
+    style.bold = true;
+    style.backColor = "#B0C4DE";
+
+    //titre
+    String periode = pointages.first["date"];
+    sheet.getRangeByIndex(1, 1).setText("Pointages site du $periode");
+    sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 18;
+    sheet.getRangeByIndex(1, 1).cellStyle.bold = true;
+//header
+
+    sheet.getRangeByIndex(2, 1).setText("Sites");
+    sheet.getRangeByIndex(2, 1).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 2).setText("Superviseur 1");
+    sheet.getRangeByIndex(2, 2).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 3).setText("Superviseur 2");
+    sheet.getRangeByIndex(2, 3).cellStyle = style;
+
+    sheet.getRangeByIndex(2, 4).setText("Nombre de visite");
+    sheet.getRangeByIndex(2, 4).cellStyle = style;
+
+    style.fontSize = 10;
+    style.bold = false;
+    style.backColor = "#FFFFFF";
+
+    for (Map<String, dynamic> pointage in pointages) {
+      rowIndex++;
+
+      Site site = pointage['site'];
+      int nbPointage = pointage['nbPointage'];
+
+      sheet.getRangeByIndex(rowIndex, 1).setText(site.name);
+      sheet.getRangeByIndex(rowIndex, 1).columnWidth = 12;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.color =
+          '#000000';
+      sheet.getRangeByIndex(rowIndex, 2).setText(
+          "${site.supervisor?.firstName} ${site.supervisor?.lastName}");
+      sheet.getRangeByIndex(rowIndex, 2).columnWidth = 12;
+
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.color =
+          '#000000';
+      sheet.getRangeByIndex(rowIndex, 3).setText(
+          "${site.supervisor_2?.firstName ?? ""} ${site.supervisor_2?.lastName ?? ""}");
+      sheet.getRangeByIndex(rowIndex, 3).columnWidth = 12;
+
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.borders.all.color =
+          '#000000';
+
+      sheet.getRangeByIndex(rowIndex, 4).setValue(nbPointage);
+      sheet.getRangeByIndex(rowIndex, 4).columnWidth = 12;
+
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.borders.all.lineStyle =
+          LineStyle.thin;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.borders.all.color =
+          '#000000';
+    }
+//Save and launch the excel.
+    final List<int> bytes = workbook.saveAsStream();
+    var file = File(bytes, "PointageSiteParMois.xlsx");
+
+//Dispose the document.
+    workbook.dispose();
+//Save and launch file.
+
+    final content = base64Encode(bytes);
+    final anchor = AnchorElement(
+        href: "data:application/octet-stream;charset=utf-16le;base64,$content")
+      ..setAttribute("download", "PointageSiteParMois.xlsx")
+      ..click();
+  }
 }
