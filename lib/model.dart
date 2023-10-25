@@ -36,6 +36,7 @@ class Supervisor {
   LatLngModel? latlng;
   String token;
   bool? actif;
+  Department? department;
   Supervisor(
       {required this.UID,
       required this.code,
@@ -46,7 +47,8 @@ class Supervisor {
       required this.token,
       required this.tracking,
       required this.latlng,
-      required this.actif});
+      required this.actif,
+      required this.department});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
     return Supervisor(
@@ -59,6 +61,9 @@ class Supervisor {
       token: json['token'],
       actif: json['actif'] ?? true,
       tracking: json["tracking"],
+      department: json['department'] == null
+          ? null
+          : Department.fromJson(json['department']),
       latlng:
           json["latlng"] != null ? LatLngModel.fromJson(json["latlng"]) : null,
     );
@@ -75,7 +80,8 @@ class Supervisor {
       'token': token,
       "tracking": tracking,
       'actif': actif,
-      "latlng": latlng?.toJson()
+      "latlng": latlng?.toJson(),
+      "department": department?.toJson()
     };
   }
 //
@@ -88,9 +94,9 @@ class Agent extends Equatable {
   String phone;
   String email;
   bool tracking;
-  String type;
+  Department? department;
   Site? site;
-  String? categorie;
+  AgentType? typeAgent;
   bool? actif;
   bool? active;
   Agent({
@@ -101,8 +107,8 @@ class Agent extends Equatable {
     required this.email,
     required this.tracking,
     required this.site,
-    required this.categorie,
-    required this.type,
+    required this.department,
+    required this.typeAgent,
     required this.actif,
   });
 
@@ -114,10 +120,14 @@ class Agent extends Equatable {
       phone: json["phone"],
       email: json["email"],
       tracking: json["tracking"],
-      type: json["type"] ?? "SECURITÉ",
+      typeAgent: json["AgentType"] == null
+          ? null
+          : AgentType.fromJson(json["AgentType"]),
       site: json["site"] == null ? null : Site.fromJson(json["site"]),
       actif: json["actif"] ?? true,
-      categorie: json["categorie"] ?? "FIXE",
+      department: json["department"] == null
+          ? null
+          : Department.fromJson(json["department"]),
     );
   }
 
@@ -131,8 +141,8 @@ class Agent extends Equatable {
       "tracking": tracking,
       "site": site?.toJson(),
       "actif": actif,
-      "categorie": categorie,
-      "type": type,
+      "department": department?.toJson(),
+      "AgentType": typeAgent?.toJson(),
     };
   }
 
@@ -307,7 +317,7 @@ class PointingSite {
   }
 }
 
-class Note {
+class Note extends Equatable {
   String id;
   DateTime date;
   Site? site;
@@ -315,6 +325,8 @@ class Note {
   String source;
   String note;
   bool viewed;
+  Department? department;
+  List<Comment>? comments;
   Note(
       {required this.site,
       required this.date,
@@ -322,17 +334,27 @@ class Note {
       required this.viewed,
       required this.source,
       required this.title,
-      required this.id});
+      required this.id,
+      required this.department,
+      required this.comments});
 
   factory Note.fromJson(Map<String, dynamic> json) {
+    List<dynamic> commentaires = json["comments"] ?? [];
+
     return Note(
         date: DateTime.parse(json["date"]),
         site: Site.fromJson(json["site"]),
+        department: json["department"] == null
+            ? null
+            : Department.fromJson(json["department"]),
         note: json["note"],
         viewed: json["viewed"],
         source: json["source"],
         title: json["title"],
-        id: json["id"]);
+        id: json["id"],
+        comments: commentaires.isEmpty
+            ? []
+            : commentaires.map((e) => Comment.fromJson(e)).toList());
   }
 
   Map<String, dynamic> toJson() {
@@ -343,7 +365,34 @@ class Note {
       "viewed": viewed,
       "title": title,
       "source": source,
-      "id": id
+      "id": id,
+      "department": department?.toJson(),
+      "comments": comments?.map((e) => e.toJson()).toList()
+    };
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [id];
+}
+
+class Comment {
+  Manager manager;
+  DateTime date;
+  String title;
+  Comment({required this.manager, required this.title, required this.date});
+
+  factory Comment.fromJson(Map<String, dynamic> json) {
+    return Comment(
+        date: DateTime.parse(json["date"]),
+        manager: Manager.fromJson(json["manager"]),
+        title: json["title"]);
+  }
+  Map<String, dynamic> toJson() {
+    return {
+      "date": date.toIso8601String(),
+      "manager": manager.toJson(),
+      "title": title
     };
   }
 }
@@ -438,11 +487,31 @@ class Tool {
 //
 }
 
-class CategorieTool {
+class CategorieTool extends Equatable {
   String label;
-  CategorieTool({required this.label});
+  Department? department;
+  CategorieTool({required this.label, required this.department});
   factory CategorieTool.fromJson(Map<String, dynamic> json) {
     return CategorieTool(
+        label: json["label"],
+        department: Department.fromJson(json["department"]));
+  }
+
+  Map<String, dynamic> toJson() {
+    return {"label": label, "department": department?.toJson()};
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [label];
+//
+}
+
+class Department extends Equatable {
+  String label;
+  Department({required this.label});
+  factory Department.fromJson(Map<String, dynamic> json) {
+    return Department(
       label: json["label"],
     );
   }
@@ -452,6 +521,31 @@ class CategorieTool {
       "label": label,
     };
   }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [label];
+//
+}
+
+class AgentType extends Equatable {
+  String label;
+  AgentType({required this.label});
+  factory AgentType.fromJson(Map<String, dynamic> json) {
+    return AgentType(
+      label: json["label"],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "label": label,
+    };
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [label];
 //
 }
 
@@ -495,26 +589,32 @@ class PointingTools {
 class ToolsPresence {
   Site site;
   CategorieTool cattool;
-  bool status;
-  ToolsPresence({
-    required this.cattool,
-    required this.status,
-    required this.site,
-  });
+  String status;
+  Supervisor? supervisor;
+  DateTime date;
+  ToolsPresence(
+      {required this.cattool,
+      required this.status,
+      required this.site,
+      required this.supervisor,
+      required this.date});
 
   factory ToolsPresence.fromJson(Map<String, dynamic> json) {
     return ToolsPresence(
-      site: Site.fromJson(json["site"]),
-      cattool: CategorieTool.fromJson(json["cattool"]),
-      status: json["status"],
-    );
+        site: Site.fromJson(json["site"]),
+        cattool: CategorieTool.fromJson(json["cattool"]),
+        status: json["status"],
+        date: DateTime.parse(json["date"]),
+        supervisor: Supervisor.fromJson(json["supervisor"]));
   }
 
   Map<String, dynamic> toJson() {
     return {
+      "date": date.toIso8601String(),
       "site": site.toJson(),
       "cattool": cattool.toJson(),
       "status": status,
+      "supervisor": supervisor?.toJson()
     };
   }
 }
@@ -599,6 +699,12 @@ class Module {
       case "CATEGORIE_TOOL":
         moduleName = ModuleName.CATEGORIE_TOOL;
         break;
+      case "DEPARTMENT":
+        moduleName = ModuleName.DEPARTMENT;
+        break;
+      case "AGENT_TYPE":
+        moduleName = ModuleName.AGENT_TYPE;
+        break;
       default:
         moduleName = ModuleName.MANAGER;
     }
@@ -633,7 +739,9 @@ enum ModuleName {
   TOOL,
   NOTE,
   MANAGER,
-  CATEGORIE_TOOL
+  CATEGORIE_TOOL,
+  DEPARTMENT,
+  AGENT_TYPE
 }
 
 class PushNotification {

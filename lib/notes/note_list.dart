@@ -5,14 +5,15 @@ import 'package:flutter/material.dart';
 import '../generated/assets.dart';
 import '../model.dart';
 import '../search_textField.dart';
+import '../services/department.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
 import '../services/note.dart';
 import 'note_contant.dart';
 
 class NoteList extends StatefulWidget {
-  const NoteList({super.key, required Manager manager});
-
+  NoteList({super.key, required this.manager});
+  Manager manager;
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -21,7 +22,7 @@ class _SupervisorListState extends State<NoteList> {
   final NoteService _service = NoteService();
   final TextEditingController _texController = TextEditingController();
   String _keyword = "";
-  bool _checked = false;
+  String _department = "";
   List<Note> _dataToprint = [];
   int rowParPage = 0;
   int defauldRowParPage = 10;
@@ -49,26 +50,13 @@ class _SupervisorListState extends State<NoteList> {
           child: Row(
         children: [
           Container(
-            width: 450,
+            width: 500,
             padding: const EdgeInsets.all(3.0),
             child: Column(
               children: [
                 Row(
                   children: [
-                    const Text("Liste des Notes"),
-                    const SizedBox(
-                      width: 10,
-                    ),
-                    SearchTextField(
-                        onSearch: (value) {
-                          setState(() {
-                            _keyword = value;
-                          });
-                        },
-                        onPress: () {}),
-                    const SizedBox(
-                      width: 10,
-                    ),
+                    // const Text("Liste des Notes"),
                     Tooltip(
                       message: "Imprimer",
                       child: ElevatedButton(
@@ -83,6 +71,67 @@ class _SupervisorListState extends State<NoteList> {
                         ),
                       ),
                     ),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    SearchTextField(
+                        onSearch: (value) {
+                          setState(() {
+                            _keyword = value;
+                          });
+                        },
+                        onPress: () {}),
+                    const SizedBox(
+                      width: 5,
+                    ),
+                    StreamBuilder(
+                        stream: DepartmentService().all(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+                            var docs = snapshot.data?.docs
+                                .map((e) => jsonDecode(jsonEncode(e.data())))
+                                .toList();
+                            List<Department>? data = docs
+                                ?.map((e) => Department.fromJson(e))
+                                .toList();
+
+                            return Expanded(
+                              child: DropdownButtonFormField<Department>(
+                                hint: const Text("Département"),
+                                decoration: const InputDecoration(
+                                  hintText: "Département",
+                                  border: InputBorder.none,
+                                  prefixIcon: Icon(Icons.apartment),
+                                ),
+                                validator: (value) {
+                                  return value != null
+                                      ? null
+                                      : "Département obligatoir";
+                                },
+                                isExpanded: true,
+                                value: data?.first,
+                                items: data
+                                    ?.map((Department department) =>
+                                        DropdownMenuItem<Department>(
+                                            value: department,
+                                            child: Text(department.label)))
+                                    .toList(),
+                                onChanged: (value) {
+                                  setState(() {
+                                    _department = value?.label ?? "";
+                                  });
+                                },
+                                onSaved: (value) {
+                                  setState(() {
+                                    _department = value?.label ?? "";
+                                  });
+                                },
+                              ),
+                            );
+                          } else {
+                            return const SizedBox.shrink();
+                          }
+                        }),
                   ],
                 ),
                 const Divider(),
@@ -95,18 +144,26 @@ class _SupervisorListState extends State<NoteList> {
                           var docs = snapshot.data?.docs
                               .map((e) => jsonDecode(jsonEncode(e.data())))
                               .toList();
+
                           var data =
                               docs?.map((e) => Note.fromJson(e)).toList();
                           data?.sort((n1, n2) {
                             return n2.date.compareTo(n1.date);
                           });
-                          data = data
-                              ?.where((note) =>
-                                  note.source.contains(_keyword) ||
+
+                          data = data?.where((note) {
+                            if (note.department == null) {
+                              return note.source.contains(_keyword) ||
                                   note.title.contains(_keyword) ||
                                   note.site!.name.contains(_keyword) ||
-                                  note.note.contains(_keyword))
-                              .toList();
+                                  note.note.contains(_keyword);
+                            } else {
+                              return (note.source.contains(_keyword) ||
+                                      note.title.contains(_keyword) ||
+                                      note.site!.name.contains(_keyword)) &&
+                                  note.department!.label.contains(_department);
+                            }
+                          }).toList();
                           //copy to _dataToprint
                           _dataToprint = data ?? [];
 
@@ -117,57 +174,77 @@ class _SupervisorListState extends State<NoteList> {
                                 return Card(
                                   elevation: 0.5,
                                   child: ListTile(
-                                    onTap: () {
-                                      setState(() {
-                                        _selectedIndex = index;
-                                        _selectedNote = note;
-                                      });
-                                    },
-                                    selectedTileColor:
-                                        Colors.indigo.withOpacity(0.2),
-                                    selected: _selectedIndex == index,
-                                    title: Text(note.title,
-                                        style: TextStyle(
-                                            color: Theme.of(context)
-                                                .primaryColor)),
-                                    subtitle: Column(
-                                      crossAxisAlignment:
-                                          CrossAxisAlignment.start,
-                                      children: [
-                                        const SizedBox(
-                                          height: 5,
-                                        ),
-                                        Text(note.source),
-                                        const SizedBox(
-                                          height: 5,
-                                        ),
-                                        Text(
-                                          "Site: ${note.site!.name}",
-                                          style: const TextStyle(
-                                              color: Colors.red, fontSize: 13),
-                                        ),
-                                        const SizedBox(
-                                          height: 5,
-                                        ),
-                                        Text(
-                                          "Date: ${note.date.toString().split(" ")[0]}",
-                                          style: const TextStyle(fontSize: 12),
-                                        ),
-                                      ],
-                                    ),
-                                    leading: const CircleAvatar(
-                                      radius: 18,
-                                      backgroundImage:
-                                          AssetImage(Assets.assetsAgent),
-                                    ),
-                                    trailing: note.viewed
-                                        ? const Icon(
-                                            Icons.check_circle,
-                                            color: Colors.green,
-                                          )
-                                        : const Icon(Icons.warning,
-                                            color: Colors.orangeAccent),
-                                  ),
+                                      onTap: () {
+                                        setState(() {
+                                          _selectedIndex = index;
+                                          _selectedNote = note;
+                                        });
+                                      },
+                                      selectedTileColor:
+                                          Colors.indigo.withOpacity(0.2),
+                                      selected: _selectedIndex == index,
+                                      title: Text(note.title,
+                                          style: TextStyle(
+                                              color: Theme.of(context)
+                                                  .primaryColor)),
+                                      subtitle: Column(
+                                        crossAxisAlignment:
+                                            CrossAxisAlignment.start,
+                                        children: [
+                                          const SizedBox(
+                                            height: 5,
+                                          ),
+                                          Text(note.source),
+                                          const SizedBox(
+                                            height: 5,
+                                          ),
+                                          Text(
+                                            "Site: ${note.site!.name}",
+                                            style: const TextStyle(
+                                                color: Colors.red,
+                                                fontSize: 13),
+                                          ),
+                                          const SizedBox(
+                                            height: 5,
+                                          ),
+                                          Text(
+                                            "Date: ${note.date.toString().split(" ")[0]}",
+                                            style:
+                                                const TextStyle(fontSize: 12),
+                                          ),
+                                        ],
+                                      ),
+                                      leading: const CircleAvatar(
+                                        radius: 18,
+                                        backgroundImage:
+                                            AssetImage(Assets.assetsAgent),
+                                      ),
+                                      trailing: Stack(
+                                        children: [
+                                          note.viewed
+                                              ? const Icon(
+                                                  Icons.check_circle,
+                                                  color: Colors.green,
+                                                )
+                                              : const Icon(Icons.warning,
+                                                  color: Colors.orangeAccent),
+                                          note.comments == null
+                                              ? const SizedBox.shrink()
+                                              : note.comments!.isEmpty
+                                                  ? const SizedBox.shrink()
+                                                  : Positioned(
+                                                      top: 0.0,
+                                                      right: 0.0,
+                                                      child: Text(
+                                                        "${note.comments?.length ?? 0}",
+                                                        style: const TextStyle(
+                                                            fontWeight:
+                                                                FontWeight.bold,
+                                                            color: Colors.red),
+                                                      ),
+                                                    ),
+                                        ],
+                                      )),
                                 );
                               });
                         } else {
@@ -183,12 +260,14 @@ class _SupervisorListState extends State<NoteList> {
               ],
             ),
           ),
-          Expanded(
-              child: _selectedNote == null
-                  ? const SizedBox.shrink()
-                  : NotesContant(
-                      note: _selectedNote!,
-                    ))
+          _selectedNote == null
+              ? const SizedBox.shrink()
+              : Expanded(
+                  child: NotesContant(
+                    manager: widget.manager,
+                    note: _selectedNote!,
+                  ),
+                )
         ],
       )
           /*StreamBuilder(

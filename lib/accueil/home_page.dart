@@ -1,5 +1,6 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
-import 'package:spas_web/accueil/point_zero_card.dart';
 import 'package:spas_web/accueil/pointage_site_card.dart';
 import 'package:spas_web/accueil/site_card.dart';
 import 'package:spas_web/accueil/site_pointing_staus_list.dart';
@@ -7,6 +8,7 @@ import 'package:spas_web/accueil/site_staus_list.dart';
 import 'package:spas_web/accueil/supervisor_card.dart';
 import 'package:spas_web/accueil/tool_status_card.dart';
 import 'package:spas_web/model.dart';
+import 'package:spas_web/services/agentType.dart';
 
 import 'absenceAgent.dart';
 import 'agent_card.dart';
@@ -54,15 +56,34 @@ class _HomePageState extends State<HomePage> {
                   const SizedBox(
                     width: 10,
                   ),
-                  AgentCard(domaine: "SECURITÉ"),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  AgentCard(domaine: "NETTOYAGE"),
-                  const SizedBox(
-                    width: 10,
-                  ),
-                  const PointZeroCard(),
+                  //Liste Agent
+                  StreamBuilder(
+                      stream: AgentTypeService().all(),
+                      builder: (context, snapshot) {
+                        if (snapshot.hasData) {
+                          var docs = snapshot.data?.docs
+                              .map((e) => jsonDecode(jsonEncode(e.data())))
+                              .toList();
+
+                          List<AgentType>? data = docs
+                                  ?.map((e) => AgentType.fromJson(e))
+                                  .toList() ??
+                              [];
+
+                          return Row(
+                            children: data
+                                .map((type) => Padding(
+                                      padding: const EdgeInsets.only(
+                                          right: 4.0, left: 4.0),
+                                      child: AgentCard(domaine: type.label),
+                                    ))
+                                .toList(),
+                          );
+                        } else {
+                          return const SizedBox.shrink();
+                        }
+                      }),
+
                   const SizedBox(
                     width: 10,
                   ),

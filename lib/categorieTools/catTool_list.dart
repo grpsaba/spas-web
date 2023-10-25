@@ -82,6 +82,8 @@ class _CatToolListState extends State<CatToolList> {
                                           builder: (_) => AddCatTool(
                                                 catTool: CategorieTool(
                                                   label: '',
+                                                  department:
+                                                      Department(label: ''),
                                                 ),
                                                 manager: widget.manager,
                                               )));
@@ -115,6 +117,7 @@ class _CatToolListState extends State<CatToolList> {
                     showFirstLastButtons: true,
                     columns: const [
                       DataColumn(label: Text("Libellé")),
+                      DataColumn(label: Text("Département")),
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
@@ -157,6 +160,7 @@ class _DataSource extends DataTableSource {
       return const DataRow(cells: [
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     CategorieTool catTool = data[index];
@@ -168,6 +172,10 @@ class _DataSource extends DataTableSource {
             color: Theme.of(context).primaryColor,
             fontWeight: FontWeight.bold,
             fontSize: 20),
+      )),
+      DataCell(Text(
+        catTool.department?.label ?? "",
+        style: TextStyle(color: Theme.of(context).primaryColor, fontSize: 20),
       )),
       DataCell(
         Row(

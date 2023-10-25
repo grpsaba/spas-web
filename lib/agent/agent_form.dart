@@ -1,8 +1,12 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
+import 'package:spas_web/services/agentType.dart';
 
 import '../liste_selection_pages/site_search_dialog.dart';
 import '../model.dart';
 import '../services/agent.dart';
+import '../services/department.dart';
 import '../services/loading.dart';
 
 class AddAgent extends StatefulWidget {
@@ -26,14 +30,11 @@ class _AddSupervisorState extends State<AddAgent> {
   final TextEditingController _phone_ctrl = TextEditingController();
   final TextEditingController _email_ctrl = TextEditingController();
   final TextEditingController _site_ctrl = TextEditingController();
-  final TextEditingController _type_ctrl = TextEditingController();
-  final TextEditingController _categorie_ctrl = TextEditingController();
+
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
 
   bool _adding = false;
 
-  List<String> typeAgents = ["SECURITÉ", "NETTOYAGE", "ADMINISTRATEUR"];
-  List<String> categories = ["FIXE", "POINT ZERO", "RONDIER"];
   @override
   void initState() {
     // TODO: implement initState
@@ -45,22 +46,19 @@ class _AddSupervisorState extends State<AddAgent> {
     _phone_ctrl.text = widget.agent.phone;
     _site_ctrl.text =
         widget.agent.site == null ? '' : '${widget.agent.site?.name}';
-    _type_ctrl.text = widget.agent.type;
-    _categorie_ctrl.text = widget.agent.categorie!;
   }
 
   @override
   void dispose() {
     // TODO: implement dispose
     super.dispose();
-    _type_ctrl.dispose();
+
     _phone_ctrl.dispose();
     _lastName_ctrl.dispose();
     _firstName_ctrl.dispose();
     _code_ctrl.dispose();
     _email_ctrl.dispose();
     _site_ctrl.dispose();
-    _categorie_ctrl.dispose();
   }
 
   @override
@@ -82,93 +80,143 @@ class _AddSupervisorState extends State<AddAgent> {
             key: _key,
             child: Column(
               children: [
-                DropdownButtonFormField(
-                  hint: const Text("Catégorie"),
-                  decoration: const InputDecoration(
-                      hintText: "Catégorie",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work)),
-                  validator: (value) {
-                    return value!.isNotEmpty ? null : "Catégorie obligatoir";
-                  },
-                  isExpanded: true,
-                  value: _categorie_ctrl.text,
-                  items: categories
-                      .map((e) =>
-                          DropdownMenuItem<String>(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    _categorie_ctrl.text = value ?? "";
-                    widget.agent.categorie = value ?? "FIXE";
-                    setState(() {
-                      if (widget.agent.categorie != "FIXE") {
-                        widget.agent.site = null;
+                StreamBuilder(
+                    stream: DepartmentService().all(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var docs = snapshot.data?.docs
+                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                            .toList();
+                        List<Department>? data =
+                            docs?.map((e) => Department.fromJson(e)).toList();
+
+                        return DropdownButtonFormField<Department>(
+                          hint: const Text("Département"),
+                          decoration: const InputDecoration(
+                              hintText: "Département",
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.apartment)),
+                          validator: (value) {
+                            return value != null
+                                ? null
+                                : "Département obligatoir";
+                          },
+                          isExpanded: true,
+                          value: data
+                              ?.where((element) => element.label.contains(
+                                  widget.agent.department?.label ?? ""))
+                              .toList()
+                              .first,
+                          items: data
+                              ?.map((Department department) =>
+                                  DropdownMenuItem<Department>(
+                                      value: department,
+                                      child: Text(department.label)))
+                              .toList(),
+                          onChanged: (value) {
+                            widget.agent.department = value!;
+                          },
+                          onSaved: (value) {
+                            widget.agent.department = value!;
+                          },
+                        );
+                      } else {
+                        return const Text(
+                            "Chargements des départements en cours...");
                       }
-                    });
-                  },
-                  onSaved: (value) {
-                    _categorie_ctrl.text = value ?? "";
-                    widget.agent.categorie = value ?? "FIXE";
-                    setState(() {
-                      if (widget.agent.categorie != "FIXE") {
-                        widget.agent.site = null;
-                      }
-                    });
-                  },
-                ),
+                    }),
                 const SizedBox(
                   height: 20,
                 ),
-                widget.agent.categorie == "POINT ZERO" ||
-                        widget.agent.categorie == "RONDIER"
-                    ? const SizedBox.shrink()
-                    : TextFormField(
-                        readOnly: true,
-                        controller: _site_ctrl,
-                        onTap: () async {
-                          /*widget.agent.site = await Navigator.push<Site>(context,
+                StreamBuilder(
+                    stream: AgentTypeService().all(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var docs = snapshot.data?.docs
+                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                            .toList();
+
+                        List<AgentType>? data =
+                            docs?.map((e) => AgentType.fromJson(e)).toList();
+
+                        return DropdownButtonFormField<AgentType>(
+                          hint: const Text("Type"),
+                          decoration: const InputDecoration(
+                              hintText: "Type",
+                              border: OutlineInputBorder(),
+                              prefixIcon:
+                                  Icon(Icons.supervised_user_circle_outlined)),
+                          validator: (value) {
+                            return value != null ? null : "Type obligatoir";
+                          },
+                          isExpanded: true,
+                          value: data
+                              ?.where((element) => element.label.contains(
+                                  widget.agent.typeAgent?.label ?? ""))
+                              .toList()
+                              .first,
+                          items: data
+                              ?.map((AgentType agtType) =>
+                                  DropdownMenuItem<AgentType>(
+                                      value: agtType,
+                                      child: Text(agtType.label)))
+                              .toList(),
+                          onChanged: (value) {
+                            widget.agent.typeAgent = value!;
+                          },
+                          onSaved: (value) {
+                            widget.agent.typeAgent = value!;
+                          },
+                        );
+                      } else {
+                        return const Text(
+                            "Chargements des départements en cours...");
+                      }
+                    }),
+                const SizedBox(
+                  height: 20,
+                ),
+                TextFormField(
+                  readOnly: true,
+                  controller: _site_ctrl,
+                  onTap: () async {
+                    /*widget.agent.site = await Navigator.push<Site>(context,
                         MaterialPageRoute(builder: (_) => SiteSearch()));
                     widget.agent.site == null
                         ? _site_ctrl.text = ''
                         : _site_ctrl.text = '${widget.agent.site?.name} ';
                     setState(() {});*/
-                          await showDialog(
-                              context: context,
-                              builder: (_) {
-                                return AlertDialog(
-                                  alignment: Alignment.center,
-                                  contentPadding: const EdgeInsets.all(0.0),
-                                  content: SiteSearchDialog(
-                                    onSelected: (site) {
-                                      widget.agent.site = site;
-                                      Navigator.pop(context);
-                                      widget.agent.site == null
-                                          ? _site_ctrl.text = ''
-                                          : _site_ctrl.text =
-                                              '${widget.agent.site?.name} ';
-                                    },
-                                  ),
-                                );
-                              });
-                        },
-                        validator: (value) {
-                          return widget.agent.categorie == "FIXE" &&
-                                  widget.agent.site != null
-                              ? null
-                              : "Site obligatoir";
-                        },
-                        decoration: const InputDecoration(
-                            //filled: true,
-                            hintText: "Site",
-                            border: OutlineInputBorder(),
-                            prefixIcon: Icon(Icons.person)),
-                      ),
-                widget.agent.categorie == "POINT ZERO" ||
-                        widget.agent.categorie == "RONDIER"
-                    ? const SizedBox.shrink()
-                    : const SizedBox(
-                        height: 20,
-                      ),
+                    await showDialog(
+                        context: context,
+                        builder: (_) {
+                          return AlertDialog(
+                            alignment: Alignment.center,
+                            contentPadding: const EdgeInsets.all(0.0),
+                            content: SiteSearchDialog(
+                              onSelected: (site) {
+                                widget.agent.site = site;
+                                Navigator.pop(context);
+                                widget.agent.site == null
+                                    ? _site_ctrl.text = ''
+                                    : _site_ctrl.text =
+                                        '${widget.agent.site?.name} ';
+                              },
+                            ),
+                          );
+                        });
+                  },
+                  validator: (value) {
+                    return widget.agent.site != null ? null : "Site obligatoir";
+                  },
+                  decoration: const InputDecoration(
+                      //filled: true,
+                      hintText: "Site",
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.person)),
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
                 TextFormField(
                   readOnly: widget.agent.code.isNotEmpty,
                   controller: _code_ctrl,
@@ -183,33 +231,6 @@ class _AddSupervisorState extends State<AddAgent> {
                       hintText: "Code",
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.build_circle)),
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                DropdownButtonFormField(
-                  hint: const Text("Domaine"),
-                  decoration: const InputDecoration(
-                      hintText: "Domaine",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work)),
-                  validator: (value) {
-                    return value!.isNotEmpty ? null : "Domaine obligatoir";
-                  },
-                  isExpanded: true,
-                  value: _type_ctrl.text,
-                  items: typeAgents
-                      .map((e) =>
-                          DropdownMenuItem<String>(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    _type_ctrl.text = value ?? "";
-                    widget.agent.type = value ?? "SECURITÉ";
-                  },
-                  onSaved: (value) {
-                    _type_ctrl.text = value ?? "";
-                    widget.agent.type = value ?? "SECURITÉ";
-                  },
                 ),
                 const SizedBox(
                   height: 20,

@@ -73,7 +73,10 @@ class _SupervisorListState extends State<PointageAgentList> {
                             element.agent.code
                                 .toLowerCase()
                                 .contains(_keyword.toLowerCase()) ||
-                            element.agent.type
+                            element.agent.typeAgent!.label
+                                .toLowerCase()
+                                .contains(_keyword.toLowerCase()) ||
+                            element.agent.department!.label
                                 .toLowerCase()
                                 .contains(_keyword.toLowerCase())) &&
                         (element.date.isAfter(_debut) &&
@@ -685,7 +688,7 @@ class _DataSource extends DataTableSource {
       DataCell(Text(agent.firstName)),
       DataCell(Text(agent.lastName)),
       DataCell(Text(agent.phone)),
-      DataCell(Chip(label: Text(agent.type))),
+      DataCell(Chip(label: Text(agent.department?.label ?? "Unconnu"))),
       DataCell(Chip(
         label: Text(pointages.length.toString()),
         backgroundColor: Colors.orangeAccent,
@@ -731,7 +734,12 @@ class _DataPresence extends DataTableSource {
                 .contains(keyword.toLowerCase()) ||
             element.agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
             element.agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
-            element.agent.type.toLowerCase().contains(keyword.toLowerCase()))
+            element.agent.typeAgent!.label
+                .toLowerCase()
+                .contains(keyword.toLowerCase()) ||
+            element.agent.department!.label
+                .toLowerCase()
+                .contains(keyword.toLowerCase()))
         .toList();
     dataToExport = data;
     if (index >= data.length) {
@@ -760,7 +768,7 @@ class _DataPresence extends DataTableSource {
       DataCell(Text(pointage.agent.lastName)),
       DataCell(Text(pointage.agent.phone)),
       DataCell(Chip(
-        label: Text(pointage.agent.type),
+        label: Text(pointage.agent.department?.label ?? "Unconnu"),
       )),
     ]);
   }

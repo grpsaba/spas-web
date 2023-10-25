@@ -163,7 +163,7 @@ class _AgentListState extends State<AgentList> {
                                         MaterialPageRoute(
                                             builder: (_) => AddAgent(
                                                   agent: Agent(
-                                                    type: "SECURITÉ",
+                                                    typeAgent: null,
                                                     code: '',
                                                     firstName: '',
                                                     lastName: '',
@@ -172,7 +172,7 @@ class _AgentListState extends State<AgentList> {
                                                     tracking: false,
                                                     site: null,
                                                     actif: false,
-                                                    categorie: "FIXE",
+                                                    department: null,
                                                   ),
                                                   manager: widget.manager,
                                                 )));
@@ -315,7 +315,12 @@ class _DataSource extends DataTableSource {
         return agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
             agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
             agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.categorie!.toLowerCase().contains(keyword.toLowerCase());
+            agent.department!.label
+                .toLowerCase()
+                .contains(keyword.toLowerCase()) ||
+            agent.typeAgent!.label
+                .toLowerCase()
+                .contains(keyword.toLowerCase());
       }
     }).toList();
     dataForPrint = data;
@@ -337,11 +342,8 @@ class _DataSource extends DataTableSource {
     return DataRow(cells: [
       DataCell(Chip(
         label: Text(
-          agent.type,
-          style: const TextStyle(color: Colors.white),
+          agent.department?.label ?? "Unconnu",
         ),
-        backgroundColor:
-            agent.type == "SECURITÉ" ? Colors.redAccent : Colors.blue,
       )),
       DataCell(Text(agent.code)),
       DataCell(Text(agent.firstName)),
@@ -352,18 +354,8 @@ class _DataSource extends DataTableSource {
           : Text(agent.site!.name)),
       DataCell(Chip(
         label: Text(
-          agent.categorie == "RONDIER"
-              ? "Rondier"
-              : agent.categorie == "POINT ZERO"
-                  ? "Point 0"
-                  : "Fixe",
-          style: const TextStyle(color: Colors.white),
+          agent.typeAgent?.label ?? "Unconnu",
         ),
-        backgroundColor: agent.categorie == "POINT ZERO"
-            ? Colors.redAccent
-            : agent.categorie == "RONDIER"
-                ? Colors.deepOrange
-                : Colors.green,
       )),
       DataCell(AgentStatut(
         agent: agent,

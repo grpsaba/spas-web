@@ -1,7 +1,10 @@
+import 'dart:convert';
+
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 
 import '../model.dart';
+import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/supervisor.dart';
 
@@ -68,6 +71,54 @@ class _AddSupervisorState extends State<AddSupervisor> {
             key: _key,
             child: Column(
               children: [
+                StreamBuilder(
+                    stream: DepartmentService().all(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var docs = snapshot.data?.docs
+                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                            .toList();
+                        List<Department>? data =
+                            docs?.map((e) => Department.fromJson(e)).toList();
+
+                        return DropdownButtonFormField<Department>(
+                          hint: const Text("Département"),
+                          decoration: const InputDecoration(
+                              hintText: "Département",
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.apartment)),
+                          validator: (value) {
+                            return value != null
+                                ? null
+                                : "Département obligatoir";
+                          },
+                          isExpanded: true,
+                          value: data
+                              ?.where((element) => element.label.contains(
+                                  widget.supervisor.department?.label ?? ""))
+                              .toList()
+                              .first,
+                          items: data
+                              ?.map((Department department) =>
+                                  DropdownMenuItem<Department>(
+                                      value: department,
+                                      child: Text(department.label)))
+                              .toList(),
+                          onChanged: (value) {
+                            widget.supervisor.department = value!;
+                          },
+                          onSaved: (value) {
+                            widget.supervisor.department = value!;
+                          },
+                        );
+                      } else {
+                        return const Text(
+                            "Chargements des départements en cours...");
+                      }
+                    }),
+                const SizedBox(
+                  height: 20,
+                ),
                 TextFormField(
                   readOnly: widget.supervisor.code.isNotEmpty,
                   controller: _code_ctrl,

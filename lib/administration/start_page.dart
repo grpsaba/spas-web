@@ -30,7 +30,7 @@ class _StarterAgentState extends State<Starter> {
   void dispose() {
     // TODO: implement dispose
     super.dispose();
-    AuthService().logOut();
+    //AuthService().logOut();
   }
 
   @override

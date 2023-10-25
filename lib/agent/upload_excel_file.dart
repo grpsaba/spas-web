@@ -61,8 +61,8 @@ class UploadExcel {
           email: "",
           tracking: false,
           site: site,
-          categorie: domaine,
-          type: type,
+          department: null,
+          typeAgent: null,
           actif: false);
       if (kDebugMode) {
         print(agent.toJson());

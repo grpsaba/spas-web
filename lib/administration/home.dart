@@ -5,6 +5,8 @@ import 'package:spas_web/administration/pointage_tool_list.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/administration/start_page.dart';
 import 'package:spas_web/agent/agent_list.dart';
+import 'package:spas_web/agent_type/agentType_list.dart';
+import 'package:spas_web/department/department_list.dart';
 import 'package:spas_web/generated/assets.dart';
 import 'package:spas_web/site/site_list.dart';
 import 'package:spas_web/supervisor/supervisor_list.dart';
@@ -339,6 +341,40 @@ class _AdminHomeState extends State<AdminHome> {
                   style: ListTileStyle.drawer,
                   selected: _menuIdex == 11,
                 ),
+                ListTile(
+                  onTap: () {
+                    navigeTo(12);
+                  },
+                  leading: CircleAvatar(
+                      radius: 18,
+                      child: Icon(
+                        Icons.apartment,
+                        color: Theme.of(context).primaryColor,
+                      )),
+                  title: !_howDrawer ? null : const Text("Département"),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 12,
+                ),
+                ListTile(
+                  onTap: () {
+                    navigeTo(13);
+                  },
+                  leading: CircleAvatar(
+                      radius: 18,
+                      child: Icon(
+                        Icons.supervised_user_circle,
+                        color: Theme.of(context).primaryColor,
+                      )),
+                  title: !_howDrawer ? null : const Text("Type Agent"),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 13,
+                ),
                 /* ListTile(
                   onTap: () {
                     navigeTo(11);
@@ -440,7 +476,18 @@ class _AdminHomeState extends State<AdminHome> {
             : const Center(
                 child: Text("Module inaccessible!"),
               );
-
+      case 12:
+        return widget.manager.profil!.getModule(ModuleName.DEPARTMENT)!.view
+            ? DepartmentList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
+      case 13:
+        return widget.manager.profil!.getModule(ModuleName.AGENT_TYPE)!.view
+            ? AgentTypeList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
       default:
         return const Center(
           child: Text("Page non disponible"),

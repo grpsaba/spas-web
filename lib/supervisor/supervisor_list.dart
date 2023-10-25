@@ -94,7 +94,8 @@ class _SupervisorListState extends State<SupervisorList> {
                                                       UID: '',
                                                       token: '',
                                                       latlng: null,
-                                                      actif: false),
+                                                      actif: false,
+                                                      department: null),
                                                   manager: widget.manager,
                                                 )));
                                   },

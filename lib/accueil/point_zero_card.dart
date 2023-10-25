@@ -69,7 +69,7 @@ class PointZeroCard extends StatelessWidget {
                   if (snapshot.hasData) {
                     var data = snapshot.data
                         ?.where((element) =>
-                            element.categorie == "POINT ZERO" &&
+                            element.typeAgent?.label == "POINT ZERO" &&
                             element.actif == true)
                         .toList();
 

@@ -26,7 +26,7 @@ class AgentCard extends StatelessWidget {
                     topRight: Radius.circular(20.0),
                     topLeft: Radius.circular(20.0))),
             child: Text(
-              "Agents de $domaine",
+              "Agents $domaine",
               style: const TextStyle(color: Colors.white, fontSize: 15),
             ),
           ),
@@ -43,7 +43,7 @@ class AgentCard extends StatelessWidget {
                 if (snapshot.hasData) {
                   var data = snapshot.data
                       ?.where((element) =>
-                          element.type == domaine &&
+                          element.typeAgent?.label == domaine &&
                           element.site != null &&
                           element.actif == true)
                       .toList();

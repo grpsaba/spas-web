@@ -1,5 +1,8 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:spas_web/services/Categorietool.dart';
+import 'package:spas_web/services/department.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -38,7 +41,7 @@ class _AddCatToolState extends State<AddCatTool> {
 
   @override
   Widget build(BuildContext context) {
-    double _padding = MediaQuery.of(context).size.width * 0.1;
+    double padding = MediaQuery.of(context).size.width * 0.1;
     return Scaffold(
       appBar: AppBar(
         backgroundColor: Theme.of(context).primaryColor,
@@ -50,7 +53,7 @@ class _AddCatToolState extends State<AddCatTool> {
       body: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
-              left: _padding, right: _padding, top: 8.0, bottom: 8.0),
+              left: padding, right: padding, top: 8.0, bottom: 8.0),
           child: Form(
             key: _key,
             child: Column(
@@ -68,6 +71,55 @@ class _AddCatToolState extends State<AddCatTool> {
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person)),
                 ),
+                const SizedBox(
+                  height: 20,
+                ),
+                StreamBuilder(
+                    stream: DepartmentService().all(),
+                    builder: (context, snapshot) {
+                      if (snapshot.hasData) {
+                        var docs = snapshot.data?.docs
+                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                            .toList();
+
+                        List<Department>? data =
+                            docs?.map((e) => Department.fromJson(e)).toList();
+
+                        return DropdownButtonFormField<Department>(
+                          hint: const Text("Département"),
+                          decoration: const InputDecoration(
+                              hintText: "Département",
+                              border: OutlineInputBorder(),
+                              prefixIcon: Icon(Icons.person)),
+                          validator: (value) {
+                            return value != null
+                                ? null
+                                : "Département obligatoir";
+                          },
+                          isExpanded: true,
+                          value: data
+                              ?.where((element) => element.label.contains(
+                                  widget.catTool.department?.label ?? ""))
+                              .toList()
+                              .first,
+                          items: data
+                              ?.map((Department department) =>
+                                  DropdownMenuItem<Department>(
+                                      value: department,
+                                      child: Text(department.label)))
+                              .toList(),
+                          onChanged: (value) {
+                            widget.catTool.department = value!;
+                          },
+                          onSaved: (value) {
+                            widget.catTool.department = value!;
+                          },
+                        );
+                      } else {
+                        return const Text(
+                            "Chargements des départements en cours...");
+                      }
+                    }),
                 const SizedBox(
                   height: 20,
                 ),
