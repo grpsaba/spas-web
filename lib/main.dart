@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_bootstrap5/flutter_bootstrap5.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:url_strategy/url_strategy.dart';
 
 import 'administration/start_page.dart';
 import 'firebase_options.dart';
@@ -13,7 +14,10 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   FirebaseFirestore firestore = FirebaseFirestore.instance;
+
   //Audio().stopSOs();
+  //enlever le # dans url de la page
+  setPathUrlStrategy();
   runApp(const MyApp());
 }
 

@@ -4,10 +4,14 @@ class SearchTextField extends StatefulWidget {
   final void Function(String keyword) onSearch;
 
   final void Function() onPress;
+  final TextEditingController? controller;
 
-  const SearchTextField(
-      {Key? key, required this.onSearch, required this.onPress})
-      : super(key: key);
+  const SearchTextField({
+    Key? key,
+    required this.onSearch,
+    required this.onPress,
+    this.controller,
+  }) : super(key: key);
 
   @override
   State<SearchTextField> createState() => _SearchBarState();
@@ -32,6 +36,7 @@ class _SearchBarState extends State<SearchTextField> {
         child: Row(children: [
           Expanded(
               child: TextFormField(
+            controller: widget.controller,
             onChanged: (value) => widget.onSearch(value),
             textAlignVertical: TextAlignVertical.center,
             decoration: const InputDecoration(

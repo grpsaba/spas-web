@@ -376,7 +376,7 @@ class Note extends Equatable {
   List<Object?> get props => [id];
 }
 
-class Comment {
+class Comment extends Equatable {
   Manager manager;
   DateTime date;
   String title;
@@ -395,6 +395,10 @@ class Comment {
       "title": title
     };
   }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [title];
 }
 
 class Manager {
@@ -586,21 +590,21 @@ class PointingTools {
   }
 }
 
-class ToolsPresence {
+class CheckList {
   Site site;
   CategorieTool cattool;
   String status;
   Supervisor? supervisor;
   DateTime date;
-  ToolsPresence(
+  CheckList(
       {required this.cattool,
       required this.status,
       required this.site,
       required this.supervisor,
       required this.date});
 
-  factory ToolsPresence.fromJson(Map<String, dynamic> json) {
-    return ToolsPresence(
+  factory CheckList.fromJson(Map<String, dynamic> json) {
+    return CheckList(
         site: Site.fromJson(json["site"]),
         cattool: CategorieTool.fromJson(json["cattool"]),
         status: json["status"],

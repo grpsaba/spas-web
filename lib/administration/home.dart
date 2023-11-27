@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:spas_web/administration/checklist.dart';
 import 'package:spas_web/administration/pointage_agent_list.dart';
 import 'package:spas_web/administration/pointage_site_list.dart';
-import 'package:spas_web/administration/pointage_tool_list.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/administration/start_page.dart';
 import 'package:spas_web/agent/agent_list.dart';
@@ -454,7 +454,7 @@ class _AdminHomeState extends State<AdminHome> {
               );
       case 8:
         return widget.manager.profil!.getModule(ModuleName.TOOL)!.view
-            ? PointageToolList(manager: widget.manager)
+            ? CheckListView(manager: widget.manager)
             : const Center(
                 child: Text("Module inaccessible!"),
               );

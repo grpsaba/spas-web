@@ -218,7 +218,7 @@ class _SupervisorListState extends State<SiteList> {
                     rowsPerPage: rowParPage,
                     showFirstLastButtons: true,
                     columns: [
-                      // const DataColumn(label: Text("Code")),
+                      const DataColumn(label: Text("Code")),
                       DataColumn(
                           onSort: (columnIndex, _) {
                             setState(() {
@@ -289,13 +289,14 @@ class _DataSource extends DataTableSource {
     data = data.where((element) {
       if (element.supervisor_2 != null) {
         return element.name.toLowerCase().startsWith(keyword.toLowerCase()) ||
-            element.supervisor!.firstName
+            element.codeSite.toLowerCase() == (keyword.toLowerCase()) ||
+            "${element.supervisor!.firstName} ${element.supervisor!.lastName}"
                 .toLowerCase()
                 .contains(keyword.toLowerCase()) ||
             element.supervisor!.phone
                 .toLowerCase()
                 .contains(keyword.toLowerCase()) ||
-            element.supervisor_2!.firstName
+            "${element.supervisor_2!.firstName} ${element.supervisor_2!.lastName}"
                 .toLowerCase()
                 .contains(keyword.toLowerCase()) ||
             element.supervisor_2!.phone
@@ -303,7 +304,8 @@ class _DataSource extends DataTableSource {
                 .contains(keyword.toLowerCase());
       } else {
         return element.name.toLowerCase().contains(keyword.toLowerCase()) ||
-            element.supervisor!.firstName
+            element.codeSite.toLowerCase() == (keyword.toLowerCase()) ||
+            "${element.supervisor!.firstName} ${element.supervisor!.lastName}"
                 .toLowerCase()
                 .contains(keyword.toLowerCase()) ||
             element.supervisor!.phone
@@ -316,7 +318,7 @@ class _DataSource extends DataTableSource {
       return const DataRow(cells: [
         //DataCell(Text("")),
         //DataCell(Text("")),
-        //DataCell(Text("")),
+        DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
@@ -330,7 +332,7 @@ class _DataSource extends DataTableSource {
     Site site = data[index];
 
     return DataRow(cells: [
-      //DataCell(Text(site.codeSite)),
+      DataCell(Text(site.codeSite)),
       DataCell(Text(site.name)),
       //DataCell(Text(site.email)),
       DataCell(Text(site.phone)),

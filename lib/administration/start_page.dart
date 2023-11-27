@@ -17,14 +17,26 @@ class Starter extends StatefulWidget {
 class _StarterAgentState extends State<Starter> {
   final AuthService _authService = AuthService();
   Supervisor? _supervisor;
-
+  // List<Site> sites = [];
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     // TODO: init manager count
     ManagerService().init();
+    //getSites();
   }
+
+  /*getSites() async {
+    sites = await SiteService().allAsModel();
+    int index = 1;
+    for (Site site in sites) {
+      String code = "SABA$index";
+      site.codeSite = code;
+      SiteService().update(site).then((value) {});
+      index += 1;
+    }
+  }*/
 
   @override
   void dispose() {

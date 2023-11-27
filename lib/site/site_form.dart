@@ -37,7 +37,7 @@ class _AddSupervisorState extends State<AddSite> {
     _isTwoSupervisor = widget.site.supervisor_2 == null ? false : true;
     super.initState();
     _email_ctrl.text = widget.site.email;
-    _code_ctrl.text = widget.site.codeSite;
+
     _name_ctrl.text = widget.site.name;
     _adresse_ctrl.text = widget.site.adresse;
     _lat_ctrl.text = widget.site.latLng.lat.toString();
@@ -53,6 +53,18 @@ class _AddSupervisorState extends State<AddSite> {
     _supervisor2_ctrl.text = widget.site.supervisor_2 == null
         ? ''
         : '${widget.site.supervisor_2?.firstName} ${widget.site.supervisor_2?.lastName}';
+
+    WidgetsFlutterBinding.ensureInitialized();
+    getSiteCode();
+  }
+
+  getSiteCode() async {
+    List<Site> sites = await SiteService().allAsModel();
+    if (widget.site.codeSite.isNotEmpty) {
+      _code_ctrl.text = widget.site.codeSite;
+    } else {
+      _code_ctrl.text = "SABA${sites.length + 1}";
+    }
   }
 
   @override
@@ -193,7 +205,7 @@ class _AddSupervisorState extends State<AddSite> {
                     ),
                     Expanded(
                         child: TextFormField(
-                      readOnly: widget.site.codeSite.isNotEmpty,
+                      //readOnly: widget.site.codeSite.isNotEmpty,
                       controller: _code_ctrl,
                       onChanged: (value) {
                         widget.site.codeSite = value;
@@ -299,7 +311,7 @@ class _AddSupervisorState extends State<AddSite> {
                 ),
                 const Align(
                     alignment: Alignment.centerLeft,
-                    child: const Text("Position GPS")),
+                    child: Text("Position GPS")),
                 const SizedBox(
                   height: 10,
                 ),
@@ -479,7 +491,8 @@ class _AddSupervisorState extends State<AddSite> {
                               : widget.manager.profil!
                                       .getModule(ModuleName.SITE)!
                                       .delete
-                                  ? ElevatedButton(
+                                  ? const SizedBox
+                                      .shrink() /*ElevatedButton(
                                       style: ElevatedButton.styleFrom(
                                           backgroundColor: Colors.red,
                                           fixedSize: const Size(150, 50),
@@ -524,7 +537,7 @@ class _AddSupervisorState extends State<AddSite> {
                                                 TextStyle(color: Colors.white),
                                           )
                                         ],
-                                      ))
+                                      ))*/
                                   : const SizedBox.shrink()
                         ],
                       )

@@ -260,30 +260,32 @@ class ExportData {
     style.fontSize = 12;
     style.bold = true;
     style.backColor = "#32CD32";
-
-    sheet.getRangeByIndex(1, 1).setText("Nom");
+    sheet.getRangeByIndex(1, 1).setText("Code");
     sheet.getRangeByIndex(1, 1).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 2).setText("Adresse");
+    sheet.getRangeByIndex(1, 2).setText("Nom");
     sheet.getRangeByIndex(1, 2).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 3).setText("Email");
+    sheet.getRangeByIndex(1, 3).setText("Adresse");
     sheet.getRangeByIndex(1, 3).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 4).setText("Contact");
+    sheet.getRangeByIndex(1, 4).setText("Email");
     sheet.getRangeByIndex(1, 4).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 5).setText("NB Agent prévu");
+    sheet.getRangeByIndex(1, 5).setText("Contact");
     sheet.getRangeByIndex(1, 5).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 6).setText("Position GPS");
+    sheet.getRangeByIndex(1, 6).setText("NB Agent prévu");
     sheet.getRangeByIndex(1, 6).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 7).setText("Superviseur 1");
+    sheet.getRangeByIndex(1, 7).setText("Position GPS");
     sheet.getRangeByIndex(1, 7).cellStyle = style;
 
-    sheet.getRangeByIndex(1, 8).setText("Superviseur 2");
+    sheet.getRangeByIndex(1, 8).setText("Superviseur 1");
     sheet.getRangeByIndex(1, 8).cellStyle = style;
+
+    sheet.getRangeByIndex(1, 9).setText("Superviseur 2");
+    sheet.getRangeByIndex(1, 9).cellStyle = style;
 
     sheet.getRangeByIndex(1, 9).setText("Statut");
     sheet.getRangeByIndex(1, 9).cellStyle = style;
@@ -294,47 +296,50 @@ class ExportData {
 
     for (var site in data) {
       rowIndex++;
-      sheet.getRangeByIndex(rowIndex, 1).setText(site.name);
-      sheet.getRangeByIndex(rowIndex, 1).columnWidth = 12;
-      sheet.getRangeByIndex(rowIndex, 1).cellStyle.fontSize = 10;
-      sheet.getRangeByIndex(rowIndex, 1).cellStyle.bold = false;
-      sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.lineStyle =
+      sheet.getRangeByIndex(rowIndex, 1).setText(site.codeSite);
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 2).setText(site.name);
+      sheet.getRangeByIndex(rowIndex, 2).columnWidth = 12;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.fontSize = 10;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.bold = false;
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.lineStyle =
           LineStyle.thin;
-      sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.color =
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.color =
           '#000000';
 
-      sheet.getRangeByIndex(rowIndex, 2).setText(site.adresse);
-      sheet.getRangeByIndex(rowIndex, 2).cellStyle = style;
-
-      sheet.getRangeByIndex(rowIndex, 3).setText(site.email);
+      sheet.getRangeByIndex(rowIndex, 3).setText(site.adresse);
       sheet.getRangeByIndex(rowIndex, 3).cellStyle = style;
 
-      sheet.getRangeByIndex(rowIndex, 4).setText(site.phone);
+      sheet.getRangeByIndex(rowIndex, 4).setText(site.email);
       sheet.getRangeByIndex(rowIndex, 4).cellStyle = style;
 
-      sheet.getRangeByIndex(rowIndex, 5).setNumber(site.nbAgent as double?);
+      sheet.getRangeByIndex(rowIndex, 5).setText(site.phone);
       sheet.getRangeByIndex(rowIndex, 5).cellStyle = style;
 
-      sheet
-          .getRangeByIndex(rowIndex, 6)
-          .setText("${site.latLng.lat}  ${site.latLng.lng}");
+      sheet.getRangeByIndex(rowIndex, 6).setNumber(site.nbAgent as double?);
       sheet.getRangeByIndex(rowIndex, 6).cellStyle = style;
 
-      sheet.getRangeByIndex(rowIndex, 7).setText(
-          "${site.supervisor?.firstName ?? ""} ${site.supervisor?.lastName ?? ""}");
+      sheet
+          .getRangeByIndex(rowIndex, 7)
+          .setText("${site.latLng.lat}  ${site.latLng.lng}");
       sheet.getRangeByIndex(rowIndex, 7).cellStyle = style;
 
       sheet.getRangeByIndex(rowIndex, 8).setText(
-          "${site.supervisor_2?.firstName ?? ""} ${site.supervisor_2?.lastName ?? ""}");
+          "${site.supervisor?.firstName ?? ""} ${site.supervisor?.lastName ?? ""}");
       sheet.getRangeByIndex(rowIndex, 8).cellStyle = style;
+
+      sheet.getRangeByIndex(rowIndex, 9).setText(
+          "${site.supervisor_2?.firstName ?? ""} ${site.supervisor_2?.lastName ?? ""}");
+      sheet.getRangeByIndex(rowIndex, 9).cellStyle = style;
 
       String statut = site.actif == null
           ? "Inconnu"
           : site.actif!
               ? "Actif"
               : "Inactif";
-      sheet.getRangeByIndex(rowIndex, 9).setText(statut);
-      sheet.getRangeByIndex(rowIndex, 9).cellStyle = style;
+      sheet.getRangeByIndex(rowIndex, 10).setText(statut);
+      sheet.getRangeByIndex(rowIndex, 10).cellStyle = style;
     }
     //Save and launch the excel.
     final List<int> bytes = workbook.saveAsStream();
@@ -909,6 +914,7 @@ class SiteListToPDF {
       );
   static Widget buildInvoice(List<Site> dataSite) {
     final headers = [
+      'Code',
       'Nom',
       'Adresse',
       'Contact',
@@ -921,6 +927,7 @@ class SiteListToPDF {
     });
     final data = dataSite.map((site) {
       return [
+        site.codeSite,
         site.name,
         site.adresse,
         //employe.telephone,
@@ -1207,8 +1214,8 @@ class PointageAgentListToPDF {
 }
 
 class PointageToolListToPDF {
-  static Future<Uint8List> export(List<PointingTools> dataPointage,
-      {String title = 'LISTE DE POINTAGES MATERIEL'}) async {
+  static Future<Uint8List> export(List<CheckList> dataPointage,
+      {String title = 'CHECKLIST MATERIEL'}) async {
     final pdf = Document();
 
     pdf.addPage(MultiPage(
@@ -1246,7 +1253,7 @@ class PointageToolListToPDF {
           SizedBox(height: 0.8 * PdfPageFormat.cm),
         ],
       );
-  static Widget buildInvoice(List<PointingTools> dataPointage) {
+  static Widget buildInvoice(List<CheckList> dataPointage) {
     final headers = [
       'Date',
       'Heure',
@@ -1257,16 +1264,16 @@ class PointageToolListToPDF {
       'Statut',
     ];
 
-    final data = dataPointage.map((pointage) {
+    final data = dataPointage.map((checkList) {
       return [
-        pointage.date.toString().split(" ")[0],
-        "${pointage.date.hour}:${pointage.date.minute}:${pointage.date.second}",
+        checkList.date.toString().split(" ")[0],
+        "${checkList.date.hour}:${checkList.date.minute}:${checkList.date.second}",
         //employe.telephone,
-        pointage.tool.label,
-        pointage.tool.site?.name,
-        "${pointage.tool.site?.supervisor?.firstName} ${pointage.tool.site?.supervisor?.lastName}",
-        pointage.tool.site?.supervisor?.phone,
-        pointage.status,
+        checkList.cattool.label,
+        checkList.site.name,
+        "${checkList.supervisor?.firstName ?? ""} ${checkList.supervisor?.lastName ?? ""}",
+        checkList.supervisor?.phone ?? "",
+        checkList.status,
       ];
     }).toList();
 

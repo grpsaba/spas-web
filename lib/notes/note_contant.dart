@@ -15,9 +15,36 @@ class NotesContant extends StatefulWidget {
 }
 
 class _NotesContantState extends State<NotesContant> {
-  TextEditingController _comment_ctrl = TextEditingController();
+  final TextEditingController _comment_ctrl = TextEditingController();
+  final TextEditingController _comment_edit_ctrl = TextEditingController();
   GlobalKey<FormState> _key = GlobalKey<FormState>();
+  GlobalKey<FormState> _keyCommentForm = GlobalKey<FormState>();
+  bool _editComment = false;
+  bool _deleteComment = false;
   bool _addingComment = false;
+  bool _editingComment = false;
+  int _selectedIndex = 0;
+  bool editComment(int index) {
+    return _selectedIndex == index && _editComment;
+  }
+
+  bool deleteComment(int index) {
+    return _selectedIndex == index && _deleteComment;
+  }
+
+  bool editingComment(int index) {
+    return _selectedIndex == index && _editingComment;
+  }
+
+  void closeEditing() {
+    setState(() {
+      _editComment = false;
+
+      _deleteComment = false;
+      _editingComment = false;
+    });
+  }
+
   @override
   void initState() {
     // TODO: implement initState
@@ -248,7 +275,157 @@ class _NotesContantState extends State<NotesContant> {
                                     color: Colors.black,
                                     fontWeight: FontWeight.bold),
                               ),
-                              Text(coment?.title ?? "")
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              editComment(index)
+                                  ? const SizedBox.shrink()
+                                  : Text(coment?.title ?? ""),
+                              editComment(index)
+                                  ? SizedBox(
+                                      width: 500,
+                                      child: Form(
+                                        key: _keyCommentForm,
+                                        child: Row(
+                                          children: [
+                                            Expanded(
+                                              child: TextFormField(
+                                                validator: (value) {
+                                                  return value!.isNotEmpty
+                                                      ? null
+                                                      : "commentaire invalide";
+                                                },
+                                                controller: _comment_edit_ctrl,
+                                                keyboardType:
+                                                    TextInputType.multiline,
+                                                decoration: InputDecoration(
+                                                    hintText:
+                                                        coment?.title ?? "",
+                                                    border: InputBorder.none),
+                                              ),
+                                            ),
+                                            editingComment(index)
+                                                ? Loading(
+                                                    size: 32, inline: false)
+                                                : Row(
+                                                    children: [
+                                                      IconButton(
+                                                          onPressed: () {
+                                                            closeEditing();
+                                                          },
+                                                          icon: const Icon(
+                                                              Icons.cancel)),
+                                                      IconButton(
+                                                          onPressed: () {
+                                                            if (_keyCommentForm
+                                                                .currentState!
+                                                                .validate()) {
+                                                              setState(() {
+                                                                _editingComment =
+                                                                    true;
+                                                              });
+                                                              coment?.title =
+                                                                  _comment_edit_ctrl
+                                                                      .text;
+
+                                                              NoteService()
+                                                                  .update(widget
+                                                                      .note)
+                                                                  .then(
+                                                                      (value) {
+                                                                setState(() {
+                                                                  _editingComment =
+                                                                      false;
+                                                                  _comment_edit_ctrl
+                                                                      .text = "";
+                                                                  closeEditing();
+                                                                });
+                                                              }).onError((error,
+                                                                      stackTrace) {
+                                                                setState(() {
+                                                                  _editingComment =
+                                                                      false;
+                                                                  _comment_edit_ctrl
+                                                                      .text = "";
+                                                                  closeEditing();
+                                                                });
+                                                              });
+                                                            }
+                                                          },
+                                                          icon: const Icon(
+                                                              Icons.send)),
+                                                    ],
+                                                  )
+                                          ],
+                                        ),
+                                      ),
+                                    )
+                                  : const SizedBox.shrink(),
+                              const SizedBox(
+                                height: 5.0,
+                              ),
+                              coment!.manager.UID.contains(widget.manager.UID)
+                                  ? deleteComment(index)
+                                      ? Loading(size: 24, inline: false)
+                                      : deleteComment(index)
+                                          ? const SizedBox.shrink()
+                                          : editComment(index)
+                                              ? const SizedBox.shrink()
+                                              : Row(
+                                                  children: [
+                                                    IconButton(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          _deleteComment = true;
+                                                          _selectedIndex =
+                                                              index;
+                                                        });
+                                                        widget.note.comments
+                                                            ?.remove(coment);
+                                                        NoteService()
+                                                            .update(widget.note)
+                                                            .then((value) {
+                                                          setState(() {
+                                                            _deleteComment =
+                                                                false;
+                                                          });
+                                                        }).onError((error,
+                                                                stackTrace) {
+                                                          setState(() {
+                                                            _deleteComment =
+                                                                false;
+                                                          });
+                                                        });
+                                                      },
+                                                      icon: const Icon(
+                                                        Icons.delete,
+                                                        color: Colors.black12,
+                                                      ),
+                                                      tooltip:
+                                                          "Supprimer votre commentaire",
+                                                    ),
+                                                    IconButton(
+                                                      onPressed: () {
+                                                        setState(() {
+                                                          _comment_edit_ctrl
+                                                                  .text =
+                                                              coment.title ??
+                                                                  "";
+                                                          _editComment = true;
+                                                          _selectedIndex =
+                                                              index;
+                                                        });
+                                                      },
+                                                      icon: const Icon(
+                                                        Icons.edit,
+                                                        color: Colors.black12,
+                                                      ),
+                                                      tooltip:
+                                                          "Modifier votre commentaire",
+                                                    )
+                                                  ],
+                                                )
+                                  : const SizedBox.shrink()
                             ],
                           ),
                         ),
