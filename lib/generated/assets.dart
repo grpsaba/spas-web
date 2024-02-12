@@ -16,5 +16,6 @@ class Assets {
   static const String assetsIconSite = 'assets/icon_site.png';
   static const String assetsIconTools = 'assets/icon_tools.png';
   static const String assetsLogo = 'assets/logo.png';
+  static const String assetsPosition = 'assets/position.png';
   static const String assetsSos = 'assets/sos.mp3';
 }

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_animation_progress_bar/flutter_animation_progress_bar.dart';
+import 'package:spas_web/const.dart';
 
 import '../model.dart';
 import '../services/agent.dart';
@@ -36,16 +37,18 @@ class _NbAgentStatusState extends State<NbAgentStatus> {
                       : purcent <= 60
                           ? Colors.orange
                           : Colors.green,
-                  backgroundColor: Colors.grey,
+                  backgroundColor: AppConstants.bgColor,
                 ),
                 Text(
                   "Agent $value/${widget.site.nbAgent}",
-                  style: const TextStyle(fontSize: 12),
+                  style: TextStyle(
+                      fontSize: 12,
+                      color: AppConstants.textColor.withOpacity(0.6)),
                 ),
               ],
             );
           } else {
-            return const SizedBox.shrink();
+            return const LinearProgressIndicator();
           }
         });
   }

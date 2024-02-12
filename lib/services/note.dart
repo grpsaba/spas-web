@@ -32,4 +32,23 @@ class NoteService {
   Future<void> update(Note note) {
     return _collectionReference.doc(note.id).update(note.toJson());
   }
+
+  Future<List<Note>> allFuture() async {
+    var snpshot = await _collectionReference.get();
+    List<Note> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+            Note.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data;
+  }
+
+  Future<List<Note>> allBySource(String source) async {
+    var query = await _collectionReference.where("source", isEqualTo: source);
+    var snpshot = await query.get();
+    List<Note> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+            Note.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data;
+  }
 }

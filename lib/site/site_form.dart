@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:spas_web/liste_selection_pages/supervisor_search_dialog.dart';
+import 'package:spas_web/services/zone.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -37,7 +40,7 @@ class _AddSupervisorState extends State<AddSite> {
     _isTwoSupervisor = widget.site.supervisor_2 == null ? false : true;
     super.initState();
     _email_ctrl.text = widget.site.email;
-
+    _code_ctrl.text = widget.site.codeSite;
     _name_ctrl.text = widget.site.name;
     _adresse_ctrl.text = widget.site.adresse;
     _lat_ctrl.text = widget.site.latLng.lat.toString();
@@ -55,17 +58,16 @@ class _AddSupervisorState extends State<AddSite> {
         : '${widget.site.supervisor_2?.firstName} ${widget.site.supervisor_2?.lastName}';
 
     WidgetsFlutterBinding.ensureInitialized();
-    getSiteCode();
   }
 
-  getSiteCode() async {
+  /*etSiteCode() async {
     List<Site> sites = await SiteService().allAsModel();
     if (widget.site.codeSite.isNotEmpty) {
       _code_ctrl.text = widget.site.codeSite;
     } else {
       _code_ctrl.text = "SABA${sites.length + 1}";
     }
-  }
+  }*/
 
   @override
   void dispose() {
@@ -116,7 +118,56 @@ class _AddSupervisorState extends State<AddSite> {
                         }),
                     _isTwoSupervisor
                         ? const Text("Deux Superviseurs")
-                        : const Text("Un Superviseur")
+                        : const Text("Un Superviseur"),
+                    const SizedBox(
+                      width: 30,
+                    ),
+                    Expanded(
+                      child: StreamBuilder(
+                          stream: ZoneService().all(),
+                          builder: (context, snapshot) {
+                            if (snapshot.hasData) {
+                              var docs = snapshot.data?.docs
+                                  .map((e) => jsonDecode(jsonEncode(e.data())))
+                                  .toList();
+                              List<Zone>? data =
+                                  docs?.map((e) => Zone.fromJson(e)).toList();
+
+                              return DropdownButtonFormField<Zone>(
+                                hint: const Text("Zone"),
+                                decoration: const InputDecoration(
+                                    hintText: "Zone",
+                                    border: OutlineInputBorder(),
+                                    prefixIcon: Icon(Icons.apartment)),
+                                validator: (value) {
+                                  return value != null
+                                      ? null
+                                      : "Zone obligatoir";
+                                },
+                                isExpanded: true,
+                                value: data
+                                    ?.where((element) => element.codeZone
+                                        .contains(
+                                            widget.site.zone?.codeZone ?? ""))
+                                    .toList()
+                                    .first,
+                                items: data
+                                    ?.map((Zone zone) => DropdownMenuItem<Zone>(
+                                        value: zone, child: Text(zone.name)))
+                                    .toList(),
+                                onChanged: (value) {
+                                  widget.site.zone = value!;
+                                },
+                                onSaved: (value) {
+                                  widget.site.zone = value!;
+                                },
+                              );
+                            } else {
+                              return const Text(
+                                  "Chargements des Zone en cours...");
+                            }
+                          }),
+                    ),
                   ],
                 ),
                 const SizedBox(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../const.dart';
 import '../services/supervisor.dart';
 
 class SupervisorCard extends StatelessWidget {
@@ -14,7 +15,7 @@ class SupervisorCard extends StatelessWidget {
       width: 200,
       decoration: BoxDecoration(
           borderRadius: BorderRadius.circular(20.0),
-          color: Theme.of(context).primaryColor),
+          color: AppConstants.secondaryColor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -22,9 +23,9 @@ class SupervisorCard extends StatelessWidget {
             alignment: Alignment.center,
             width: 200,
             padding: const EdgeInsets.all(8.0),
-            decoration: const BoxDecoration(
-                color: Colors.blueGrey,
-                borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+                color: AppConstants.secondaryColor,
+                borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(20.0),
                     topLeft: Radius.circular(20.0))),
             child: const Text(

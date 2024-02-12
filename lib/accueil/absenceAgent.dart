@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:spas_web/const.dart';
 import 'package:spas_web/search_textField.dart';
 
 import '../generated/assets.dart';
@@ -46,20 +47,24 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
         padding: const EdgeInsets.all(8.0),
         height: MediaQuery.of(context).size.height - 192,
         decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(20.0)),
+            color: AppConstants.secondaryColor,
+            borderRadius: BorderRadius.circular(20.0)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Row(
               children: [
                 const Text(
-                  "Agents non pointés",
-                  style: TextStyle(fontSize: 15),
+                  "Agents",
+                  style: TextStyle(fontSize: 15, color: Colors.white),
                 ),
                 const SizedBox(
                   width: 5,
                 ),
                 SearchTextField(
+                    fillColor: AppConstants.bgColor,
+                    hintColor: AppConstants.secondaryColor,
+                    textColor: Colors.white,
                     onSearch: (value) {
                       setState(() {
                         _keyword = value;
@@ -75,7 +80,10 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                           title: "Agents non pointés");
                       PdfApi.openFile(document);
                     },
-                    icon: const Icon(Icons.print)),
+                    icon: const Icon(
+                      Icons.print,
+                      color: Colors.white,
+                    )),
               ],
             ),
             const Divider(),
@@ -141,6 +149,8 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                                   itemBuilder: (context, index) {
                                     Agent agent = _listAgent[index];
                                     return Card(
+                                      color: AppConstants.secondaryColor
+                                          .withOpacity(0.3),
                                       elevation: 0.3,
                                       child: ListTile(
                                         onTap: () {},
@@ -151,21 +161,22 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                                         ),
                                         title: Text(
                                             "${agent.firstName} ${agent.lastName}",
-                                            style: TextStyle(
-                                                color: Theme.of(context)
-                                                    .primaryColor,
+                                            style: const TextStyle(
+                                                color: AppConstants.textColor,
                                                 fontSize: 12)),
                                         subtitle: Column(
                                           crossAxisAlignment:
                                               CrossAxisAlignment.start,
                                           children: [
                                             Text("IM : ${agent.code}",
-                                                style: const TextStyle(
-                                                    color: Colors.black54,
+                                                style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.6),
                                                     fontSize: 12)),
                                             Text("Site : ${agent.site?.name}",
-                                                style: const TextStyle(
-                                                    color: Colors.black54,
+                                                style: TextStyle(
+                                                    color: Colors.white
+                                                        .withOpacity(0.6),
                                                     fontSize: 12)),
                                           ],
                                         ),

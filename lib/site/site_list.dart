@@ -139,7 +139,8 @@ class _SupervisorListState extends State<SiteList> {
                                                       nbAgent: 0,
                                                       supervisor_2: null,
                                                       supervisor: null,
-                                                      actif: false),
+                                                      actif: false,
+                                                      zone: null),
                                                   manager: widget.manager,
                                                 )));
                                   },

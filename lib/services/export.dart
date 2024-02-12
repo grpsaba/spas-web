@@ -1047,6 +1047,101 @@ class AgentListToPDF {
   }
 }
 
+class NoteRepport {
+  static Future<Uint8List> export(
+      List<Note> data, DateTime debut, DateTime fin, String source,
+      {String title = 'RAPPORT'}) async {
+    title = 'RAPPORT DE ${source.toUpperCase()}';
+    data = data.where((note) {
+      bool isBetween = note.date.isBefore(fin) && note.date.isAfter(debut);
+      return note.source.toLowerCase().contains(source.toLowerCase()) &&
+          isBetween;
+    }).toList();
+    final pdf = Document();
+
+    pdf.addPage(MultiPage(
+      margin: const pw.EdgeInsets.all(10),
+      build: (context) => [
+        //Text("Conso part employe"),
+        SizedBox(height: 2 * PdfPageFormat.cm),
+        buildTitle(title),
+        buildInvoice(data),
+      ],
+      footer: (context) => buildFooter(),
+    ));
+
+    return pdf.save();
+  }
+
+  static Widget buildFooter() => pw.Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Divider(),
+          SizedBox(height: 2 * PdfPageFormat.mm),
+          Text("Powered by ${AppConstants.oragnisationName}"),
+        ],
+      );
+  static Widget buildTitle(title) => pw.Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 0.8 * PdfPageFormat.cm),
+          /*Text(
+             "Nombre de ticket consommé du "),*/
+          SizedBox(height: 0.8 * PdfPageFormat.cm),
+        ],
+      );
+  static Widget buildInvoice(List<Note> dataNote) {
+    final headers = [
+      'Date',
+      'Site',
+      'Rapport',
+    ];
+    /*dataAgent.sort((Agent1, Agent2) {
+      return Agent1.site!.name.compareTo(Agent2.site!.name);
+    });*/
+    final data = dataNote.map((note) {
+      return [
+        "${note.date.day}/${note.date.month}/${note.date.year}",
+        note.site?.name ?? "",
+        note.note,
+      ];
+    }).toList();
+
+    return TableHelper.fromTextArray(
+      headers: headers,
+      data: data,
+      border: null,
+      headerStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+      headerDecoration: const BoxDecoration(color: PdfColors.grey300),
+      //cellHeight: 30,
+      cellDecoration: (val, va, de) => const BoxDecoration(
+          border: pw.Border(
+              bottom: pw.BorderSide(width: 0.5),
+              left: pw.BorderSide(width: 0.5))),
+      columnWidths: {0: ColumnWidth()},
+      cellStyle: const TextStyle(fontSize: 10),
+      cellAlignments: {
+        0: Alignment.centerLeft,
+        1: Alignment.centerLeft,
+        2: Alignment.centerLeft,
+      },
+    );
+  }
+}
+
+class ColumnWidth extends TableColumnWidth {
+  @override
+  pw.ColumnLayout layout(
+      pw.Widget child, pw.Context context, pw.BoxConstraints constraints) {
+    // TODO: implement layout
+    return pw.ColumnLayout(100, 1);
+  }
+}
+
 class PointageSiteListToPDF {
   static Future<Uint8List> export(List<PointingSite> dataPointage,
       {String title = 'LISTE DE POINTAGES SITE'}) async {
@@ -1104,6 +1199,89 @@ class PointageSiteListToPDF {
         pointage.site.name,
         "${pointage.supervisor?.firstName} ${pointage.supervisor?.lastName}",
         pointage.supervisor?.phone,
+      ];
+    }).toList();
+
+    return TableHelper.fromTextArray(
+      headers: headers,
+      data: data,
+      border: null,
+      headerStyle: TextStyle(fontWeight: FontWeight.bold, fontSize: 10),
+      headerDecoration: const BoxDecoration(color: PdfColors.grey300),
+      //cellHeight: 30,
+      cellDecoration: (val, va, de) => const BoxDecoration(
+          border: pw.Border(bottom: pw.BorderSide(width: 0.5))),
+      cellStyle: const TextStyle(fontSize: 10),
+      cellAlignments: {
+        0: Alignment.centerLeft,
+        1: Alignment.centerLeft,
+        2: Alignment.centerLeft,
+        3: Alignment.centerLeft,
+        4: Alignment.centerRight,
+      },
+    );
+  }
+}
+
+class PointageZoneListToPDF {
+  static Future<Uint8List> export(List<PointingZone> dataPointage,
+      {String title = 'LISTE DE POINTAGES SITE PAR ZONE'}) async {
+    final pdf = Document();
+
+    pdf.addPage(MultiPage(
+      //margin: const pw.EdgeInsets.all(5),
+      build: (context) => [
+        //Text("Conso part employe"),
+        SizedBox(height: 3 * PdfPageFormat.cm),
+        buildTitle(title),
+        buildInvoice(dataPointage),
+      ],
+      footer: (context) => buildFooter(),
+    ));
+
+    return pdf.save();
+  }
+
+  static Widget buildFooter() => pw.Column(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          Divider(),
+          SizedBox(height: 2 * PdfPageFormat.mm),
+          Text("Powered by ${AppConstants.oragnisationName}"),
+        ],
+      );
+  static Widget buildTitle(title) => pw.Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: TextStyle(fontSize: 15, fontWeight: FontWeight.bold),
+          ),
+          SizedBox(height: 0.8 * PdfPageFormat.cm),
+          /*Text(
+             "Nombre de ticket consommé du "),*/
+          SizedBox(height: 0.8 * PdfPageFormat.cm),
+        ],
+      );
+  static Widget buildInvoice(List<PointingZone> dataPointage) {
+    final headers = [
+      'Date',
+      'Heure',
+      'Site',
+      'Source',
+      'Zone',
+      'Contact',
+    ];
+
+    final data = dataPointage.map((pointage) {
+      return [
+        pointage.date.toString().split(" ")[0],
+        "${pointage.date.hour}:${pointage.date.minute}:${pointage.date.second}",
+        //employe.telephone,
+        pointage.site.name,
+        "${pointage.zoneMember?.firstName} ${pointage.zoneMember?.lastName}",
+        "${pointage.zoneMember?.zone?.name}",
+        pointage.zoneMember?.phone,
       ];
     }).toList();
 

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 
+import '../const.dart';
 import '../services/site.dart';
 
 class SiteCard extends StatelessWidget {
@@ -14,7 +15,7 @@ class SiteCard extends StatelessWidget {
       //height: 100,
       width: 200,
       decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
+          color: AppConstants.secondaryColor,
           borderRadius: BorderRadius.circular(20.0)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -23,16 +24,16 @@ class SiteCard extends StatelessWidget {
             alignment: Alignment.center,
             width: 200,
             padding: const EdgeInsets.all(8.0),
-            decoration: const BoxDecoration(
-                color: Colors.blueGrey,
-                borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+                color: AppConstants.secondaryColor,
+                borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(20.0),
                     topLeft: Radius.circular(20.0))),
-            child: const Row(
+            child: Row(
               children: [
                 Sos(),
-                SizedBox(width: 10),
-                Text(
+                const SizedBox(width: 10),
+                const Text(
                   "Sites",
                   style: TextStyle(color: Colors.white, fontSize: 15),
                 ),

@@ -170,21 +170,22 @@ class Site extends Equatable {
   int nbAgent;
   bool? actif;
   bool sos;
-  Site({
-    required this.UID,
-    required this.codeSite,
-    required this.name,
-    required this.adresse,
-    required this.email,
-    required this.phone,
-    required this.latLng,
-    required this.token,
-    required this.nbAgent,
-    required this.supervisor,
-    required this.supervisor_2,
-    this.sos = false,
-    required this.actif,
-  });
+  Zone? zone;
+  Site(
+      {required this.UID,
+      required this.codeSite,
+      required this.name,
+      required this.adresse,
+      required this.email,
+      required this.phone,
+      required this.latLng,
+      required this.token,
+      required this.nbAgent,
+      required this.supervisor,
+      required this.supervisor_2,
+      this.sos = false,
+      required this.actif,
+      required this.zone});
 
   factory Site.fromJson(Map<String, dynamic> json) {
     return Site(
@@ -196,6 +197,7 @@ class Site extends Equatable {
         token: json['token'],
         actif: json['actif'] ?? true,
         nbAgent: json['nbAgent'] ?? 0,
+        zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
         supervisor_2: json["supervisor_2"] == null
             ? null
@@ -212,6 +214,7 @@ class Site extends Equatable {
       "name": name,
       "adresse": adresse,
       "email": email,
+      "zone": zone?.toJson(),
       "supervisor": supervisor?.toJson(),
       "supervisor_2": supervisor_2?.toJson(),
       "latLng": latLng.toJson(),
@@ -231,6 +234,177 @@ class Site extends Equatable {
 //
 
 //
+}
+
+class Zone extends Equatable {
+  String codeZone;
+  String name;
+  Zone({
+    required this.codeZone,
+    required this.name,
+  });
+
+  factory Zone.fromJson(Map<String, dynamic> json) {
+    return Zone(
+      codeZone: json["codeZone"],
+      name: json["name"],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "codeZone": codeZone,
+      "name": name,
+    };
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [codeZone];
+//
+
+//
+
+//
+}
+
+class ZoneMember extends Equatable {
+  String UID;
+  String code;
+  String firstName;
+  String lastName;
+  String phone;
+  String email;
+  bool? actif;
+  String? poste;
+  Zone? zone;
+  String token;
+  ZoneMember(
+      {required this.UID,
+      required this.code,
+      required this.firstName,
+      required this.lastName,
+      required this.phone,
+      required this.email,
+      required this.actif,
+      required this.poste,
+      required this.zone,
+      this.token = ""});
+
+  factory ZoneMember.fromJson(Map<String, dynamic> json) {
+    return ZoneMember(
+      UID: json["UID"],
+      code: json["code"],
+      firstName: json["firstName"],
+      lastName: json["lastName"],
+      phone: json["phone"],
+      email: json["email"],
+      token: json["token"],
+      actif: json['actif'] ?? true,
+      poste: json['poste'],
+      zone: Zone.fromJson(json['zone']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "UID": UID,
+      "code": code,
+      "firstName": firstName,
+      "lastName": lastName,
+      "phone": phone,
+      "email": email,
+      "token": token,
+      "zone": zone?.toJson(),
+      'actif': actif,
+      "poste": poste
+    };
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [UID];
+//
+}
+
+class PointingZone {
+  DateTime date;
+  LatLngModel latlng;
+  Site site;
+  ZoneMember? zoneMember;
+  double distance;
+  PointingZone(
+      {required this.site,
+      required this.latlng,
+      required this.date,
+      required this.distance,
+      required this.zoneMember});
+
+  factory PointingZone.fromJson(Map<String, dynamic> json) {
+    return PointingZone(
+        date: DateTime.parse(json["date"]),
+        latlng: LatLngModel.fromJson(json["latlng"]),
+        site: Site.fromJson(json["site"]),
+        zoneMember: ZoneMember.fromJson(json["zoneMember"]),
+        distance: json["distance"]);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "date": date.toIso8601String(),
+      "latlng": latlng.toJson(),
+      "site": site.toJson(),
+      "distance": distance,
+      "zoneMember": zoneMember?.toJson()
+    };
+  }
+
+  bool isToday() {
+    DateTime today = DateTime.now();
+    return date.year == today.year &&
+        date.day == today.day &&
+        date.month == today.month;
+  }
+}
+
+class PointingSite {
+  DateTime date;
+  LatLngModel latlng;
+  Site site;
+  Supervisor? supervisor;
+  double distance;
+  PointingSite(
+      {required this.site,
+      required this.latlng,
+      required this.date,
+      required this.distance,
+      required this.supervisor});
+
+  factory PointingSite.fromJson(Map<String, dynamic> json) {
+    return PointingSite(
+        date: DateTime.parse(json["date"]),
+        latlng: LatLngModel.fromJson(json["latlng"]),
+        site: Site.fromJson(json["site"]),
+        supervisor: Supervisor.fromJson(json["supervisor"]),
+        distance: json["distance"]);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "date": date.toIso8601String(),
+      "latlng": latlng.toJson(),
+      "site": site.toJson(),
+      "distance": distance,
+      "supervisor": supervisor?.toJson()
+    };
+  }
+
+  bool isToday() {
+    DateTime today = DateTime.now();
+    return date.year == today.year &&
+        date.day == today.day &&
+        date.month == today.month;
+  }
 }
 
 class PointingAgent extends Equatable {
@@ -275,46 +449,6 @@ class PointingAgent extends Equatable {
   @override
   // TODO: implement props
   List<Object?> get props => [date.day, date.month, date.year];
-}
-
-class PointingSite {
-  DateTime date;
-  LatLngModel latlng;
-  Site site;
-  Supervisor? supervisor;
-  double distance;
-  PointingSite(
-      {required this.site,
-      required this.latlng,
-      required this.date,
-      required this.distance,
-      required this.supervisor});
-
-  factory PointingSite.fromJson(Map<String, dynamic> json) {
-    return PointingSite(
-        date: DateTime.parse(json["date"]),
-        latlng: LatLngModel.fromJson(json["latlng"]),
-        site: Site.fromJson(json["site"]),
-        supervisor: Supervisor.fromJson(json["supervisor"]),
-        distance: json["distance"]);
-  }
-
-  Map<String, dynamic> toJson() {
-    return {
-      "date": date.toIso8601String(),
-      "latlng": latlng.toJson(),
-      "site": site.toJson(),
-      "distance": distance,
-      "supervisor": supervisor?.toJson()
-    };
-  }
-
-  bool isToday() {
-    DateTime today = DateTime.now();
-    return date.year == today.year &&
-        date.day == today.day &&
-        date.month == today.month;
-  }
 }
 
 class Note extends Equatable {
@@ -755,4 +889,16 @@ class PushNotification {
   });
   String? title;
   String? body;
+}
+
+class Autorisation_model {
+  String autorisation;
+  String interdiction;
+  Autorisation_model({required this.autorisation, required this.interdiction});
+}
+
+class Consigne_model {
+  String consigne;
+  String tache;
+  Consigne_model({required this.consigne, required this.tache});
 }

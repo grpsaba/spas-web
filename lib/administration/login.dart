@@ -1,9 +1,17 @@
+import 'dart:math';
+
+import 'package:animated_background/animated_background.dart';
+import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/administration/start_page.dart';
+import 'package:spas_web/const.dart';
+import 'package:spas_web/model.dart';
 
 import '../services/authentication.dart';
 import '../services/loading.dart';
+import '../services/player.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -12,17 +20,20 @@ class Login extends StatefulWidget {
   _LoginState createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> {
+class _LoginState extends State<Login> with TickerProviderStateMixin {
   final TextEditingController _email_ctrl = TextEditingController();
   final TextEditingController _pass_ctrl = TextEditingController();
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
   String _message = "";
   bool _isLogin = false;
+  Consigne_model consigne = Consigne_model(consigne: "", tache: "");
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
+    consigne = getCondignDuJours();
+    TTS().speetch(consigne.tache);
   }
 
   @override
@@ -33,138 +44,208 @@ class _LoginState extends State<Login> {
     _pass_ctrl.dispose();
   }
 
+  Consigne_model getCondignDuJours() {
+    int index = Random().nextInt(AppConstants.consignes.length - 1);
+    return AppConstants.consignes[index];
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.blueGrey,
-      body: Center(
-        child: Container(
-          width: 400,
-          height: 450,
-          padding: const EdgeInsets.only(
-              top: 8.0, bottom: 8.0, left: 15.0, right: 15.0),
-          decoration: BoxDecoration(
-              borderRadius: BorderRadius.circular(20),
-              color: Colors.indigo.withOpacity(0.5)),
-          child: SingleChildScrollView(
+      backgroundColor: Theme.of(context).primaryColor,
+      body: AnimatedBackground(
+        behaviour: RandomParticleBehaviour(
+            options: const ParticleOptions(
+                baseColor: Colors.white, spawnMaxRadius: 25)),
+        vsync: this,
+        child: Center(
+          child: SizedBox(
+            width: 400,
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                const CircleAvatar(
-                    radius: 64, backgroundImage: AssetImage("assets/logo.png")),
+                Sos(),
+                const SizedBox(
+                  height: 10,
+                ),
+                const Text(
+                  "CONSIGNES DU JOUR",
+                  style: TextStyle(color: Colors.white),
+                ),
+                const SizedBox(
+                  height: 10,
+                ),
+                Chip(
+                  side: BorderSide.none,
+                  backgroundColor: Colors.white.withOpacity(0.4),
+                  label: Text(
+                    consigne.consigne,
+                    style: TextStyle(color: Theme.of(context).primaryColor),
+                  ),
+                ),
+                const SizedBox(
+                  height: 10,
+                ),
+                AnimatedTextKit(
+                  animatedTexts: [
+                    TypewriterAnimatedText(
+                      consigne.tache,
+                      textStyle: const TextStyle(
+                        color: Colors.white,
+                      ),
+                      speed: const Duration(milliseconds: 100),
+                    ),
+                  ],
+                  totalRepeatCount: 4,
+                  pause: const Duration(milliseconds: 50),
+                  displayFullTextOnTap: true,
+                  stopPauseOnTap: true,
+                ),
                 const SizedBox(
                   height: 20,
                 ),
-                Form(
-                  key: _key,
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.black38,
-                                  borderRadius: BorderRadius.circular(20)),
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.only(left: 8.0, right: 8.0),
-                              child: TextFormField(
-                                controller: _email_ctrl,
-                                style: const TextStyle(color: Colors.white),
-                                decoration: const InputDecoration(
-                                    hintText: "Email",
-                                    hintStyle: TextStyle(color: Colors.white),
-                                    labelStyle: TextStyle(color: Colors.white),
-                                    prefixIcon: Icon(
-                                      Icons.phone,
-                                      color: Colors.white,
+                Container(
+                  width: 400,
+                  height: 450,
+                  padding: const EdgeInsets.only(
+                      top: 8.0, bottom: 8.0, left: 15.0, right: 15.0),
+                  decoration: BoxDecoration(
+                      borderRadius: BorderRadius.circular(20),
+                      color: Colors.blueGrey.withOpacity(0.5)),
+                  child: SingleChildScrollView(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        const CircleAvatar(
+                            radius: 64,
+                            backgroundImage: AssetImage("assets/logo.png")),
+                        const SizedBox(
+                          height: 20,
+                        ),
+                        Form(
+                          key: _key,
+                          child: Column(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                          color: Colors.black38,
+                                          borderRadius:
+                                              BorderRadius.circular(20)),
+                                      height: 48,
+                                      padding: const EdgeInsets.only(
+                                          left: 8.0, right: 8.0),
+                                      child: TextFormField(
+                                        controller: _email_ctrl,
+                                        style: const TextStyle(
+                                            color: Colors.white),
+                                        decoration: const InputDecoration(
+                                            hintText: "Email",
+                                            hintStyle:
+                                                TextStyle(color: Colors.white),
+                                            labelStyle:
+                                                TextStyle(color: Colors.white),
+                                            prefixIcon: Icon(
+                                              Icons.phone,
+                                              color: Colors.white,
+                                            ),
+                                            border: InputBorder.none),
+                                      ),
                                     ),
-                                    border: InputBorder.none),
-                              ),
-                            ),
-                          ),
-                        ],
-                      ),
-                      const SizedBox(
-                        height: 20,
-                      ),
-                      Row(
-                        children: [
-                          Expanded(
-                            child: Container(
-                              decoration: BoxDecoration(
-                                  color: Colors.black38,
-                                  borderRadius: BorderRadius.circular(20)),
-                              height: 48,
-                              padding:
-                                  const EdgeInsets.only(left: 8.0, right: 8.0),
-                              child: CallbackShortcuts(
-                                bindings: <ShortcutActivator, VoidCallback>{
-                                  const SingleActivator(
-                                      LogicalKeyboardKey.enter): () {
-                                    login();
-                                  }
-                                },
-                                child: Focus(
-                                  autofocus: true,
-                                  child: TextFormField(
-                                    controller: _pass_ctrl,
-                                    obscureText: true,
-                                    style: const TextStyle(color: Colors.white),
-                                    decoration: const InputDecoration(
-                                        hintText: "Mot de passe",
-                                        hintStyle:
-                                            TextStyle(color: Colors.white),
-                                        labelStyle:
-                                            TextStyle(color: Colors.white),
-                                        prefixIcon: Icon(
-                                          Icons.sms,
-                                          color: Colors.white,
-                                        ),
-                                        border: InputBorder.none),
                                   ),
-                                ),
+                                ],
                               ),
-                            ),
+                              const SizedBox(
+                                height: 20,
+                              ),
+                              Row(
+                                children: [
+                                  Expanded(
+                                    child: Container(
+                                      decoration: BoxDecoration(
+                                          color: Colors.black38,
+                                          borderRadius:
+                                              BorderRadius.circular(20)),
+                                      height: 48,
+                                      padding: const EdgeInsets.only(
+                                          left: 8.0, right: 8.0),
+                                      child: CallbackShortcuts(
+                                        bindings: <ShortcutActivator,
+                                            VoidCallback>{
+                                          const SingleActivator(
+                                              LogicalKeyboardKey.enter): () {
+                                            login();
+                                          }
+                                        },
+                                        child: Focus(
+                                          autofocus: true,
+                                          child: TextFormField(
+                                            controller: _pass_ctrl,
+                                            obscureText: true,
+                                            style: const TextStyle(
+                                                color: Colors.white),
+                                            decoration: const InputDecoration(
+                                                hintText: "Mot de passe",
+                                                hintStyle: TextStyle(
+                                                    color: Colors.white),
+                                                labelStyle: TextStyle(
+                                                    color: Colors.white),
+                                                prefixIcon: Icon(
+                                                  Icons.sms,
+                                                  color: Colors.white,
+                                                ),
+                                                border: InputBorder.none),
+                                          ),
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              const SizedBox(
+                                height: 40,
+                              ),
+                              _isLogin
+                                  ? Loading(size: 64, inline: false)
+                                  : CallbackShortcuts(
+                                      bindings: <ShortcutActivator,
+                                          VoidCallback>{
+                                        const SingleActivator(
+                                            LogicalKeyboardKey.enter): () {
+                                          login();
+                                        }
+                                      },
+                                      child: Focus(
+                                        autofocus: true,
+                                        child: ElevatedButton(
+                                            style: ElevatedButton.styleFrom(
+                                                fixedSize: const Size(200, 48),
+                                                shape: RoundedRectangleBorder(
+                                                    borderRadius:
+                                                        BorderRadius.circular(
+                                                            20))),
+                                            onPressed: () {
+                                              login();
+                                            },
+                                            child:
+                                                const Text("Connectez-vous")),
+                                      ),
+                                    ),
+                              const SizedBox(
+                                height: 30,
+                              ),
+                              Text(
+                                _message,
+                                style: const TextStyle(color: Colors.white),
+                              )
+                            ],
                           ),
-                        ],
-                      ),
-                      const SizedBox(
-                        height: 40,
-                      ),
-                      _isLogin
-                          ? Loading(size: 64, inline: false)
-                          : CallbackShortcuts(
-                              bindings: <ShortcutActivator, VoidCallback>{
-                                const SingleActivator(LogicalKeyboardKey.enter):
-                                    () {
-                                  login();
-                                }
-                              },
-                              child: Focus(
-                                autofocus: true,
-                                child: ElevatedButton(
-                                    style: ElevatedButton.styleFrom(
-                                        fixedSize: const Size(200, 48),
-                                        shape: RoundedRectangleBorder(
-                                            borderRadius:
-                                                BorderRadius.circular(20))),
-                                    onPressed: () {
-                                      login();
-                                    },
-                                    child: const Text("Connectez-vous")),
-                              ),
-                            ),
-                      const SizedBox(
-                        height: 30,
-                      ),
-                      Text(
-                        _message,
-                        style: const TextStyle(color: Colors.white),
-                      )
-                    ],
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ],

@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:flutter_animation_progress_bar/flutter_animation_progress_bar.dart';
+import 'package:spas_web/const.dart';
 import 'package:spas_web/services/pointerSite.dart';
 
 import '../model.dart';
@@ -99,14 +100,15 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
                       : purcent <= 60
                           ? Colors.orange
                           : Colors.green,
-                  backgroundColor: Colors.grey,
+                  backgroundColor: AppConstants.bgColor,
                 ),
                 Text("site: $value/$nbSite",
-                    style: const TextStyle(color: Colors.black, fontSize: 12))
+                    style: TextStyle(
+                        color: Colors.white.withOpacity(0.6), fontSize: 12))
               ],
             );
           } else {
-            return const SizedBox.shrink();
+            return const LinearProgressIndicator();
           }
         });
   }

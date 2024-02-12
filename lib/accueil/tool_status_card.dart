@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import '../administration/tool_status_wiget.dart';
+import '../const.dart';
 
 class ToolStatusCard extends StatelessWidget {
   const ToolStatusCard({
@@ -13,7 +14,7 @@ class ToolStatusCard extends StatelessWidget {
       //height: 100,
       width: 200,
       decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
+          color: AppConstants.secondaryColor,
           borderRadius: BorderRadius.circular(20.0)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -22,9 +23,9 @@ class ToolStatusCard extends StatelessWidget {
             alignment: Alignment.center,
             width: 200,
             padding: const EdgeInsets.all(8.0),
-            decoration: const BoxDecoration(
-                color: Colors.blueGrey,
-                borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+                color: AppConstants.secondaryColor,
+                borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(20.0),
                     topLeft: Radius.circular(20.0))),
             child: const Text(

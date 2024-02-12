@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:spas_web/accueil/supervisor_maps.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/supervisor/supervisor_form.dart';
+import 'package:spas_web/supervisor/supervisor_maps.dart';
+import 'package:spas_web/supervisor/supervisor_tracker.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -225,26 +226,43 @@ class _DataSource extends DataTableSource {
         superviseur: supervisor,
         manager: manager,
       )),
-      DataCell(
-        supervisor.actif!
-            ? IconButton(
-                icon: Icon(
-                  Icons.edit,
-                  color: Theme.of(context).primaryColor,
-                ),
-                onPressed: () {
-                  // ignore: use_build_context_synchronously
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => AddSupervisor(
-                                supervisor: supervisor,
-                                manager: manager,
-                              )));
-                },
-              )
-            : const SizedBox.shrink(),
-      ),
+      DataCell(Row(
+        children: [
+          supervisor.actif!
+              ? IconButton(
+                  icon: Icon(
+                    Icons.edit,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  onPressed: () {
+                    // ignore: use_build_context_synchronously
+                    Navigator.push(
+                        context,
+                        MaterialPageRoute(
+                            builder: (_) => AddSupervisor(
+                                  supervisor: supervisor,
+                                  manager: manager,
+                                )));
+                  },
+                )
+              : const SizedBox.shrink(),
+          IconButton(
+            icon: const Icon(
+              Icons.location_history,
+              color: Colors.red,
+            ),
+            onPressed: () {
+              // ignore: use_build_context_synchronously
+              Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (_) => SupervisorTracker(
+                            supervisor: supervisor,
+                          )));
+            },
+          )
+        ],
+      )),
     ]);
   }
 

@@ -5,13 +5,20 @@ class SearchTextField extends StatefulWidget {
 
   final void Function() onPress;
   final TextEditingController? controller;
-
-  const SearchTextField({
-    Key? key,
-    required this.onSearch,
-    required this.onPress,
-    this.controller,
-  }) : super(key: key);
+  final Size size;
+  final Color fillColor;
+  final Color hintColor;
+  final Color textColor;
+  const SearchTextField(
+      {Key? key,
+      required this.onSearch,
+      required this.onPress,
+      this.controller,
+      this.size = const Size(150, 40),
+      this.fillColor = const Color(0xFFCBCFD0),
+      this.hintColor = Colors.black12,
+      this.textColor = Colors.black})
+      : super(key: key);
 
   @override
   State<SearchTextField> createState() => _SearchBarState();
@@ -29,24 +36,26 @@ class _SearchBarState extends State<SearchTextField> {
   @override
   Widget build(BuildContext context) {
     return Container(
-        constraints: BoxConstraints.loose(const Size(200, 40)),
+        constraints: BoxConstraints.loose(widget.size),
         decoration: BoxDecoration(
             color: Theme.of(context).primaryColor,
-            borderRadius: BorderRadius.circular(10)),
+            borderRadius: BorderRadius.circular(20)),
         child: Row(children: [
           Expanded(
               child: TextFormField(
+            style: TextStyle(color: widget.textColor),
             controller: widget.controller,
             onChanged: (value) => widget.onSearch(value),
             textAlignVertical: TextAlignVertical.center,
-            decoration: const InputDecoration(
-                fillColor: Color.fromARGB(255, 228, 225, 225),
+            decoration: InputDecoration(
+                hintStyle: TextStyle(color: widget.hintColor),
+                fillColor: widget.fillColor,
                 filled: true,
                 hintText: "Recherche",
-                border: OutlineInputBorder(
+                border: const OutlineInputBorder(
                     borderRadius: BorderRadius.only(
-                        topLeft: Radius.circular(10),
-                        bottomLeft: Radius.circular(10)),
+                        topLeft: Radius.circular(20),
+                        bottomLeft: Radius.circular(20)),
                     borderSide: BorderSide.none)),
           )),
           IconButton(

@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/progressionPointageSiteGlobal.dart';
+import 'package:spas_web/const.dart';
 import 'package:spas_web/services/pointerSite.dart';
 
 class PointageSiteCard extends StatelessWidget {
@@ -13,8 +14,8 @@ class PointageSiteCard extends StatelessWidget {
       //height: 100,
       width: 200,
       decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
-          borderRadius: BorderRadius.circular(20.0)),
+          borderRadius: BorderRadius.circular(20.0),
+          color: AppConstants.secondaryColor),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
         children: [
@@ -22,9 +23,9 @@ class PointageSiteCard extends StatelessWidget {
             alignment: Alignment.center,
             width: 200,
             padding: const EdgeInsets.all(8.0),
-            decoration: const BoxDecoration(
-                color: Colors.blueGrey,
-                borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+                color: AppConstants.secondaryColor,
+                borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(20.0),
                     topLeft: Radius.circular(20.0))),
             child: const Text(

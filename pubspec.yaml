@@ -66,6 +66,11 @@ dependencies:
   info_popup: ^3.0.6
   url_strategy: ^0.2.0
   time_planner: ^0.1.2+1
+  flutter_svg: ^2.0.9
+  flutter_polyline_points: ^2.0.0
+  animated_background: ^2.0.0
+  animated_text_kit: ^4.2.2
+  text_to_speech: ^0.2.3
 
 dev_dependencies:
   flutter_test:

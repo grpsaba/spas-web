@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/site_status.dart';
 import 'package:spas_web/search_textField.dart';
 
+import '../const.dart';
 import '../generated/assets.dart';
 import '../model.dart';
 import '../services/agent.dart';
@@ -39,7 +40,8 @@ class _SupervisorListState extends State<SiteListWithStatus> {
         padding: const EdgeInsets.all(8.0),
         height: MediaQuery.of(context).size.height - 192,
         decoration: BoxDecoration(
-            color: Colors.white, borderRadius: BorderRadius.circular(20.0)),
+            color: AppConstants.secondaryColor,
+            borderRadius: BorderRadius.circular(20.0)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -47,12 +49,15 @@ class _SupervisorListState extends State<SiteListWithStatus> {
               children: [
                 const Text(
                   "Sites",
-                  style: TextStyle(fontSize: 15),
+                  style: TextStyle(fontSize: 15, color: Colors.white),
                 ),
                 const SizedBox(
                   width: 5,
                 ),
                 SearchTextField(
+                    fillColor: AppConstants.bgColor,
+                    hintColor: AppConstants.secondaryColor,
+                    textColor: Colors.white,
                     onSearch: (value) {
                       setState(() {
                         _keyword = value;
@@ -89,17 +94,17 @@ class _SupervisorListState extends State<SiteListWithStatus> {
                             Site site = data![index];
                             return Card(
                               elevation: 0.2,
-                              color: Colors.white,
+                              color:
+                                  AppConstants.secondaryColor.withOpacity(0.3),
                               child: ListTile(
                                 //selected: site.UID == _selectedSite.UID,
                                 selectedTileColor:
                                     Colors.blueGrey.withOpacity(0.4),
                                 title: Text(
                                   site.name,
-                                  style: TextStyle(
-                                    color: Theme.of(context).primaryColor,
-                                    fontSize: 15,
-                                  ),
+                                  style: const TextStyle(
+                                      fontSize: 15,
+                                      color: AppConstants.textColor),
                                 ),
                                 subtitle: NbAgentStatus(site: site),
                                 leading: SizedBox(
@@ -138,19 +143,19 @@ class _SupervisorListState extends State<SiteListWithStatus> {
                                                       children: [
                                                         Expanded(
                                                           child: Container(
-                                                              padding: const EdgeInsets
+                                                              padding:
+                                                                  const EdgeInsets
                                                                       .symmetric(
-                                                                  horizontal:
-                                                                      8.0),
-                                                              alignment:
-                                                                  Alignment
-                                                                      .center,
+                                                                      horizontal:
+                                                                          8.0),
+                                                              alignment: Alignment
+                                                                  .center,
                                                               decoration: BoxDecoration(
                                                                   color: Theme.of(
                                                                           context)
                                                                       .primaryColor,
                                                                   borderRadius: const BorderRadius
-                                                                          .only(
+                                                                      .only(
                                                                       topLeft: Radius
                                                                           .circular(
                                                                               20),

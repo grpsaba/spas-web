@@ -8,7 +8,9 @@ import '../services/player.dart';
 import '../services/site.dart';
 
 class Sos extends StatefulWidget {
-  const Sos({super.key});
+  Sos({
+    super.key,
+  });
 
   @override
   _AlertState createState() => _AlertState();
@@ -39,15 +41,21 @@ class _AlertState extends State<Sos> {
             data = data
                 ?.where((site) => site.sos == true && site.actif == true)
                 .toList();
+
             if (data == null) {
               Audio().stopSOs();
+
               return const SizedBox.shrink();
             }
             if (data.isEmpty) {
               Audio().stopSOs();
+
               return const SizedBox.shrink();
             } else {
+              TTS().speetch(
+                  "Sos sur ${data.first.name},superviseur ${data.first.supervisor!.firstName} ${data.first.supervisor!.lastName}, Zone ${data.first.zone?.codeZone ?? ""}");
               Audio().sos();
+
               return GestureDetector(
                   onTap: () {
                     /* Navigator.push(context,

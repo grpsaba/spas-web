@@ -12,6 +12,8 @@ import 'package:spas_web/site/site_list.dart';
 import 'package:spas_web/supervisor/supervisor_list.dart';
 import 'package:spas_web/timePlanner.dart';
 import 'package:spas_web/tools/tool_list.dart';
+import 'package:spas_web/zone/zone_list.dart';
+import 'package:spas_web/zone_member/zone_member_list.dart';
 
 import '../accueil/home_page.dart';
 import '../accueil/maps.dart';
@@ -21,8 +23,8 @@ import '../manager/user_page.dart';
 import '../model.dart';
 import '../notes/note_list.dart';
 import '../services/authentication.dart';
-import '../services/site.dart';
 import '../timePlanner2.dart';
+import '../zone/pointage_zone_list.dart';
 
 class AdminHome extends StatefulWidget {
   AdminHome({super.key, required this.manager});
@@ -32,16 +34,34 @@ class AdminHome extends StatefulWidget {
 }
 
 class _AdminHomeState extends State<AdminHome> {
-  final SiteService _siteService = SiteService();
+  //final SiteService _siteServicef = SiteService();
 
   int _menuIdex = 0;
   bool _howDrawer = false;
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+  }
 
   @override
   void dispose() {
     // TODO: implement dispose
     super.dispose();
   }
+
+  /*iniZone() async {
+    List<Zone> zones = await ZoneService().allAsModel();
+    List<Site> sites = await SiteService().allAsModel();
+    for (Zone z in zones) {
+      for (Site s in sites) {
+        if (z == s.zone) {
+          s.zone = z;
+          SiteService().update(s);
+        }
+      }
+    }
+  }*/
 
   void navigeTo(int index) {
     setState(() {
@@ -52,14 +72,14 @@ class _AdminHomeState extends State<AdminHome> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: AppConstants.bacgroundColors,
+        backgroundColor: _menuIdex == 0 ? AppConstants.bgColor : Colors.white,
         appBar: AppBar(
           leading: const Image(
             image: AssetImage("assets/logo.png"),
           ),
-          backgroundColor: Theme.of(context).primaryColor,
+          backgroundColor: AppConstants.primaryColor,
           actions: [
-            const Sos(),
+            Sos(),
             Text(
               "${widget.manager.firstName} ${widget.manager.lastName}",
               style: const TextStyle(color: Colors.white),
@@ -84,7 +104,7 @@ class _AdminHomeState extends State<AdminHome> {
             builder: (context, AsyncSnapshot<String> snapshot) {
               return Text(
                 "SPAS GROUPE SABA ${snapshot.data ?? ""}",
-                style: TextStyle(color: Colors.white),
+                style: const TextStyle(color: Colors.white),
               );
             },
           ),
@@ -105,7 +125,7 @@ class _AdminHomeState extends State<AdminHome> {
   Widget drawer() {
     return Drawer(
       width: _howDrawer ? null : 80,
-      backgroundColor: AppConstants.bacgroundColors,
+      backgroundColor: AppConstants.bgColor,
       elevation: 0.0,
       child: SingleChildScrollView(
         physics: const BouncingScrollPhysics(),
@@ -116,7 +136,7 @@ class _AdminHomeState extends State<AdminHome> {
               children: [
                 const Text(
                   "Menu",
-                  style: TextStyle(fontSize: 15),
+                  style: TextStyle(fontSize: 15, color: Colors.white),
                 ),
                 IconButton(
                     onPressed: () {
@@ -125,8 +145,14 @@ class _AdminHomeState extends State<AdminHome> {
                       });
                     },
                     icon: _howDrawer
-                        ? const Icon(Icons.arrow_back_ios)
-                        : const Icon(Icons.arrow_forward_ios)),
+                        ? const Icon(
+                            Icons.arrow_back_ios,
+                            color: Colors.white,
+                          )
+                        : const Icon(
+                            Icons.arrow_forward_ios,
+                            color: Colors.white,
+                          )),
               ],
             ),
             Column(
@@ -145,7 +171,12 @@ class _AdminHomeState extends State<AdminHome> {
                         Icons.home,
                         color: Theme.of(context).primaryColor,
                       )),
-                  title: !_howDrawer ? null : const Text("Home"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Home",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -164,7 +195,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconManager),
                       )),
-                  title: !_howDrawer ? null : const Text("PC"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "PC",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -181,7 +217,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconSite),
                       )),
-                  title: !_howDrawer ? null : const Text("Sites"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Sites",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -198,7 +239,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconAgent),
                       )),
-                  title: !_howDrawer ? null : const Text("Agents"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Agents",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -215,7 +261,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsAgent),
                       )),
-                  title: !_howDrawer ? null : const Text("Superviseurs"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Superviseurs",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -232,7 +283,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconTools),
                       )),
-                  title: !_howDrawer ? null : const Text("Matériaux"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Matériaux",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -249,7 +305,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconScansite),
                       )),
-                  title: !_howDrawer ? null : const Text("Pointage Sites"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Pointage Sites",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -266,7 +327,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconScanAgent),
                       )),
-                  title: !_howDrawer ? null : const Text("Pointage Agents"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Pointage Agents",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -283,7 +349,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconScanTools),
                       )),
-                  title: !_howDrawer ? null : const Text("Pointages matériel"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Pointages matériel",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -300,7 +371,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconNote2),
                       )),
-                  title: !_howDrawer ? null : const Text("Observations"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Observations",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -317,7 +393,12 @@ class _AdminHomeState extends State<AdminHome> {
                         fit: BoxFit.contain,
                         image: AssetImage(Assets.assetsIconMap),
                       )),
-                  title: !_howDrawer ? null : const Text("Sites maps"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Sites maps",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -334,7 +415,12 @@ class _AdminHomeState extends State<AdminHome> {
                         Icons.category_rounded,
                         color: Theme.of(context).primaryColor,
                       )),
-                  title: !_howDrawer ? null : const Text("Equipements"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Equipements",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -351,7 +437,12 @@ class _AdminHomeState extends State<AdminHome> {
                         Icons.apartment,
                         color: Theme.of(context).primaryColor,
                       )),
-                  title: !_howDrawer ? null : const Text("Département"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Département",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
@@ -368,12 +459,83 @@ class _AdminHomeState extends State<AdminHome> {
                         Icons.supervised_user_circle,
                         color: Theme.of(context).primaryColor,
                       )),
-                  title: !_howDrawer ? null : const Text("Type Agent"),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Type Agent",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
                   selected: _menuIdex == 13,
+                ),
+                ListTile(
+                  onTap: () {
+                    navigeTo(14);
+                  },
+                  leading: CircleAvatar(
+                      radius: 18,
+                      child: Icon(
+                        Icons.map_sharp,
+                        color: Theme.of(context).primaryColor,
+                      )),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Zones",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 14,
+                ),
+                ListTile(
+                  onTap: () {
+                    navigeTo(15);
+                  },
+                  leading: CircleAvatar(
+                      radius: 18,
+                      child: Icon(
+                        Icons.qr_code_scanner,
+                        color: Theme.of(context).primaryColor,
+                      )),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Pointages Zone",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 15,
+                ),
+                ListTile(
+                  onTap: () {
+                    navigeTo(16);
+                  },
+                  leading: CircleAvatar(
+                      radius: 18,
+                      child: Icon(
+                        Icons.perm_contact_cal,
+                        color: Theme.of(context).primaryColor,
+                      )),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                          "Chef de zone",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: _menuIdex == 16,
                 ),
                 /* ListTile(
                   onTap: () {
@@ -485,6 +647,25 @@ class _AdminHomeState extends State<AdminHome> {
       case 13:
         return widget.manager.profil!.getModule(ModuleName.AGENT_TYPE)!.view
             ? AgentTypeList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
+
+      case 14:
+        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
+            ? ZoneList(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
+      case 15:
+        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
+            ? PointageZone(manager: widget.manager)
+            : const Center(
+                child: Text("Module inaccessible!"),
+              );
+      case 16:
+        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
+            ? ZoneMemberList(manager: widget.manager)
             : const Center(
                 child: Text("Module inaccessible!"),
               );

@@ -217,7 +217,7 @@ class _NotesContantState extends State<NotesContant> {
                                                   .add(comment);
                                             }
                                             NoteService()
-                                                .add(widget.note)
+                                                .update(widget.note)
                                                 .then((value) {
                                               setState(() {
                                                 _addingComment = false;

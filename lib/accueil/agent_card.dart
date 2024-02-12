@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 
+import '../const.dart';
 import '../services/agent.dart';
 
 class AgentCard extends StatelessWidget {
@@ -11,7 +12,7 @@ class AgentCard extends StatelessWidget {
       //height: 100,
       //: 200,
       decoration: BoxDecoration(
-          color: Theme.of(context).primaryColor,
+          color: AppConstants.secondaryColor,
           borderRadius: BorderRadius.circular(20.0)),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.center,
@@ -20,9 +21,9 @@ class AgentCard extends StatelessWidget {
             alignment: Alignment.center,
             //width: 200,
             padding: const EdgeInsets.all(8.0),
-            decoration: const BoxDecoration(
-                color: Colors.blueGrey,
-                borderRadius: BorderRadius.only(
+            decoration: BoxDecoration(
+                color: AppConstants.secondaryColor,
+                borderRadius: const BorderRadius.only(
                     topRight: Radius.circular(20.0),
                     topLeft: Radius.circular(20.0))),
             child: Text(

@@ -52,6 +52,21 @@ class SiteService {
     return collection;
   }
 
+  Future<List<Site>> allByZone(Zone zone) async {
+    var snapshot = await _collectionReference.get();
+    var collection = snapshot.docs
+        .map((snap) {
+          return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+        })
+        .toList()
+        .where((element) {
+          return element.actif == true && (element.zone == zone);
+        })
+        .toList();
+
+    return collection;
+  }
+
   Future<void> delete(Site site) async {
     return _collectionReference.doc(site.UID).delete();
   }

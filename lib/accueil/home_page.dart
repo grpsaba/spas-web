@@ -7,9 +7,11 @@ import 'package:spas_web/accueil/site_pointing_staus_list.dart';
 import 'package:spas_web/accueil/site_staus_list.dart';
 import 'package:spas_web/accueil/supervisor_card.dart';
 import 'package:spas_web/accueil/tool_status_card.dart';
+import 'package:spas_web/const.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/agentType.dart';
 
+import '../zone/progression_pointage_zone.dart';
 import 'absenceAgent.dart';
 import 'agent_card.dart';
 import 'note_card.dart';
@@ -38,7 +40,8 @@ class _HomePageState extends State<HomePage> {
           Container(
             padding: const EdgeInsets.all(8.0),
             decoration: BoxDecoration(
-                borderRadius: BorderRadius.circular(20.0), color: Colors.white),
+                borderRadius: BorderRadius.circular(20.0),
+                color: AppConstants.bgColor),
             child: SingleChildScrollView(
               scrollDirection: Axis.horizontal,
               child: Row(
@@ -109,6 +112,10 @@ class _HomePageState extends State<HomePage> {
                 width: 10,
               ),
               Expanded(flex: 1, child: SitePointingListWithStatus()),
+              SizedBox(
+                width: 10,
+              ),
+              Expanded(flex: 1, child: ZonePointageProgressionList()),
               SizedBox(
                 width: 10,
               ),

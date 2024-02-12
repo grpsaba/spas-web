@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/note_list_tb.dart';
 
 import '../administration/noteStat_wiget.dart';
+import '../const.dart';
 import '../model.dart';
 import '../services/note.dart';
 
@@ -41,7 +42,7 @@ class NoteCard extends StatelessWidget {
         //height: 100,
         width: 200,
         decoration: BoxDecoration(
-            color: Theme.of(context).primaryColor,
+            color: AppConstants.secondaryColor,
             borderRadius: BorderRadius.circular(20.0)),
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.center,
@@ -50,9 +51,9 @@ class NoteCard extends StatelessWidget {
               alignment: Alignment.center,
               width: 200,
               padding: const EdgeInsets.all(8.0),
-              decoration: const BoxDecoration(
-                  color: Colors.blueGrey,
-                  borderRadius: BorderRadius.only(
+              decoration: BoxDecoration(
+                  color: AppConstants.secondaryColor,
+                  borderRadius: const BorderRadius.only(
                       topRight: Radius.circular(20.0),
                       topLeft: Radius.circular(20.0))),
               child: const Text(

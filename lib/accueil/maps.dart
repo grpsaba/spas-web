@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:spas_web/accueil/site_status.dart';
 
+import '../const.dart';
+import '../generated/assets.dart';
 import '../model.dart';
 import '../search_textField.dart';
 import '../services/loading.dart';
@@ -30,10 +32,24 @@ class _MapsState extends State<Maps> {
   bool _searchSite = true;
   bool _polyLines = false;
   bool _trafficEnabled = false;
+
+  BitmapDescriptor markerIcon = AppConstants.defaultMarkerIcon;
+
+  void setCustomIcon() {
+    BitmapDescriptor.fromAssetImage(
+            const ImageConfiguration(size: Size(64, 64)), Assets.assetsPosition)
+        .then((value) {
+      markerIcon = value;
+    }).onError((error, stackTrace) {
+      print("errur : ${error.toString()}");
+    });
+  }
+
   Future<void> addMarkerTomap() async {
     _markers.clear();
     for (final site in _sites) {
       final marker = Marker(
+        icon: markerIcon,
         onTap: () {
           CameraUpdate cameraUpdate = CameraUpdate.newCameraPosition(
               CameraPosition(
@@ -57,6 +73,14 @@ class _MapsState extends State<Maps> {
     setState(() {
       addMarkerTomap();
     });
+  }
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    WidgetsFlutterBinding.ensureInitialized();
+    setCustomIcon();
+    super.initState();
   }
 
   @override
