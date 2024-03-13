@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:spas_web/department/department_form.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/department.dart';
 
 import '../model.dart';
@@ -10,8 +12,10 @@ import '../rowperPageWidget.dart';
 import '../services/loading.dart';
 
 class DepartmentList extends StatefulWidget {
-  DepartmentList({super.key, required this.manager});
-  Manager manager;
+  const DepartmentList({
+    super.key,
+  });
+
   @override
   _DepartmentListState createState() => _DepartmentListState();
 }
@@ -40,8 +44,10 @@ class _DepartmentListState extends State<DepartmentList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 12,
+      titile: "Gestion des departements",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -70,20 +76,16 @@ class _DepartmentListState extends State<DepartmentList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.DEPARTMENT)!
                                 .add
                             ? ElevatedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => AddDepatment(
-                                                department: Department(
-                                                  label: '',
-                                                ),
-                                                manager: widget.manager,
-                                              )));
+                                  Department departement = Department(
+                                    label: '',
+                                  );
+                                  context.go('/departements/add',
+                                      extra: departement);
                                 },
                                 child: const Icon(Icons.add),
                               )
@@ -117,10 +119,10 @@ class _DepartmentListState extends State<DepartmentList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -139,13 +141,12 @@ class _DataSource extends DataTableSource {
   List<Department> data;
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -178,13 +179,7 @@ class _DataSource extends DataTableSource {
               ),
               onPressed: () {
                 // ignore: use_build_context_synchronously
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => AddDepatment(
-                              department: department,
-                              manager: manager,
-                            )));
+                context.go('/departements/add', extra: department);
               },
             ),
           ],

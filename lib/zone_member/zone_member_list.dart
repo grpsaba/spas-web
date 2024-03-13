@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
-import 'package:spas_web/zone_member/zone_member_form.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -10,8 +12,8 @@ import '../services/loading.dart';
 import '../services/zoneMember.dart';
 
 class ZoneMemberList extends StatefulWidget {
-  ZoneMemberList({super.key, required this.manager});
-  Manager manager;
+  const ZoneMemberList({super.key});
+
   @override
   _ZoneMemberListState createState() => _ZoneMemberListState();
 }
@@ -40,8 +42,10 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 16,
+      titile: "Gestion des chefs de zone",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -70,27 +74,24 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.SITE)!.add
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.SITE)!
+                                .add
                             ? Tooltip(
                                 message: "Ajouter un chef de zone",
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => AddZoneMember(
-                                                  manager: widget.manager,
-                                                  zoneMember: ZoneMember(
-                                                      UID: '',
-                                                      code: '',
-                                                      firstName: '',
-                                                      lastName: '',
-                                                      phone: '',
-                                                      email: '',
-                                                      actif: false,
-                                                      poste: '',
-                                                      zone: null),
-                                                )));
+                                    ZoneMember zm = ZoneMember(
+                                        UID: '',
+                                        code: '',
+                                        firstName: '',
+                                        lastName: '',
+                                        phone: '',
+                                        email: '',
+                                        actif: false,
+                                        poste: '',
+                                        zone: null);
+                                    context.go("/chefszone/add", extra: zm);
                                   },
                                   child: const Icon(Icons.add),
                                 ),
@@ -132,10 +133,10 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -154,13 +155,12 @@ class _DataSource extends DataTableSource {
   List<ZoneMember> data;
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -201,7 +201,6 @@ class _DataSource extends DataTableSource {
           label: Text(zoneMember.zone?.name ?? ""))),
       DataCell(ZoneMemberStatut(
         zoneMember: zoneMember,
-        manager: manager,
       )),
       DataCell(Row(
         children: [
@@ -213,13 +212,7 @@ class _DataSource extends DataTableSource {
                   ),
                   onPressed: () {
                     // ignore: use_build_context_synchronously
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AddZoneMember(
-                                  zoneMember: zoneMember,
-                                  manager: manager,
-                                )));
+                    context.go("/chefszone/add", extra: zoneMember);
                   },
                 )
               : const SizedBox.shrink(),
@@ -244,10 +237,9 @@ class _DataSource extends DataTableSource {
 //widget d'état du superviseur
 
 class ZoneMemberStatut extends StatefulWidget {
-  ZoneMemberStatut(
-      {super.key, required this.zoneMember, required this.manager});
+  ZoneMemberStatut({super.key, required this.zoneMember});
   ZoneMember zoneMember;
-  Manager manager;
+
   @override
   _ZoneMemberStatutState createState() => _ZoneMemberStatutState();
 }
@@ -260,7 +252,7 @@ class _ZoneMemberStatutState extends State<ZoneMemberStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              if (widget.manager.profil!
+              if (AuthService.currentManager!.profil!
                   .getModule(ModuleName.SUPERVISEUR)!
                   .validation) {
                 actifInactifAgent();
@@ -271,7 +263,7 @@ class _ZoneMemberStatutState extends State<ZoneMemberStatut> {
                     widget.zoneMember.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    widget.manager.profil!
+                    AuthService.currentManager!.profil!
                             .getModule(ModuleName.SUPERVISEUR)!
                             .validation
                         ? Checkbox(

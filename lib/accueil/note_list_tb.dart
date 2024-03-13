@@ -6,12 +6,13 @@ import 'package:spas_web/services/export.dart';
 import '../generated/assets.dart';
 import '../model.dart';
 import '../search_textField.dart';
+import '../services/authentication.dart';
 import '../services/loading.dart';
 import '../services/note.dart';
 
 class NoteListTB extends StatefulWidget {
-  NoteListTB({super.key, required this.manager});
-  Manager manager;
+  NoteListTB({super.key});
+
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -215,7 +216,7 @@ class _SupervisorListState extends State<NoteListTB> {
                                   padding: const EdgeInsets.all(8.0),
                                   child: SizedBox(
                                     width: 100,
-                                    child: widget.manager.profil!
+                                    child: AuthService.currentManager!.profil!
                                             .getModule(ModuleName.NOTE)!
                                             .add
                                         ? TextButton(

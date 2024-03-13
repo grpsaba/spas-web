@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -8,8 +9,10 @@ import '../services/profil.dart';
 import 'module_list.dart';
 
 class ProfilList extends StatefulWidget {
-  ProfilList({super.key, required this.manager});
-  Manager manager;
+  ProfilList({
+    super.key,
+  });
+
   @override
   _ProfilListState createState() => _ProfilListState();
 }
@@ -65,7 +68,9 @@ class _ProfilListState extends State<ProfilList> {
                                   borderSide: BorderSide.none)),
                         ),
                       ),
-                      widget.manager.profil!.getModule(ModuleName.MANAGER)!.add
+                      AuthService.currentManager!.profil!
+                              .getModule(ModuleName.MANAGER)!
+                              .add
                           ? IconButton(
                               onPressed: () {
                                 if (_key.currentState!.validate()) {
@@ -134,7 +139,7 @@ class _ProfilListState extends State<ProfilList> {
           ),
         ),
         //liste module
-        widget.manager.profil!.getModule(ModuleName.MANAGER)!.add
+        AuthService.currentManager!.profil!.getModule(ModuleName.MANAGER)!.add
             ? Expanded(
                 flex: 2,
                 child: ModuleList(

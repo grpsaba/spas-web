@@ -1,8 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:spas_web/administration/imprime_rapport.dart';
+import 'package:go_router/go_router.dart';
 import 'package:spas_web/const.dart';
+import 'package:spas_web/notes/imprime_rapport.dart';
 import 'package:spas_web/search_textField.dart';
 
 import '../model.dart';
@@ -125,12 +126,9 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                                       color: Colors.white,
                                     ),
                                     onPressed: () {
-                                      Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) => ImprimeRapport(
-                                                  source:
-                                                      "${supervisor.firstName} ${supervisor.lastName}")));
+                                      context.go('/notes/rapport',
+                                          extra:
+                                              "${supervisor.firstName} ${supervisor.lastName}");
                                     },
                                   ),
                                   /* leading: const SizedBox(

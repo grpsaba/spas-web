@@ -5,8 +5,8 @@ import 'package:spas_web/const.dart';
 import 'package:spas_web/zone/pointage_statut.dart';
 import 'package:spas_web/zone/site_non_pointe_par_zone.dart';
 
-import '../administration/imprime_rapport.dart';
 import '../model.dart';
+import '../notes/imprime_rapport.dart';
 import '../services/loading.dart';
 import '../services/zoneMember.dart';
 

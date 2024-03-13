@@ -1,10 +1,9 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:spas_web/services/agent.dart';
-import 'package:spas_web/services/authentication.dart';
 
-import '../agent/agent_form.dart';
 import '../generated/assets.dart';
 import '../model.dart';
 import '../search_textField.dart';
@@ -110,17 +109,7 @@ class _PointZeroListState extends State<PointZeroList> {
                             elevation: 0.3,
                             child: ListTile(
                               onTap: () async {
-                                Manager? manager =
-                                    await AuthService().authState();
-                                // ignore: use_build_context_synchronously
-                                Navigator.push(
-                                    context,
-                                    MaterialPageRoute(
-                                        builder: (_) => AddAgent(
-                                              agent: agent!,
-                                              update: true,
-                                              manager: manager!,
-                                            )));
+                                context.go('/agents/add', extra: agent);
                               },
                               leading: const CircleAvatar(
                                 radius: 18,

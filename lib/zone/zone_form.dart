@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/zone.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
 
 class AddZone extends StatefulWidget {
-  AddZone({super.key, required this.zone, required this.manager});
+  AddZone({
+    super.key,
+    required this.zone,
+  });
   Zone zone;
-  Manager manager;
 
   @override
   _AddZoneState createState() => _AddZoneState();
@@ -54,15 +59,10 @@ class _AddZoneState extends State<AddZone> {
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition de Zone",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 14,
+      titile: "Gestion des zones -> Edition de Zone",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 20, bottom: 8.0),
@@ -88,7 +88,7 @@ class _AddZoneState extends State<AddZone> {
                   height: 20,
                 ),
                 TextFormField(
-                  //readOnly: widget.site.codeSite.isNotEmpty,
+                  readOnly: widget.zone.codeZone.isNotEmpty,
                   controller: _code_ctrl,
                   onChanged: (value) {
                     widget.zone.codeZone = value;
@@ -116,7 +116,9 @@ class _AddZoneState extends State<AddZone> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20))),
                               onPressed: () async {
-                                widget.zone.codeZone = _code_ctrl.text;
+                                if (widget.zone.codeZone.isEmpty) {
+                                  widget.zone.codeZone = _code_ctrl.text;
+                                }
                                 widget.zone.name = _name_ctrl.text;
 
                                 if (_key.currentState!.validate()) {
@@ -130,7 +132,7 @@ class _AddZoneState extends State<AddZone> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -146,7 +148,7 @@ class _AddZoneState extends State<AddZone> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -173,7 +175,7 @@ class _AddZoneState extends State<AddZone> {
                           ),
                           widget.zone.codeZone.isEmpty
                               ? const SizedBox.shrink()
-                              : widget.manager.profil!
+                              : AuthService.currentManager!.profil!
                                       .getModule(ModuleName.SITE)!
                                       .delete
                                   ? const SizedBox

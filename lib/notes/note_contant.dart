@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/loading.dart';
 import 'package:spas_web/services/note.dart';
 
@@ -7,9 +8,12 @@ import '../model.dart';
 import '../services/export.dart';
 
 class NotesContant extends StatefulWidget {
-  NotesContant({super.key, required this.note, required this.manager});
+  NotesContant({
+    super.key,
+    required this.note,
+  });
   Note note;
-  Manager manager;
+
   @override
   _NotesContantState createState() => _NotesContantState();
 }
@@ -133,7 +137,7 @@ class _NotesContantState extends State<NotesContant> {
               ),
               widget.note.viewed
                   ? const SizedBox.shrink()
-                  : widget.manager.profil!
+                  : AuthService.currentManager!.profil!
                           .getModule(ModuleName.NOTE)!
                           .validation
                       ? IconButton(
@@ -194,7 +198,7 @@ class _NotesContantState extends State<NotesContant> {
                                     keyboardType: TextInputType.multiline,
                                     decoration: InputDecoration(
                                         hintText:
-                                            "Que pensez-vous de cette note ${widget.manager.firstName}",
+                                            "Que pensez-vous de cette note ${AuthService.currentManager!.firstName}",
                                         border: InputBorder.none),
                                   ),
                                 ),
@@ -207,7 +211,8 @@ class _NotesContantState extends State<NotesContant> {
                                               _addingComment = true;
                                             });
                                             Comment comment = Comment(
-                                                manager: widget.manager,
+                                                manager:
+                                                    AuthService.currentManager!,
                                                 title: _comment_ctrl.text,
                                                 date: DateTime.now());
                                             if (widget.note.comments == null) {
@@ -364,7 +369,8 @@ class _NotesContantState extends State<NotesContant> {
                               const SizedBox(
                                 height: 5.0,
                               ),
-                              coment!.manager.UID.contains(widget.manager.UID)
+                              coment!.manager.UID
+                                      .contains(AuthService.currentManager!.UID)
                                   ? deleteComment(index)
                                       ? Loading(size: 24, inline: false)
                                       : deleteComment(index)

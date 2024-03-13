@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/generated/assets.dart';
 import 'package:spas_web/services/supervisor.dart';
@@ -91,93 +92,11 @@ class _SupervisorTrackerState extends State<SupervisorTracker> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Tracking superviseur",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      /*bottomNavigationBar: BottomAppBar(
-        child: Row(
-          children: [
-            IconButton(
-                onPressed: () {
-                  setState(() {
-                    _searchSupervisor = _searchSupervisor ? false : true;
-                  });
-                },
-                icon: const Icon(
-                  Icons.search_sharp,
-                  size: 32,
-                )),
-            const Text("Type de maps"),
-            TextButton(
-                onPressed: () {
-                  setState(() {
-                    _mapType = MapType.normal;
-                  });
-                },
-                child: const Text("Normal")),
-            TextButton(
-                onPressed: () {
-                  setState(() {
-                    _mapType = MapType.satellite;
-                  });
-                },
-                child: const Text("Satellite")),
-            TextButton(
-                onPressed: () {
-                  setState(() {
-                    _mapType = MapType.hybrid;
-                  });
-                },
-                child: const Text("Hybride")),
-            TextButton(
-                onPressed: () {
-                  setState(() {
-                    _trafficEnabled = _trafficEnabled ? false : true;
-                  });
-                },
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.traffic_outlined,
-                      color: Colors.red,
-                    ),
-                    Text("Activer le trafic"),
-                  ],
-                )),
-            TextButton(
-                onPressed: () {
-                  setState(() {
-                    _polyLines = _polyLines ? false : true;
-                  });
-                },
-                child: const Row(
-                  children: [
-                    Icon(
-                      Icons.timeline,
-                      color: Colors.red,
-                    ),
-                    Text("Dessiner les polyLines"),
-                  ],
-                )),
-          ],
-        ),
-      ),*/
-      /*appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        actions: const [
-          Sos(),
-        ],
-        title: const Text(
-          'SPAS GROUPE SABA',
-          style: TextStyle(color: Colors.white),
-        ),
-      ),*/
-      body: GoogleMap(
+    return PageModel(
+      pageIdex: 4,
+      titile:
+          "Position de ${widget.supervisor.firstName} ${widget.supervisor.lastName}",
+      child: GoogleMap(
         polylines: {
           Polyline(
               geodesic: true,

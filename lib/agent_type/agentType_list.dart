@@ -1,17 +1,19 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:spas_web/agent_type/agentType_form.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/services/agentType.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
 import '../services/loading.dart';
 
 class AgentTypeList extends StatefulWidget {
-  AgentTypeList({super.key, required this.manager});
-  Manager manager;
+  const AgentTypeList({super.key});
+
   @override
   _AgentTypeListState createState() => _AgentTypeListState();
 }
@@ -40,8 +42,10 @@ class _AgentTypeListState extends State<AgentTypeList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 13,
+      titile: "Gestions des type agents",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -70,20 +74,15 @@ class _AgentTypeListState extends State<AgentTypeList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.AGENT_TYPE)!
                                 .add
                             ? ElevatedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => AddAgentYpe(
-                                                agType: AgentType(
-                                                  label: '',
-                                                ),
-                                                manager: widget.manager,
-                                              )));
+                                  context.go("/typesagent/add",
+                                      extra: AgentType(
+                                        label: '',
+                                      ));
                                 },
                                 child: const Icon(Icons.add),
                               )
@@ -117,10 +116,10 @@ class _AgentTypeListState extends State<AgentTypeList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -139,13 +138,12 @@ class _DataSource extends DataTableSource {
   List<AgentType> data;
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -178,13 +176,7 @@ class _DataSource extends DataTableSource {
               ),
               onPressed: () {
                 // ignore: use_build_context_synchronously
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => AddAgentYpe(
-                              agType: agtype,
-                              manager: manager,
-                            )));
+                context.go("/typesagent/add", extra: agtype);
               },
             ),
           ],

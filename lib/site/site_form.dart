@@ -2,7 +2,10 @@ import 'dart:convert';
 
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/liste_selection_pages/supervisor_search_dialog.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/zone.dart';
 
 import '../model.dart';
@@ -10,9 +13,11 @@ import '../services/loading.dart';
 import '../services/site.dart';
 
 class AddSite extends StatefulWidget {
-  AddSite({super.key, required this.site, required this.manager});
+  AddSite({
+    super.key,
+    required this.site,
+  });
   Site site;
-  Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -30,6 +35,8 @@ class _AddSupervisorState extends State<AddSite> {
   final TextEditingController _supervisor_ctrl = TextEditingController();
   final TextEditingController _supervisor2_ctrl = TextEditingController();
   final TextEditingController _nbagent_ctrl = TextEditingController();
+  final TextEditingController _nbRonde_ctrl = TextEditingController();
+  final TextEditingController _dateContrat_ctrl = TextEditingController();
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
   bool _obscurePass = true;
   bool _adding = false;
@@ -47,7 +54,12 @@ class _AddSupervisorState extends State<AddSite> {
     _lng_ctrl.text = widget.site.latLng.lng.toString();
     _pass_ctrl.text = widget.site.codeSite;
     _phone_ctrl.text = widget.site.phone;
+    _nbRonde_ctrl.text =
+        widget.site.nbRonde == null ? "" : widget.site.nbRonde.toString();
 
+    _dateContrat_ctrl.text = widget.site.dateContrat == null
+        ? ""
+        : widget.site.dateContrat!.toIso8601String();
     _nbagent_ctrl.text =
         widget.site.nbAgent == 0 ? "" : widget.site.nbAgent.toString();
     _supervisor_ctrl.text = widget.site.supervisor == null
@@ -82,20 +94,17 @@ class _AddSupervisorState extends State<AddSite> {
     _pass_ctrl.dispose();
     _supervisor_ctrl.dispose();
     _supervisor2_ctrl.dispose();
+    _nbRonde_ctrl.dispose();
+    _dateContrat_ctrl.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition de site",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 2,
+      titile: "Gestion des sites -> Edition de site",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 20, bottom: 8.0),
@@ -358,6 +367,61 @@ class _AddSupervisorState extends State<AddSite> {
                   ],
                 ),
                 const SizedBox(
+                  height: 20,
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        readOnly: true,
+                        controller: _dateContrat_ctrl,
+                        onTap: () {
+                          showDatePicker(
+                                  context: context,
+                                  firstDate: DateTime(1900),
+                                  lastDate: DateTime(3000))
+                              .then((value) {
+                            _dateContrat_ctrl.text = value?.toIso8601String() ??
+                                DateTime.now().toIso8601String();
+                            widget.site.dateContrat =
+                                DateTime.parse(_dateContrat_ctrl.text);
+                          });
+                        },
+                        validator: (value) {
+                          return DateTime.tryParse(value!) != null
+                              ? null
+                              : "Date du contrat obligatoir";
+                        },
+                        decoration: const InputDecoration(
+                            hintText: "Date du contrat",
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.calendar_month)),
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 20,
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        keyboardType: TextInputType.number,
+                        controller: _nbRonde_ctrl,
+                        onChanged: (value) {
+                          widget.site.nbRonde = int.parse(value);
+                        },
+                        validator: (value) {
+                          return value!.isNotEmpty
+                              ? null
+                              : "Nombre de ronde obligatoir";
+                        },
+                        decoration: const InputDecoration(
+                            hintText: "Nombre de ronde prévus",
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.all_inclusive_rounded)),
+                      ),
+                    )
+                  ],
+                ),
+                const SizedBox(
                   height: 10,
                 ),
                 const Align(
@@ -475,6 +539,10 @@ class _AddSupervisorState extends State<AddSite> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20))),
                               onPressed: () async {
+                                widget.site.dateContrat =
+                                    DateTime.parse(_dateContrat_ctrl.text);
+                                widget.site.nbRonde =
+                                    int.tryParse(_nbRonde_ctrl.text) ?? 1;
                                 widget.site.codeSite = _code_ctrl.text;
                                 widget.site.name = _name_ctrl.text;
                                 widget.site.adresse = _adresse_ctrl.text;
@@ -496,7 +564,7 @@ class _AddSupervisorState extends State<AddSite> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -512,7 +580,7 @@ class _AddSupervisorState extends State<AddSite> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -539,7 +607,7 @@ class _AddSupervisorState extends State<AddSite> {
                           ),
                           widget.site.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : widget.manager.profil!
+                              : AuthService.currentManager!.profil!
                                       .getModule(ModuleName.SITE)!
                                       .delete
                                   ? const SizedBox

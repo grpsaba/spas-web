@@ -1,17 +1,19 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/services/Categorietool.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/department.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
 
 class AddCatTool extends StatefulWidget {
-  AddCatTool({super.key, required this.catTool, required this.manager});
+  AddCatTool({super.key, required this.catTool});
   CategorieTool catTool;
 
-  Manager manager;
   @override
   _AddCatToolState createState() => _AddCatToolState();
 }
@@ -42,15 +44,10 @@ class _AddCatToolState extends State<AddCatTool> {
   @override
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition Equipement",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 11,
+      titile: "Gestion Equipements -> Edition Equipement",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: padding, right: padding, top: 8.0, bottom: 8.0),
@@ -147,7 +144,7 @@ class _AddCatToolState extends State<AddCatTool> {
                                     setState(() {
                                       _adding = false;
                                     });
-                                    Navigator.of(context).pop();
+                                    context.pop();
                                   }).onError((error, stackTrace) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
@@ -171,7 +168,7 @@ class _AddCatToolState extends State<AddCatTool> {
                           const SizedBox(
                             width: 20,
                           ),
-                          widget.manager.profil!
+                          AuthService.currentManager!.profil!
                                   .getModule(ModuleName.CATEGORIE_TOOL)!
                                   .delete
                               ? ElevatedButton(
@@ -193,7 +190,7 @@ class _AddCatToolState extends State<AddCatTool> {
                                         setState(() {
                                           _adding = false;
                                         });
-                                        Navigator.of(context).pop();
+                                        context.pop();
                                       }).onError((error, stackTrace) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(SnackBar(

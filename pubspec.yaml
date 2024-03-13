@@ -71,6 +71,12 @@ dependencies:
   animated_background: ^2.0.0
   animated_text_kit: ^4.2.2
   text_to_speech: ^0.2.3
+  firebase_storage: ^11.6.7
+  file_selector_web: ^0.9.3
+  transparent_image: ^2.0.1
+  motion_toast: ^2.8.0
+  go_router: ^13.2.0
+  file_selector: ^1.0.3
 
 dev_dependencies:
   flutter_test:

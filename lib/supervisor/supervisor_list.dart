@@ -1,10 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
-import 'package:spas_web/supervisor/supervisor_form.dart';
-import 'package:spas_web/supervisor/supervisor_maps.dart';
-import 'package:spas_web/supervisor/supervisor_tracker.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -14,8 +14,10 @@ import '../services/site.dart';
 import '../services/supervisor.dart';
 
 class SupervisorList extends StatefulWidget {
-  SupervisorList({super.key, required this.manager});
-  Manager manager;
+  const SupervisorList({
+    super.key,
+  });
+
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -44,8 +46,10 @@ class _SupervisorListState extends State<SupervisorList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 4,
+      titile: "Gestion des superviseurs",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -74,31 +78,27 @@ class _SupervisorListState extends State<SupervisorList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.SUPERVISEUR)!
                                 .add
                             ? Tooltip(
                                 message: "Ajouter un superviseur",
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => AddSupervisor(
-                                                  supervisor: Supervisor(
-                                                      code: '',
-                                                      firstName: '',
-                                                      lastName: '',
-                                                      phone: '',
-                                                      email: '',
-                                                      tracking: false,
-                                                      UID: '',
-                                                      token: '',
-                                                      latlng: null,
-                                                      actif: false,
-                                                      department: null),
-                                                  manager: widget.manager,
-                                                )));
+                                    Supervisor supervisor = Supervisor(
+                                        code: '',
+                                        firstName: '',
+                                        lastName: '',
+                                        phone: '',
+                                        email: '',
+                                        tracking: false,
+                                        UID: '',
+                                        token: '',
+                                        latlng: null,
+                                        actif: false,
+                                        department: null);
+                                    context.go("/superviseurs/add",
+                                        extra: supervisor);
                                   },
                                   child: const Icon(Icons.add),
                                 ),
@@ -111,10 +111,7 @@ class _SupervisorListState extends State<SupervisorList> {
                           message: "Dernières Position des superviseurs",
                           child: ElevatedButton(
                             onPressed: () {
-                              Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                      builder: (_) => const SupervisorMaps()));
+                              context.go("/superviseurs/maps");
                             },
                             child: const Icon(Icons.location_on),
                           ),
@@ -156,10 +153,10 @@ class _SupervisorListState extends State<SupervisorList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -178,13 +175,12 @@ class _DataSource extends DataTableSource {
   List<Supervisor> data;
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -224,7 +220,6 @@ class _DataSource extends DataTableSource {
           "${supervisor.latlng?.lat ?? ""} ; ${supervisor.latlng?.lng ?? ""}")),
       DataCell(SuperviseurStatut(
         superviseur: supervisor,
-        manager: manager,
       )),
       DataCell(Row(
         children: [
@@ -236,13 +231,7 @@ class _DataSource extends DataTableSource {
                   ),
                   onPressed: () {
                     // ignore: use_build_context_synchronously
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AddSupervisor(
-                                  supervisor: supervisor,
-                                  manager: manager,
-                                )));
+                    context.go("/superviseurs/add", extra: supervisor);
                   },
                 )
               : const SizedBox.shrink(),
@@ -253,12 +242,7 @@ class _DataSource extends DataTableSource {
             ),
             onPressed: () {
               // ignore: use_build_context_synchronously
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => SupervisorTracker(
-                            supervisor: supervisor,
-                          )));
+              context.go("/superviseurs/location", extra: supervisor);
             },
           )
         ],
@@ -310,10 +294,12 @@ class _DataSource extends DataTableSource {
 //widget d'état du superviseur
 
 class SuperviseurStatut extends StatefulWidget {
-  SuperviseurStatut(
-      {super.key, required this.superviseur, required this.manager});
+  SuperviseurStatut({
+    super.key,
+    required this.superviseur,
+  });
   Supervisor superviseur;
-  Manager manager;
+
   @override
   _SuperviseurStatutState createState() => _SuperviseurStatutState();
 }
@@ -326,7 +312,7 @@ class _SuperviseurStatutState extends State<SuperviseurStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              if (widget.manager.profil!
+              if (AuthService.currentManager!.profil!
                   .getModule(ModuleName.SUPERVISEUR)!
                   .validation) {
                 actifInactifAgent();
@@ -337,7 +323,7 @@ class _SuperviseurStatutState extends State<SuperviseurStatut> {
                     widget.superviseur.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    widget.manager.profil!
+                    AuthService.currentManager!.profil!
                             .getModule(ModuleName.SUPERVISEUR)!
                             .validation
                         ? Checkbox(

@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/department.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
 
 class AddDepatment extends StatefulWidget {
-  AddDepatment({super.key, required this.department, required this.manager});
+  AddDepatment({super.key, required this.department});
   Department department;
 
-  Manager manager;
   @override
   _AddDepatmentState createState() => _AddDepatmentState();
 }
@@ -39,15 +41,10 @@ class _AddDepatmentState extends State<AddDepatment> {
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition Département",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 12,
+      titile: "Edition Département",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 8.0, bottom: 8.0),
@@ -95,7 +92,7 @@ class _AddDepatmentState extends State<AddDepatment> {
                                     setState(() {
                                       _adding = false;
                                     });
-                                    Navigator.of(context).pop();
+                                    context.pop();
                                   }).onError((error, stackTrace) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
@@ -119,7 +116,7 @@ class _AddDepatmentState extends State<AddDepatment> {
                           const SizedBox(
                             width: 20,
                           ),
-                          widget.manager.profil!
+                          AuthService.currentManager!.profil!
                                   .getModule(ModuleName.DEPARTMENT)!
                                   .delete
                               ? ElevatedButton(
@@ -141,7 +138,7 @@ class _AddDepatmentState extends State<AddDepatment> {
                                         setState(() {
                                           _adding = false;
                                         });
-                                        Navigator.of(context).pop();
+                                        context.pop();
                                       }).onError((error, stackTrace) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(SnackBar(

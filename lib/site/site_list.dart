@@ -1,10 +1,12 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/pdf/api/pdf_api.dart';
 import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/site.dart';
-import 'package:spas_web/site/site_form.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -12,8 +14,10 @@ import '../services/export.dart';
 import '../services/loading.dart';
 
 class SiteList extends StatefulWidget {
-  SiteList({super.key, required this.manager});
-  Manager manager;
+  const SiteList({
+    super.key,
+  });
+
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -46,8 +50,10 @@ class _SupervisorListState extends State<SiteList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 2,
+      titile: "Gestion des sites",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -117,32 +123,30 @@ class _SupervisorListState extends State<SiteList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.SITE)!.add
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.SITE)!
+                                .add
                             ? Tooltip(
                                 message: "Ajouter un site",
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => AddSite(
-                                                  site: Site(
-                                                      UID: "",
-                                                      codeSite: "",
-                                                      name: "",
-                                                      adresse: "",
-                                                      email: "",
-                                                      phone: "",
-                                                      latLng: LatLngModel(
-                                                          lat: 0, lng: 0),
-                                                      token: "",
-                                                      nbAgent: 0,
-                                                      supervisor_2: null,
-                                                      supervisor: null,
-                                                      actif: false,
-                                                      zone: null),
-                                                  manager: widget.manager,
-                                                )));
+                                    Site site = Site(
+                                        UID: "",
+                                        codeSite: "",
+                                        name: "",
+                                        adresse: "",
+                                        email: "",
+                                        phone: "",
+                                        latLng: LatLngModel(lat: 0, lng: 0),
+                                        token: "",
+                                        nbAgent: 0,
+                                        supervisor_2: null,
+                                        supervisor: null,
+                                        actif: false,
+                                        zone: null,
+                                        dateContrat: null,
+                                        nbRonde: null);
+                                    context.go('/sites/add', extra: site);
                                   },
                                   child: const Icon(Icons.add),
                                 ),
@@ -151,7 +155,7 @@ class _SupervisorListState extends State<SiteList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.SITE)!
                                 .generBadge
                             ? Tooltip(
@@ -174,7 +178,9 @@ class _SupervisorListState extends State<SiteList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.SITE)!.print
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.SITE)!
+                                .print
                             ? IconButton(
                                 onPressed: () async {
                                   var document = await SiteListToPDF.export(
@@ -186,7 +192,9 @@ class _SupervisorListState extends State<SiteList> {
                         const SizedBox(
                           width: 5,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.SITE)!.print
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.SITE)!
+                                .print
                             ? IconButton(
                                 onPressed: () async {
                                   ExportData.SitesToExcel(
@@ -238,10 +246,10 @@ class _SupervisorListState extends State<SiteList> {
                       const DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -277,13 +285,12 @@ class _DataSource extends DataTableSource {
 
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -348,7 +355,6 @@ class _DataSource extends DataTableSource {
               "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}")),
       DataCell(SiteStatut(
         site: site,
-        manager: manager,
       )),
       DataCell(Row(
         children: [
@@ -360,13 +366,7 @@ class _DataSource extends DataTableSource {
                   ),
                   onPressed: () {
                     // ignore: use_build_context_synchronously
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AddSite(
-                                  site: site,
-                                  manager: manager,
-                                )));
+                    context.go('/sites/add', extra: site);
                   },
                 )
               : const SizedBox.shrink(),
@@ -385,7 +385,9 @@ class _DataSource extends DataTableSource {
               : const SizedBox.shrink(),
           site.actif!
               ? const SizedBox.shrink()
-              : manager.profil!.getModule(ModuleName.SITE)!.delete
+              : AuthService.currentManager!.profil!
+                      .getModule(ModuleName.SITE)!
+                      .delete
                   ? DeleteSite(site: site)
                   : const SizedBox.shrink()
         ],
@@ -409,9 +411,9 @@ class _DataSource extends DataTableSource {
 //widget d'état du site
 
 class SiteStatut extends StatefulWidget {
-  SiteStatut({super.key, required this.site, required this.manager});
+  SiteStatut({super.key, required this.site, r});
   Site site;
-  Manager manager;
+
   @override
   _SiteStatutState createState() => _SiteStatutState();
 }
@@ -424,7 +426,7 @@ class _SiteStatutState extends State<SiteStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              if (widget.manager.profil!
+              if (AuthService.currentManager!.profil!
                   .getModule(ModuleName.SITE)!
                   .validation) {
                 actifInactifSite();
@@ -435,7 +437,7 @@ class _SiteStatutState extends State<SiteStatut> {
                     widget.site.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    widget.manager.profil!
+                    AuthService.currentManager!.profil!
                             .getModule(ModuleName.SITE)!
                             .validation
                         ? Checkbox(

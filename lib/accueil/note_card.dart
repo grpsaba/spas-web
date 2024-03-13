@@ -9,8 +9,8 @@ import '../model.dart';
 import '../services/note.dart';
 
 class NoteCard extends StatelessWidget {
-  NoteCard({super.key, required this.manager});
-  Manager manager;
+  NoteCard({super.key});
+
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
@@ -29,9 +29,7 @@ class NoteCard extends StatelessWidget {
 
                     return SizedBox(
                       width: width - (width - 500),
-                      child: NoteListTB(
-                        manager: manager,
-                      ),
+                      child: NoteListTB(),
                     );
                   },
                 ),

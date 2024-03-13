@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
-import 'package:spas_web/zone/zone_form.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -10,8 +12,10 @@ import '../services/loading.dart';
 import '../services/zone.dart';
 
 class ZoneList extends StatefulWidget {
-  ZoneList({super.key, required this.manager});
-  Manager manager;
+  const ZoneList({
+    super.key,
+  });
+
   @override
   _ZoneListState createState() => _ZoneListState();
 }
@@ -44,8 +48,10 @@ class _ZoneListState extends State<ZoneList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 14,
+      titile: "Gestion des zones",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -112,21 +118,18 @@ class _ZoneListState extends State<ZoneList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.SITE)!.add
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.SITE)!
+                                .add
                             ? Tooltip(
                                 message: "Ajouter une zone",
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => AddZone(
-                                                  zone: Zone(
-                                                    codeZone: "",
-                                                    name: "",
-                                                  ),
-                                                  manager: widget.manager,
-                                                )));
+                                    Zone zone = Zone(
+                                      codeZone: "",
+                                      name: "",
+                                    );
+                                    context.go("/zones/add", extra: zone);
                                   },
                                   child: const Icon(Icons.add),
                                 ),
@@ -168,10 +171,10 @@ class _ZoneListState extends State<ZoneList> {
                       const DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -207,13 +210,12 @@ class _DataSource extends DataTableSource {
 
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -246,16 +248,10 @@ class _DataSource extends DataTableSource {
             ),
             onPressed: () {
               // ignore: use_build_context_synchronously
-              Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                      builder: (_) => AddZone(
-                            zone: zone,
-                            manager: manager,
-                          )));
+              context.go("/zones/add", extra: zone);
             },
           ),
-          manager.profil!.getModule(ModuleName.SITE)!.delete
+          AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!.delete
               ? DeleteZone(zone: zone)
               : const SizedBox.shrink()
         ],

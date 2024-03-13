@@ -5,12 +5,12 @@ import 'manager.dart';
 
 class AuthService {
   var auth = FirebaseAuth.instance;
-
+  static Manager? currentManager;
   Future<Manager?> authState() async {
     var user = auth.currentUser;
     if (user == null) return null;
-    var manager = await ManagerService().one(user.uid);
-    return manager;
+    currentManager = await ManagerService().one(user.uid);
+    return currentManager;
   }
 
   Future<User?> loginWithEmail(email, password) async {

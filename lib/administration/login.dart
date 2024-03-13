@@ -4,8 +4,8 @@ import 'package:animated_background/animated_background.dart';
 import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
-import 'package:spas_web/administration/start_page.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/model.dart';
 
@@ -272,8 +272,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
         });
         //your code hier
 
-        Navigator.push(
-            context, MaterialPageRoute(builder: (_) => const Starter()));
+        context.go('/home');
       }).onError((error, stackTrace) {
         setState(() {
           _isLogin = false;

@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:spas_web/agent/agent_form.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../pdf/api/pdf_api.dart';
@@ -10,11 +12,12 @@ import '../rowperPageWidget.dart';
 import '../services/agent.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
-import 'import_agent.dart';
 
 class AgentList extends StatefulWidget {
-  AgentList({super.key, required Manager this.manager});
-  Manager manager;
+  const AgentList({
+    super.key,
+  });
+
   @override
   _AgentListState createState() => _AgentListState();
 }
@@ -45,8 +48,10 @@ class _AgentListState extends State<AgentList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 3,
+      titile: "Gestion des agents",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -153,29 +158,30 @@ class _AgentListState extends State<AgentList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.AGENT)!.add
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.AGENT)!
+                                .add
                             ? Tooltip(
                                 message: "Ajouter un Agent",
                                 child: ElevatedButton(
                                   onPressed: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => AddAgent(
-                                                  agent: Agent(
-                                                    typeAgent: null,
-                                                    code: '',
-                                                    firstName: '',
-                                                    lastName: '',
-                                                    phone: '',
-                                                    email: '',
-                                                    tracking: false,
-                                                    site: null,
-                                                    actif: false,
-                                                    department: null,
-                                                  ),
-                                                  manager: widget.manager,
-                                                )));
+                                    Agent agent = Agent(
+                                      docs: [],
+                                      typeAgent: null,
+                                      code: '',
+                                      firstName: '',
+                                      lastName: '',
+                                      phone: '',
+                                      email: '',
+                                      tracking: false,
+                                      site: null,
+                                      actif: false,
+                                      department: null,
+                                      contacts: [],
+                                      dateEmbauche: null,
+                                      dateArret: null,
+                                    );
+                                    context.go('/agents/add', extra: agent);
                                   },
                                   child: const Icon(Icons.add),
                                 ),
@@ -184,16 +190,14 @@ class _AgentListState extends State<AgentList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.AGENT)!.add
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.AGENT)!
+                                .add
                             ? Tooltip(
                                 message: "Importer Agents",
                                 child: ElevatedButton(
                                   onPressed: () async {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) =>
-                                                const ImportAgent()));
+                                    context.go('/agents/import');
                                   },
                                   child: const Icon(Icons.upload_file),
                                 ),
@@ -202,7 +206,7 @@ class _AgentListState extends State<AgentList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.AGENT)!
                                 .generBadge
                             ? Tooltip(
@@ -225,7 +229,7 @@ class _AgentListState extends State<AgentList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.AGENT)!
                                 .print
                             ? IconButton(
@@ -272,10 +276,10 @@ class _AgentListState extends State<AgentList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data!,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data!,
+                    ),
                   );
                 } else {
                   return Center(
@@ -295,13 +299,12 @@ class _DataSource extends DataTableSource {
   List<Agent> data = [];
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -359,7 +362,6 @@ class _DataSource extends DataTableSource {
       )),
       DataCell(AgentStatut(
         agent: agent,
-        manager: manager,
       )),
       DataCell(agent.actif!
           ? Row(
@@ -371,14 +373,17 @@ class _DataSource extends DataTableSource {
                   ),
                   onPressed: () {
                     // ignore: use_build_context_synchronously
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AddAgent(
-                                  agent: agent,
-                                  update: true,
-                                  manager: manager,
-                                )));
+                    context.go('/agents/add', extra: agent);
+                  },
+                ),
+                IconButton(
+                  icon: Icon(
+                    Icons.file_present,
+                    color: Theme.of(context).primaryColor,
+                  ),
+                  onPressed: () {
+                    // ignore: use_build_context_synchronously
+                    context.go('/agents/documents', extra: agent);
                   },
                 ),
                 ElevatedButton(
@@ -414,9 +419,12 @@ class _DataSource extends DataTableSource {
 //widget d'état de l'agent
 
 class AgentStatut extends StatefulWidget {
-  AgentStatut({super.key, required this.agent, required this.manager});
+  AgentStatut({
+    super.key,
+    required this.agent,
+  });
   Agent agent;
-  Manager manager;
+
   @override
   _AgentStatutState createState() => _AgentStatutState();
 }
@@ -429,7 +437,7 @@ class _AgentStatutState extends State<AgentStatut> {
         ? Loading(size: 28, inline: false)
         : GestureDetector(
             onTap: () {
-              if (widget.manager.profil!
+              if (AuthService.currentManager!.profil!
                   .getModule(ModuleName.AGENT)!
                   .validation) {
                 actifInactifAgent();
@@ -440,7 +448,7 @@ class _AgentStatutState extends State<AgentStatut> {
                     widget.agent.actif! ? Colors.green : Colors.redAccent,
                 label: Row(
                   children: [
-                    widget.manager.profil!
+                    AuthService.currentManager!.profil!
                             .getModule(ModuleName.AGENT)!
                             .validation
                         ? Checkbox(

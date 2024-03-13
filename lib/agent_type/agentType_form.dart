@@ -1,14 +1,16 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/services/agentType.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
 
 class AddAgentYpe extends StatefulWidget {
-  AddAgentYpe({super.key, required this.agType, required this.manager});
+  AddAgentYpe({super.key, required this.agType});
   AgentType agType;
 
-  Manager manager;
   @override
   _AddAgentYpeState createState() => _AddAgentYpeState();
 }
@@ -39,15 +41,10 @@ class _AddAgentYpeState extends State<AddAgentYpe> {
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition Type Agent",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 13,
+      titile: "Edition Type Agent",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 8.0, bottom: 8.0),
@@ -95,7 +92,7 @@ class _AddAgentYpeState extends State<AddAgentYpe> {
                                     setState(() {
                                       _adding = false;
                                     });
-                                    Navigator.of(context).pop();
+                                    context.pop();
                                   }).onError((error, stackTrace) {
                                     ScaffoldMessenger.of(context).showSnackBar(
                                         SnackBar(
@@ -119,7 +116,7 @@ class _AddAgentYpeState extends State<AddAgentYpe> {
                           const SizedBox(
                             width: 20,
                           ),
-                          widget.manager.profil!
+                          AuthService.currentManager!.profil!
                                   .getModule(ModuleName.AGENT_TYPE)!
                                   .delete
                               ? ElevatedButton(
@@ -141,7 +138,7 @@ class _AddAgentYpeState extends State<AddAgentYpe> {
                                         setState(() {
                                           _adding = false;
                                         });
-                                        Navigator.of(context).pop();
+                                        context.pop();
                                       }).onError((error, stackTrace) {
                                         ScaffoldMessenger.of(context)
                                             .showSnackBar(SnackBar(

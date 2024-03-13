@@ -2,6 +2,8 @@ import 'dart:convert';
 
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -9,8 +11,8 @@ import '../services/manager.dart';
 import '../services/profil.dart';
 
 class AddManager extends StatefulWidget {
-  AddManager({super.key, required this.manager});
-  Manager manager;
+  const AddManager({super.key, required this.manager});
+  final Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -55,15 +57,10 @@ class _AddSupervisorState extends State<AddManager> {
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition controleur",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 1,
+      titile: "Gestion utilisateurs -> Edition utilisateur",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 8.0, bottom: 8.0),
@@ -251,7 +248,7 @@ class _AddSupervisorState extends State<AddManager> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -267,7 +264,7 @@ class _AddSupervisorState extends State<AddManager> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -316,7 +313,7 @@ class _AddSupervisorState extends State<AddManager> {
                                             setState(() {
                                               _adding = false;
                                             });
-                                            Navigator.of(context).pop();
+                                            context.pop();
                                           }).onError((error, stackTrace) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(SnackBar(

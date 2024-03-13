@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/services/loading.dart';
 
 import '../model.dart';
@@ -26,15 +27,10 @@ class _ZoneSiteMonthlyPointageState extends State<ZoneSiteMonthlyPointage> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Nombre de visite des sites",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: Center(
+    return PageModel(
+      pageIdex: 15,
+      titile: "Nombre de visite des sites par chef de zone",
+      child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [

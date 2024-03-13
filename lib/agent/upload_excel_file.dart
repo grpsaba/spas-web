@@ -54,6 +54,7 @@ class UploadExcel {
       String contact = row[contactClIndex]?.value.toString() ?? "";
 
       Agent agent = Agent(
+          docs: [],
           code: code,
           firstName: firstName,
           lastName: lastName,
@@ -63,7 +64,10 @@ class UploadExcel {
           site: site,
           department: null,
           typeAgent: null,
-          actif: false);
+          actif: false,
+          contacts: [],
+          dateEmbauche: null,
+          dateArret: null);
       if (kDebugMode) {
         print(agent.toJson());
       }

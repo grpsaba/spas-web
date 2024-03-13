@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:equatable/equatable.dart';
 
 class LatLngModel {
@@ -87,6 +89,56 @@ class Supervisor {
 //
 }
 
+class DocumentFile extends Equatable {
+  String title;
+  String path;
+  String extention;
+  DocumentFile(
+      {required this.title, required this.path, required this.extention});
+
+  factory DocumentFile.fromJson(Map<String, dynamic> json) {
+    return DocumentFile(
+      title: json["title"],
+      path: json["path"],
+      extention: json["extention"],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {"title": title, "path": path, "extention": extention};
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [path];
+//
+}
+
+class ConactReference extends Equatable {
+  String title;
+  String contact;
+  bool certified;
+  ConactReference(
+      {required this.title, required this.contact, required this.certified});
+
+  factory ConactReference.fromJson(Map<String, dynamic> json) {
+    return ConactReference(
+      title: json["title"],
+      contact: json["contact"],
+      certified: json["certified"],
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {"title": title, "contact": contact, "certified": certified};
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [contact];
+//
+}
+
 class Agent extends Equatable {
   String code;
   String firstName;
@@ -99,27 +151,44 @@ class Agent extends Equatable {
   AgentType? typeAgent;
   bool? actif;
   bool? active;
-  Agent({
-    required this.code,
-    required this.firstName,
-    required this.lastName,
-    required this.phone,
-    required this.email,
-    required this.tracking,
-    required this.site,
-    required this.department,
-    required this.typeAgent,
-    required this.actif,
-  });
+  List<DocumentFile>? docs;
+  List<ConactReference>? contacts;
+  DateTime? dateEmbauche;
+  DateTime? dateArret;
+  Agent(
+      {required this.code,
+      required this.firstName,
+      required this.lastName,
+      required this.phone,
+      required this.email,
+      required this.tracking,
+      required this.site,
+      required this.department,
+      required this.typeAgent,
+      required this.actif,
+      required this.docs,
+      required this.contacts,
+      required this.dateEmbauche,
+      required this.dateArret});
 
   factory Agent.fromJson(Map<String, dynamic> json) {
+    List docs = json["docs"] ?? [];
+    List contacts = json["contacts"] ?? [];
     return Agent(
       code: json["code"],
+      dateEmbauche: json["dateEmbauche"] != null
+          ? DateTime.tryParse(json["dateEmbauche"])
+          : null,
+      dateArret: json["dateArret"] != null
+          ? DateTime.tryParse(json["dateArret"])
+          : null,
       firstName: json["firstName"],
       lastName: json["lastName"],
       phone: json["phone"],
       email: json["email"],
       tracking: json["tracking"],
+      docs: docs.map((e) => DocumentFile.fromJson(e)).toList(),
+      contacts: contacts.map((e) => ConactReference.fromJson(e)).toList(),
       typeAgent: json["AgentType"] == null
           ? null
           : AgentType.fromJson(json["AgentType"]),
@@ -133,6 +202,8 @@ class Agent extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
+      "docs": docs?.map((e) => e.toJson()),
+      "contacts": contacts?.map((e) => e.toJson()),
       "code": code,
       "firstName": firstName,
       "lastName": lastName,
@@ -143,6 +214,8 @@ class Agent extends Equatable {
       "actif": actif,
       "department": department?.toJson(),
       "AgentType": typeAgent?.toJson(),
+      "dateEmbauche": dateEmbauche?.toIso8601String(),
+      "dateArret": dateArret?.toIso8601String()
     };
   }
 
@@ -150,7 +223,13 @@ class Agent extends Equatable {
   // TODO: implement props
   List<Object?> get props => [code];
 //
-
+  void genererCode() {
+    for (int i = 1; i <= 8; i++) {
+      int num = Random().nextInt(9);
+      code += "$num";
+    }
+    code = "${department?.label.substring(1, 4) ?? "AGE"}$code";
+  }
 //
 
 //
@@ -171,6 +250,8 @@ class Site extends Equatable {
   bool? actif;
   bool sos;
   Zone? zone;
+  int? nbRonde;
+  DateTime? dateContrat;
   Site(
       {required this.UID,
       required this.codeSite,
@@ -185,7 +266,9 @@ class Site extends Equatable {
       required this.supervisor_2,
       this.sos = false,
       required this.actif,
-      required this.zone});
+      required this.zone,
+      required this.dateContrat,
+      required this.nbRonde});
 
   factory Site.fromJson(Map<String, dynamic> json) {
     return Site(
@@ -196,7 +279,11 @@ class Site extends Equatable {
         email: json["email"],
         token: json['token'],
         actif: json['actif'] ?? true,
+        nbRonde: json['nbRonde'] ?? 1,
         nbAgent: json['nbAgent'] ?? 0,
+        dateContrat: json['dateContrat'] != null
+            ? DateTime.tryParse(json['dateContrat'])
+            : DateTime.now(),
         zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
         supervisor_2: json["supervisor_2"] == null
@@ -222,7 +309,11 @@ class Site extends Equatable {
       'token': token,
       'phone': phone,
       'nbAgent': nbAgent,
-      'actif': actif
+      'actif': actif,
+      'nbRonde': nbRonde ?? 1,
+      'dateContrat': dateContrat != null
+          ? dateContrat?.toIso8601String()
+          : DateTime.now().toIso8601String()
     };
   }
 

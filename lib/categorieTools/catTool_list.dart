@@ -1,17 +1,21 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/services/Categorietool.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
 import '../services/loading.dart';
-import 'catTool_form.dart';
 
 class CatToolList extends StatefulWidget {
-  CatToolList({super.key, required this.manager});
-  Manager manager;
+  const CatToolList({
+    super.key,
+  });
+
   @override
   _CatToolListState createState() => _CatToolListState();
 }
@@ -40,8 +44,10 @@ class _CatToolListState extends State<CatToolList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 11,
+      titile: "Gestion des équipement",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -71,22 +77,16 @@ class _CatToolListState extends State<CatToolList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.CATEGORIE_TOOL)!
                                 .add
                             ? ElevatedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => AddCatTool(
-                                                catTool: CategorieTool(
-                                                  label: '',
-                                                  department:
-                                                      Department(label: ''),
-                                                ),
-                                                manager: widget.manager,
-                                              )));
+                                  CategorieTool ct = CategorieTool(
+                                    label: '',
+                                    department: Department(label: ''),
+                                  );
+                                  context.go('equipements/add', extra: ct);
                                 },
                                 child: const Icon(Icons.add),
                               )
@@ -121,10 +121,10 @@ class _CatToolListState extends State<CatToolList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -143,13 +143,12 @@ class _DataSource extends DataTableSource {
   List<CategorieTool> data;
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -187,13 +186,7 @@ class _DataSource extends DataTableSource {
               ),
               onPressed: () {
                 // ignore: use_build_context_synchronously
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => AddCatTool(
-                              catTool: catTool,
-                              manager: manager,
-                            )));
+                context.go('equipements/add', extra: catTool);
               },
             ),
           ],

@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -9,9 +12,8 @@ import '../services/zone.dart';
 import '../services/zoneMember.dart';
 
 class AddZoneMember extends StatefulWidget {
-  AddZoneMember({super.key, required this.zoneMember, required this.manager});
+  AddZoneMember({super.key, required this.zoneMember});
   ZoneMember zoneMember;
-  Manager manager;
 
   @override
   _AddZoneMemberState createState() => _AddZoneMemberState();
@@ -58,15 +60,10 @@ class _AddZoneMemberState extends State<AddZoneMember> {
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition Chef de zone",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 16,
+      titile: "Edition Chef de zone",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 8.0, bottom: 8.0),
@@ -294,7 +291,7 @@ class _AddZoneMemberState extends State<AddZoneMember> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -321,7 +318,7 @@ class _AddZoneMemberState extends State<AddZoneMember> {
                           ),
                           widget.zoneMember.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : widget.manager.profil!
+                              : AuthService.currentManager!.profil!
                                       .getModule(ModuleName.SUPERVISEUR)!
                                       .delete
                                   ? ElevatedButton(
@@ -343,7 +340,7 @@ class _AddZoneMemberState extends State<AddZoneMember> {
                                             setState(() {
                                               _adding = false;
                                             });
-                                            Navigator.of(context).pop();
+                                            context.pop();
                                           }).onError((error, stackTrace) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(SnackBar(

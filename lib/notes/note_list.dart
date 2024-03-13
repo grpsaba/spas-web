@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:spas_web/administration/home.dart';
 
 import '../generated/assets.dart';
 import '../model.dart';
@@ -12,8 +13,8 @@ import '../services/note.dart';
 import 'note_contant.dart';
 
 class NoteList extends StatefulWidget {
-  NoteList({super.key, required this.manager});
-  Manager manager;
+  const NoteList({super.key});
+
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -45,8 +46,10 @@ class _SupervisorListState extends State<NoteList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 9,
+      titile: "Gestion des notes",
+      child: SingleChildScrollView(
           child: Row(
         children: [
           Container(
@@ -264,7 +267,6 @@ class _SupervisorListState extends State<NoteList> {
               ? const SizedBox.shrink()
               : Expanded(
                   child: NotesContant(
-                    manager: widget.manager,
                     note: _selectedNote!,
                   ),
                 )

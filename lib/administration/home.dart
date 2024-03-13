@@ -1,42 +1,28 @@
 import 'package:flutter/material.dart';
-import 'package:spas_web/administration/checklist.dart';
-import 'package:spas_web/administration/pointage_agent_list.dart';
-import 'package:spas_web/administration/pointage_site_list.dart';
+import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
-import 'package:spas_web/administration/start_page.dart';
-import 'package:spas_web/agent/agent_list.dart';
-import 'package:spas_web/agent_type/agentType_list.dart';
-import 'package:spas_web/department/department_list.dart';
 import 'package:spas_web/generated/assets.dart';
-import 'package:spas_web/site/site_list.dart';
-import 'package:spas_web/supervisor/supervisor_list.dart';
-import 'package:spas_web/timePlanner.dart';
-import 'package:spas_web/tools/tool_list.dart';
-import 'package:spas_web/zone/zone_list.dart';
-import 'package:spas_web/zone_member/zone_member_list.dart';
 
-import '../accueil/home_page.dart';
-import '../accueil/maps.dart';
-import '../categorieTools/catTool_list.dart';
 import '../const.dart';
-import '../manager/user_page.dart';
-import '../model.dart';
-import '../notes/note_list.dart';
 import '../services/authentication.dart';
-import '../timePlanner2.dart';
-import '../zone/pointage_zone_list.dart';
 
-class AdminHome extends StatefulWidget {
-  AdminHome({super.key, required this.manager});
-  Manager manager;
+class PageModel extends StatefulWidget {
+  PageModel(
+      {super.key,
+      required this.child,
+      required this.pageIdex,
+      required this.titile});
+
+  Widget child;
+  int pageIdex;
+  String titile;
   @override
-  _AdminHomeState createState() => _AdminHomeState();
+  _PageModelState createState() => _PageModelState();
 }
 
-class _AdminHomeState extends State<AdminHome> {
+class _PageModelState extends State<PageModel> {
   //final SiteService _siteServicef = SiteService();
 
-  int _menuIdex = 0;
   bool _howDrawer = false;
   @override
   void initState() {
@@ -50,29 +36,11 @@ class _AdminHomeState extends State<AdminHome> {
     super.dispose();
   }
 
-  /*iniZone() async {
-    List<Zone> zones = await ZoneService().allAsModel();
-    List<Site> sites = await SiteService().allAsModel();
-    for (Zone z in zones) {
-      for (Site s in sites) {
-        if (z == s.zone) {
-          s.zone = z;
-          SiteService().update(s);
-        }
-      }
-    }
-  }*/
-
-  void navigeTo(int index) {
-    setState(() {
-      _menuIdex = index;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-        backgroundColor: _menuIdex == 0 ? AppConstants.bgColor : Colors.white,
+        backgroundColor:
+            widget.pageIdex == 0 ? AppConstants.bgColor : Colors.white,
         appBar: AppBar(
           leading: const Image(
             image: AssetImage("assets/logo.png"),
@@ -81,15 +49,14 @@ class _AdminHomeState extends State<AdminHome> {
           actions: [
             Sos(),
             Text(
-              "${widget.manager.firstName} ${widget.manager.lastName}",
+              "${AuthService.currentManager!.firstName} ${AuthService.currentManager!.lastName}",
               style: const TextStyle(color: Colors.white),
             ),
             IconButton(
                 onPressed: () {
-                  AuthService().logOut().then((value) => {
-                        Navigator.pushReplacement(context,
-                            MaterialPageRoute(builder: (_) => const Starter()))
-                      });
+                  AuthService().logOut().then((value) {
+                    context.go('/login');
+                  });
                 },
                 icon: const Icon(
                   Icons.logout,
@@ -103,7 +70,7 @@ class _AdminHomeState extends State<AdminHome> {
             }),
             builder: (context, AsyncSnapshot<String> snapshot) {
               return Text(
-                "SPAS GROUPE SABA ${snapshot.data ?? ""}",
+                "${widget.titile} ${snapshot.data ?? ""}",
                 style: const TextStyle(color: Colors.white),
               );
             },
@@ -116,7 +83,7 @@ class _AdminHomeState extends State<AdminHome> {
             drawer(),
             //contant
             Expanded(
-              child: switchPage(),
+              child: widget.child,
             )
           ],
         ));
@@ -158,9 +125,9 @@ class _AdminHomeState extends State<AdminHome> {
             Column(
               children: [
                 ListTile(
-                  selected: _menuIdex == 0,
+                  selected: widget.pageIdex == 0,
                   onTap: () {
-                    navigeTo(0);
+                    context.go("/home");
                     if (_howDrawer) {
                       Navigator.of(context).pop();
                     }
@@ -184,7 +151,7 @@ class _AdminHomeState extends State<AdminHome> {
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(1);
+                    context.go("/users");
                     if (_howDrawer) {
                       Navigator.of(context).pop();
                     }
@@ -205,11 +172,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 1,
+                  selected: widget.pageIdex == 1,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(2);
+                    context.go("/sites");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -227,11 +194,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 2,
+                  selected: widget.pageIdex == 2,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(3);
+                    context.go("/agents");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -249,11 +216,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 3,
+                  selected: widget.pageIdex == 3,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(4);
+                    context.go('/superviseurs');
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -271,11 +238,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 4,
+                  selected: widget.pageIdex == 4,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(5);
+                    context.go("/tools");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -293,11 +260,13 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 5,
+                  selected: widget.pageIdex == 5,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(6);
+                    context.go(
+                      '/pointages',
+                    );
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -315,11 +284,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 6,
+                  selected: widget.pageIdex == 6,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(7);
+                    context.go("/pointageagents");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -337,11 +306,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 7,
+                  selected: widget.pageIdex == 7,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(8);
+                    context.go("/checklist");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -359,11 +328,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 8,
+                  selected: widget.pageIdex == 8,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(9);
+                    context.go("/notes");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -381,11 +350,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 9,
+                  selected: widget.pageIdex == 9,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(10);
+                    context.go("/maps");
                   },
                   leading: const CircleAvatar(
                       radius: 18,
@@ -403,11 +372,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 10,
+                  selected: widget.pageIdex == 10,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(11);
+                    context.go("/equipements");
                   },
                   leading: CircleAvatar(
                       radius: 18,
@@ -425,11 +394,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 11,
+                  selected: widget.pageIdex == 11,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(12);
+                    context.go("/departements");
                   },
                   leading: CircleAvatar(
                       radius: 18,
@@ -447,11 +416,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 12,
+                  selected: widget.pageIdex == 12,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(13);
+                    context.go("/typesagent");
                   },
                   leading: CircleAvatar(
                       radius: 18,
@@ -469,11 +438,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 13,
+                  selected: widget.pageIdex == 13,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(14);
+                    context.go("/zones");
                   },
                   leading: CircleAvatar(
                       radius: 18,
@@ -491,11 +460,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 14,
+                  selected: widget.pageIdex == 14,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(15);
+                    context.go("/pointagezones");
                   },
                   leading: CircleAvatar(
                       radius: 18,
@@ -513,11 +482,11 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 15,
+                  selected: widget.pageIdex == 15,
                 ),
                 ListTile(
                   onTap: () {
-                    navigeTo(16);
+                    context.go("/chefszone");
                   },
                   leading: CircleAvatar(
                       radius: 18,
@@ -535,144 +504,13 @@ class _AdminHomeState extends State<AdminHome> {
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,
                   style: ListTileStyle.drawer,
-                  selected: _menuIdex == 16,
+                  selected: widget.pageIdex == 16,
                 ),
-                /* ListTile(
-                  onTap: () {
-                    navigeTo(11);
-                  },
-                  leading: const CircleAvatar(
-                      radius: 18,
-                      child: Image(
-                        fit: BoxFit.contain,
-                        image: AssetImage(Assets.assetsIconAgent),
-                      )),
-                  title: !_howDrawer ? null : const Text("Repos"),
-                  hoverColor: Colors.grey.withOpacity(0.1),
-                  selectedTileColor: Colors.blueGrey,
-                  selectedColor: Colors.white,
-                  style: ListTileStyle.drawer,
-                  selected: _menuIdex == 11,
-                ),*/
               ],
             )
           ],
         ),
       ),
     );
-  }
-
-  Widget switchPage() {
-    switch (_menuIdex) {
-      case 0:
-        return widget.manager.profil!
-                .getModule(ModuleName.TABLEAU_DE_BORD)!
-                .view
-            ? HomePage(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 1:
-        return widget.manager.profil!.getModule(ModuleName.MANAGER)!.view
-            ? UserPage(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 2:
-        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
-            ? SiteList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 3:
-        return widget.manager.profil!.getModule(ModuleName.AGENT)!.view
-            ? AgentList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 4:
-        return widget.manager.profil!.getModule(ModuleName.SUPERVISEUR)!.view
-            ? SupervisorList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 5:
-        return widget.manager.profil!.getModule(ModuleName.TOOL)!.view
-            ? ToolList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 6:
-        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
-            ? PointageSiteList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 7:
-        return widget.manager.profil!.getModule(ModuleName.AGENT)!.view
-            ? PointageAgentList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 8:
-        return widget.manager.profil!.getModule(ModuleName.TOOL)!.view
-            ? CheckListView(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 9:
-        return widget.manager.profil!.getModule(ModuleName.NOTE)!.view
-            ? NoteList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 10:
-        return const Maps();
-        //case 11:
-        return const CalendarPlanner();
-        return const Holyday(title: "Repos");
-
-      case 11:
-        return widget.manager.profil!.getModule(ModuleName.CATEGORIE_TOOL)!.view
-            ? CatToolList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 12:
-        return widget.manager.profil!.getModule(ModuleName.DEPARTMENT)!.view
-            ? DepartmentList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 13:
-        return widget.manager.profil!.getModule(ModuleName.AGENT_TYPE)!.view
-            ? AgentTypeList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-
-      case 14:
-        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
-            ? ZoneList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 15:
-        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
-            ? PointageZone(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      case 16:
-        return widget.manager.profil!.getModule(ModuleName.SITE)!.view
-            ? ZoneMemberList(manager: widget.manager)
-            : const Center(
-                child: Text("Module inaccessible!"),
-              );
-      default:
-        return const Center(
-          child: Text("Page non disponible"),
-        );
-    }
   }
 }

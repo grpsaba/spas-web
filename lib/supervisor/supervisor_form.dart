@@ -2,6 +2,9 @@ import 'dart:convert';
 
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../services/department.dart';
@@ -9,9 +12,11 @@ import '../services/loading.dart';
 import '../services/supervisor.dart';
 
 class AddSupervisor extends StatefulWidget {
-  AddSupervisor({super.key, required this.supervisor, required this.manager});
+  AddSupervisor({
+    super.key,
+    required this.supervisor,
+  });
   Supervisor supervisor;
-  Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -55,15 +60,10 @@ class _AddSupervisorState extends State<AddSupervisor> {
   @override
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition superviseur",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 4,
+      titile: "Gestion superviseurs -> Edition superviseur",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: _padding, right: _padding, top: 8.0, bottom: 8.0),
@@ -263,7 +263,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -279,7 +279,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -306,7 +306,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
                           ),
                           widget.supervisor.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : widget.manager.profil!
+                              : AuthService.currentManager!.profil!
                                       .getModule(ModuleName.SUPERVISEUR)!
                                       .delete
                                   ? ElevatedButton(
@@ -328,7 +328,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
                                             setState(() {
                                               _adding = false;
                                             });
-                                            Navigator.of(context).pop();
+                                            context.pop();
                                           }).onError((error, stackTrace) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(SnackBar(

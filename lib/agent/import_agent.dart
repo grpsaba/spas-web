@@ -1,5 +1,6 @@
 import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/agent/upload_excel_file.dart';
 
 import '../liste_selection_pages/site_search_dialog.dart';
@@ -63,15 +64,10 @@ class _ImportAgentState extends State<ImportAgent> {
   @override
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Import Agents",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 3,
+      titile: "Gestion des agents -> import Agents",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: padding, right: padding, top: 8.0, bottom: 8.0),

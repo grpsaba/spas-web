@@ -1,8 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/search_textField.dart';
-import 'package:spas_web/tools/tool_form.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
@@ -13,8 +15,8 @@ import '../services/site.dart';
 import '../services/tool.dart';
 
 class ToolList extends StatefulWidget {
-  ToolList({super.key, required this.manager});
-  Manager manager;
+  const ToolList({super.key});
+
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -43,8 +45,10 @@ class _SupervisorListState extends State<ToolList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 5,
+      titile: "Gestion des matériaux",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -73,21 +77,18 @@ class _SupervisorListState extends State<ToolList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!.getModule(ModuleName.TOOL)!.add
+                        AuthService.currentManager!.profil!
+                                .getModule(ModuleName.TOOL)!
+                                .add
                             ? ElevatedButton(
                                 onPressed: () {
-                                  Navigator.push(
-                                      context,
-                                      MaterialPageRoute(
-                                          builder: (_) => AddTool(
-                                                tool: Tool(
-                                                  serialNumber: '',
-                                                  label: '',
-                                                  site: null,
-                                                  catTool: null,
-                                                ),
-                                                manager: widget.manager,
-                                              )));
+                                  Tool tool = Tool(
+                                    serialNumber: '',
+                                    label: '',
+                                    site: null,
+                                    catTool: null,
+                                  );
+                                  context.go('/tools/add', extra: tool);
                                 },
                                 child: const Icon(Icons.add),
                               )
@@ -95,7 +96,7 @@ class _SupervisorListState extends State<ToolList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        widget.manager.profil!
+                        AuthService.currentManager!.profil!
                                 .getModule(ModuleName.TOOL)!
                                 .generBadge
                             ? Tooltip(
@@ -147,10 +148,10 @@ class _SupervisorListState extends State<ToolList> {
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        manager: widget.manager),
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                    ),
                   );
                 } else {
                   return Center(
@@ -169,13 +170,12 @@ class _DataSource extends DataTableSource {
   List<Tool> data;
   String keyword;
   BuildContext context;
-  Manager manager;
 
-  _DataSource(
-      {required this.context,
-      required this.data,
-      required this.keyword,
-      required this.manager});
+  _DataSource({
+    required this.context,
+    required this.data,
+    required this.keyword,
+  });
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
@@ -216,14 +216,7 @@ class _DataSource extends DataTableSource {
               ),
               onPressed: () {
                 // ignore: use_build_context_synchronously
-                Navigator.push(
-                    context,
-                    MaterialPageRoute(
-                        builder: (_) => AddTool(
-                              tool: tool,
-                              update: true,
-                              manager: manager,
-                            )));
+                context.go('/tools/add', extra: tool);
               },
             ),
             ElevatedButton(

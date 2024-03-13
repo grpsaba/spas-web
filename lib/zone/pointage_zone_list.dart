@@ -2,9 +2,10 @@ import 'dart:convert';
 
 import 'package:datetime_picker_formfield/datetime_picker_formfield.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/services/pointerZone.dart';
-import 'package:spas_web/zone/zone_site_monthly_pointage.dart';
 
 import '../model.dart';
 import '../pdf/api/pdf_api.dart';
@@ -12,10 +13,11 @@ import '../rowperPageWidget.dart';
 import '../search_textField.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
-import '../zone_member/zone_pointage_map.dart';
 
 class PointageZone extends StatefulWidget {
-  const PointageZone({super.key, required Manager manager});
+  const PointageZone({
+    super.key,
+  });
 
   @override
   _PointageZoneState createState() => _PointageZoneState();
@@ -48,8 +50,10 @@ class _PointageZoneState extends State<PointageZone> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 15,
+      titile: "Pointages des chefs de zone",
+      child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
@@ -180,14 +184,10 @@ class _PointageZoneState extends State<PointageZone> {
                                                         "Nombre de pointage par chef Zone",
                                                     child: ElevatedButton(
                                                         onPressed: () {
-                                                          Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                  builder: (_) =>
-                                                                      SitePointageZoneMap(
-                                                                        date:
-                                                                            _datePointage,
-                                                                      )));
+                                                          context.go(
+                                                              "/pointagezones/npcz",
+                                                              extra:
+                                                                  _datePointage);
                                                         },
                                                         child: const Text(
                                                             'Nombre de pointage par chef Zone')),
@@ -198,14 +198,10 @@ class _PointageZoneState extends State<PointageZone> {
                                                         "Nombre de visite par site",
                                                     child: ElevatedButton(
                                                         onPressed: () {
-                                                          Navigator.push(
-                                                              context,
-                                                              MaterialPageRoute(
-                                                                  builder: (_) =>
-                                                                      ZoneSiteMonthlyPointage(
-                                                                        date:
-                                                                            _datePointage,
-                                                                      )));
+                                                          context.go(
+                                                              "/pointagezones/nvcz",
+                                                              extra:
+                                                                  _datePointage);
                                                         },
                                                         child: const Text(
                                                             'Nombre de visite par site')),

@@ -1,18 +1,19 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/profil.dart';
 
 import '../model.dart';
 import '../rowperPageWidget.dart';
 import '../services/loading.dart';
 import '../services/manager.dart';
-import 'manager_form.dart';
 
 class ManagerList extends StatefulWidget {
-  ManagerList({super.key, required this.manager});
-  Manager manager;
+  ManagerList({super.key});
+
   @override
   _SupervisorListState createState() => _SupervisorListState();
 }
@@ -41,66 +42,62 @@ class _SupervisorListState extends State<ManagerList> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: SingleChildScrollView(
-          child: StreamBuilder(
-              stream: _service.all(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
-                      .toList();
-                  var data = docs?.map((e) => Manager.fromJson(e)).toList();
+    return SingleChildScrollView(
+        child: StreamBuilder(
+            stream: _service.all(),
+            builder: (context, snapshot) {
+              if (snapshot.hasData) {
+                var docs = snapshot.data?.docs
+                    .map((e) => jsonDecode(jsonEncode(e.data())))
+                    .toList();
+                var data = docs?.map((e) => Manager.fromJson(e)).toList();
 
-                  //copy to _dataToexport
-                  _dataToexport = data!;
-                  return PaginatedDataTable(
-                    header: Row(
-                      children: [
-                        const Text("Liste des Controleurs"),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        SearchTextField(
-                            onSearch: (value) {
-                              setState(() {
-                                _keyword = value;
-                              });
-                            },
-                            onPress: () {}),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        widget.manager.profil!
-                                .getModule(ModuleName.MANAGER)!
-                                .add
-                            ? Tooltip(
-                                message: "Ajouter un controleur",
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Navigator.push(
-                                        context,
-                                        MaterialPageRoute(
-                                            builder: (_) => AddManager(
-                                                    manager: Manager(
-                                                  poste: '',
-                                                  firstName: '',
-                                                  lastName: '',
-                                                  phone: '',
-                                                  email: '',
-                                                  profil: null,
-                                                  UID: '',
-                                                  token: '',
-                                                ))));
-                                  },
-                                  child: const Icon(Icons.add),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        /*Tooltip(
+                //copy to _dataToexport
+                _dataToexport = data!;
+                return PaginatedDataTable(
+                  header: Row(
+                    children: [
+                      const Text("Liste des Controleurs"),
+                      const SizedBox(
+                        width: 10,
+                      ),
+                      SearchTextField(
+                          onSearch: (value) {
+                            setState(() {
+                              _keyword = value;
+                            });
+                          },
+                          onPress: () {}),
+                      const SizedBox(
+                        width: 10,
+                      ),
+                      AuthService.currentManager!.profil!
+                              .getModule(ModuleName.MANAGER)!
+                              .add
+                          ? Tooltip(
+                              message: "Ajouter un uilisateur",
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  Manager manager = Manager(
+                                    poste: '',
+                                    firstName: '',
+                                    lastName: '',
+                                    phone: '',
+                                    email: '',
+                                    profil: null,
+                                    UID: '',
+                                    token: '',
+                                  );
+                                  context.go('/users/add', extra: manager);
+                                },
+                                child: const Icon(Icons.add),
+                              ),
+                            )
+                          : const SizedBox.shrink(),
+                      const SizedBox(
+                        width: 10,
+                      ),
+                      /*Tooltip(
                           message: "Générer les QR CODES",
                           child: ElevatedButton(
                             style: ElevatedButton.styleFrom(
@@ -115,53 +112,52 @@ class _SupervisorListState extends State<ManagerList> {
                             ),
                           ),
                         )*/
-                      ],
-                    ),
-                    actions: [
-                      RowPerPageWidget(
-                        controller: _texController,
-                        incremente: () {
-                          setState(() {
-                            rowParPage += 1;
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                        decremente: () {
-                          setState(() {
-                            rowParPage = rowParPage <= defauldRowParPage
-                                ? defauldRowParPage
-                                : rowParPage - 1;
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                      )
                     ],
-                    rowsPerPage: rowParPage,
-                    showFirstLastButtons: true,
-                    columns: const [
-                      DataColumn(label: Text("Prénom")),
-                      DataColumn(label: Text("Nom")),
-                      DataColumn(label: Text("Email")),
-                      DataColumn(label: Text("Poste")),
-                      DataColumn(label: Text("Profil")),
-                      DataColumn(label: Text("Action")),
-                    ],
-                    source: _DataSource(
-                        context: context,
-                        keyword: _keyword,
-                        data: data,
-                        managerLoged: widget.manager),
-                  );
-                } else {
-                  return Center(
-                    child: Loading(
-                      size: 64,
-                      inline: true,
-                    ),
-                  );
-                }
-              })),
-    );
+                  ),
+                  actions: [
+                    RowPerPageWidget(
+                      controller: _texController,
+                      incremente: () {
+                        setState(() {
+                          rowParPage += 1;
+                          _texController.text = rowParPage.toString();
+                        });
+                      },
+                      decremente: () {
+                        setState(() {
+                          rowParPage = rowParPage <= defauldRowParPage
+                              ? defauldRowParPage
+                              : rowParPage - 1;
+                          _texController.text = rowParPage.toString();
+                        });
+                      },
+                    )
+                  ],
+                  rowsPerPage: rowParPage,
+                  showFirstLastButtons: true,
+                  columns: const [
+                    DataColumn(label: Text("Prénom")),
+                    DataColumn(label: Text("Nom")),
+                    DataColumn(label: Text("Email")),
+                    DataColumn(label: Text("Poste")),
+                    DataColumn(label: Text("Profil")),
+                    DataColumn(label: Text("Action")),
+                  ],
+                  source: _DataSource(
+                      context: context,
+                      keyword: _keyword,
+                      data: data,
+                      managerLoged: AuthService.currentManager!),
+                );
+              } else {
+                return Center(
+                  child: Loading(
+                    size: 64,
+                    inline: true,
+                  ),
+                );
+              }
+            }));
   }
 }
 
@@ -227,12 +223,7 @@ class _DataSource extends DataTableSource {
                     color: Theme.of(context).primaryColor,
                   ),
                   onPressed: () {
-                    Navigator.push(
-                        context,
-                        MaterialPageRoute(
-                            builder: (_) => AddManager(
-                                  manager: manager,
-                                )));
+                    context.go('/users/add', extra: manager);
                   },
                 )
               : const SizedBox.shrink(),

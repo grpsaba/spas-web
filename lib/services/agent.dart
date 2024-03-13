@@ -8,6 +8,7 @@ class AgentService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Agents");
   Future<void> add(Agent agent) async {
+    agent.genererCode();
     _collectionReference.doc(agent.code).set(agent.toJson());
   }
 

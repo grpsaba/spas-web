@@ -1,7 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/services/agentType.dart';
+import 'package:spas_web/services/authentication.dart';
 
 import '../liste_selection_pages/site_search_dialog.dart';
 import '../model.dart';
@@ -10,14 +13,11 @@ import '../services/department.dart';
 import '../services/loading.dart';
 
 class AddAgent extends StatefulWidget {
-  AddAgent(
-      {super.key,
-      required this.agent,
-      this.update = false,
-      required this.manager});
+  AddAgent({
+    super.key,
+    required this.agent,
+  });
   Agent agent;
-  bool update;
-  Manager manager;
 
   @override
   _AddSupervisorState createState() => _AddSupervisorState();
@@ -30,6 +30,8 @@ class _AddSupervisorState extends State<AddAgent> {
   final TextEditingController _phone_ctrl = TextEditingController();
   final TextEditingController _email_ctrl = TextEditingController();
   final TextEditingController _site_ctrl = TextEditingController();
+  final TextEditingController _dateEmbauche_ctrl = TextEditingController();
+  final TextEditingController _dateArret_ctrl = TextEditingController();
 
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
 
@@ -46,6 +48,12 @@ class _AddSupervisorState extends State<AddAgent> {
     _phone_ctrl.text = widget.agent.phone;
     _site_ctrl.text =
         widget.agent.site == null ? '' : '${widget.agent.site?.name}';
+    _dateArret_ctrl.text = widget.agent.dateArret == null
+        ? ""
+        : widget.agent.dateArret.toString().split(" ").first;
+    _dateEmbauche_ctrl.text = widget.agent.dateEmbauche == null
+        ? ""
+        : widget.agent.dateEmbauche.toString().split(" ").first;
   }
 
   @override
@@ -59,20 +67,17 @@ class _AddSupervisorState extends State<AddAgent> {
     _code_ctrl.dispose();
     _email_ctrl.dispose();
     _site_ctrl.dispose();
+    _dateEmbauche_ctrl.dispose();
+    _dateArret_ctrl.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: Theme.of(context).primaryColor,
-        title: const Text(
-          "Edition Agent",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: SingleChildScrollView(
+    return PageModel(
+      pageIdex: 3,
+      titile: "Gestion des agents -> Edition Agent",
+      child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
               left: padding, right: padding, top: 8.0, bottom: 8.0),
@@ -218,7 +223,7 @@ class _AddSupervisorState extends State<AddAgent> {
                   height: 20,
                 ),
                 TextFormField(
-                  readOnly: widget.agent.code.isNotEmpty,
+                  readOnly: true, // widget.agent.code.isNotEmpty,
                   controller: _code_ctrl,
                   onChanged: (value) {
                     widget.agent.code = value;
@@ -284,6 +289,66 @@ class _AddSupervisorState extends State<AddAgent> {
                 const SizedBox(
                   height: 20,
                 ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: TextFormField(
+                        controller: _dateEmbauche_ctrl,
+                        readOnly: true,
+                        onTap: () {
+                          showDatePicker(
+                                  context: context,
+                                  firstDate: DateTime(1900),
+                                  lastDate: DateTime(5000))
+                              .then((value) {
+                            //format EEEE for day in string
+                            //format LLLL/MMMM for month in string
+                            /*_dateEmbauche_ctrl.text =
+                                intl.DateFormat.yMEd().format(value!);*/
+                            _dateEmbauche_ctrl.text =
+                                value!.toString().split(" ").first;
+                          });
+                        },
+                        validator: (value) {
+                          return DateTime.tryParse(_dateEmbauche_ctrl.text) !=
+                                  null
+                              ? null
+                              : "Date d'embauche obligatoir";
+                        },
+                        decoration: const InputDecoration(
+                            hintText: "Date d'embauche ",
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.calendar_month)),
+                      ),
+                    ),
+                    const SizedBox(
+                      width: 10,
+                    ),
+                    Expanded(
+                      child: TextFormField(
+                        controller: _dateArret_ctrl,
+                        readOnly: true,
+                        onTap: () {
+                          showDatePicker(
+                                  context: context,
+                                  firstDate: DateTime(1900),
+                                  lastDate: DateTime(5000))
+                              .then((value) {
+                            _dateArret_ctrl.text =
+                                value!.toString().split(" ").first;
+                          });
+                        },
+                        decoration: const InputDecoration(
+                            hintText: "Date arrêt ",
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.calendar_month)),
+                      ),
+                    )
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
                 TextFormField(
                   readOnly: widget.agent.email.isNotEmpty,
                   controller: _email_ctrl,
@@ -309,6 +374,10 @@ class _AddSupervisorState extends State<AddAgent> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20))),
                               onPressed: () async {
+                                widget.agent.dateArret =
+                                    DateTime.tryParse(_dateArret_ctrl.text);
+                                widget.agent.dateEmbauche =
+                                    DateTime.tryParse(_dateEmbauche_ctrl.text);
                                 widget.agent.code = _code_ctrl.text;
                                 widget.agent.firstName = _firstName_ctrl.text;
                                 widget.agent.lastName = _lastName_ctrl.text;
@@ -319,14 +388,14 @@ class _AddSupervisorState extends State<AddAgent> {
                                   setState(() {
                                     _adding = true;
                                   });
-                                  if (!widget.update) {
+                                  if (widget.agent.code.isEmpty) {
                                     await AgentService()
                                         .add(widget.agent)
                                         .then((value) {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -342,7 +411,7 @@ class _AddSupervisorState extends State<AddAgent> {
                                       setState(() {
                                         _adding = false;
                                       });
-                                      Navigator.of(context).pop();
+                                      context.pop();
                                     }).onError((error, stackTrace) {
                                       ScaffoldMessenger.of(context)
                                           .showSnackBar(SnackBar(
@@ -367,9 +436,9 @@ class _AddSupervisorState extends State<AddAgent> {
                           const SizedBox(
                             width: 20,
                           ),
-                          widget.update == false
+                          widget.agent.code.isEmpty == false
                               ? const SizedBox.shrink()
-                              : widget.manager.profil!
+                              : AuthService.currentManager!.profil!
                                       .getModule(ModuleName.AGENT)!
                                       .delete
                                   ? ElevatedButton(
@@ -391,7 +460,7 @@ class _AddSupervisorState extends State<AddAgent> {
                                             setState(() {
                                               _adding = false;
                                             });
-                                            Navigator.of(context).pop();
+                                            context.pop();
                                           }).onError((error, stackTrace) {
                                             ScaffoldMessenger.of(context)
                                                 .showSnackBar(SnackBar(
