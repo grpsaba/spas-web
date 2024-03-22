@@ -16,6 +16,15 @@ class DepartmentService {
     return _collectionReference.snapshots();
   }
 
+  Future<List<Department>> allFuture() async {
+    var snpshot = await _collectionReference.get();
+    List<Department> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+            Department.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data;
+  }
+
   Future<void> delete(Department department) async {
     return _collectionReference.doc(department.label).delete();
   }

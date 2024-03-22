@@ -16,6 +16,15 @@ class AgentTypeService {
     return _collectionReference.snapshots();
   }
 
+  Future<List<AgentType>> allFuture() async {
+    var snpshot = await _collectionReference.get();
+    List<AgentType> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+            AgentType.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data;
+  }
+
   Future<void> delete(AgentType agtype) async {
     return _collectionReference.doc(agtype.label).delete();
   }

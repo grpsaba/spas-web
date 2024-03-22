@@ -41,7 +41,8 @@ class UploadExcel {
     }
   }
 
-  Future<void> crateAgentFromExcel(Excel excel) async {
+  Future<void> crateAgentFromExcel(
+      Excel excel, Department? department, AgentType? agentType) async {
     List<List<Data?>> newRows = [];
     String table = excel.tables.keys.first;
     for (int i = sartRowIndex; i <= excel.tables[table]!.rows.length - 1; i++) {
@@ -62,9 +63,9 @@ class UploadExcel {
           email: "",
           tracking: false,
           site: site,
-          department: null,
-          typeAgent: null,
-          actif: false,
+          department: department,
+          typeAgent: agentType,
+          actif: true,
           contacts: [],
           dateEmbauche: null,
           dateArret: null);

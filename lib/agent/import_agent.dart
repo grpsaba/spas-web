@@ -2,6 +2,8 @@ import 'package:excel/excel.dart';
 import 'package:flutter/material.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/agent/upload_excel_file.dart';
+import 'package:spas_web/services/agentType.dart';
+import 'package:spas_web/services/department.dart';
 
 import '../liste_selection_pages/site_search_dialog.dart';
 import '../model.dart';
@@ -39,8 +41,8 @@ class _ImportAgentState extends State<ImportAgent> {
       lastNameClIndex: 0,
       sartRowIndex: 0);
   Excel? _excel;
-  List<String> typeAgents = ["SECURITÉ", "NETTOYAGE", "ADMINISTRATEUR"];
-  List<String> categories = ["FIXE", "POINT ZERO", "RONDIER"];
+  AgentType _selected_typeAgents = AgentType(label: "");
+  Department _selected_departement = Department(label: "");
   @override
   void initState() {
     // TODO: implement initState
@@ -114,56 +116,67 @@ class _ImportAgentState extends State<ImportAgent> {
                 const SizedBox(
                   height: 20,
                 ),
-                DropdownButtonFormField(
-                  hint: const Text("Catégorie"),
-                  decoration: const InputDecoration(
-                      hintText: "Catégorie",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work)),
-                  validator: (value) {
-                    return value!.isNotEmpty ? null : "Catégorie obligatoir";
-                  },
-                  isExpanded: true,
-                  value: categories[0],
-                  items: categories
-                      .map((e) =>
-                          DropdownMenuItem<String>(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    _categorie_ctrl.text = value ?? "";
-                    _uploadExcel.domaine = value ?? "";
-                  },
-                  onSaved: (value) {
-                    _categorie_ctrl.text = value ?? "";
-                    _uploadExcel.domaine = value ?? "";
-                  },
-                ),
+                FutureBuilder(
+                    future: AgentTypeService().allFuture(),
+                    builder: (context, snapshot) {
+                      List<AgentType> categories = snapshot.data ?? [];
+                      return DropdownButtonFormField(
+                        hint: const Text("Catégorie"),
+                        decoration: const InputDecoration(
+                            hintText: "Catégorie",
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.work)),
+                        validator: (value) {
+                          return _selected_typeAgents.label.isNotEmpty
+                              ? null
+                              : "Catégorie obligatoir";
+                        },
+                        isExpanded: true,
+                        value: null,
+                        items: categories
+                            .map((e) => DropdownMenuItem<AgentType>(
+                                value: e, child: Text(e.label)))
+                            .toList(),
+                        onChanged: (value) {
+                          _selected_typeAgents = value!;
+                        },
+                        onSaved: (value) {
+                          _selected_typeAgents = value!;
+                        },
+                      );
+                    }),
                 const SizedBox(
                   height: 20,
                 ),
-                DropdownButtonFormField(
-                  hint: const Text("Domaine"),
-                  decoration: const InputDecoration(
-                      hintText: "Domaine",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work)),
-                  validator: (value) {
-                    return value!.isNotEmpty ? null : "Domaine obligatoir";
-                  },
-                  isExpanded: true,
-                  value: typeAgents[0],
-                  items: typeAgents
-                      .map((e) =>
-                          DropdownMenuItem<String>(value: e, child: Text(e)))
-                      .toList(),
-                  onChanged: (value) {
-                    _type_ctrl.text = value ?? "";
-                    _uploadExcel.type = value ?? "";
-                  },
-                  onSaved: (value) {
-                    _uploadExcel.type = value ?? "";
-                  },
-                ),
+                FutureBuilder(
+                    future: DepartmentService().allFuture(),
+                    builder: (context, snapshot) {
+                      List<Department> departements = snapshot.data ?? [];
+                      return DropdownButtonFormField(
+                        hint: const Text("Domaine"),
+                        decoration: const InputDecoration(
+                            hintText: "Domaine",
+                            border: OutlineInputBorder(),
+                            prefixIcon: Icon(Icons.work)),
+                        validator: (value) {
+                          return _selected_departement.label.isNotEmpty
+                              ? null
+                              : "Domaine obligatoir";
+                        },
+                        isExpanded: true,
+                        value: null,
+                        items: departements
+                            .map((e) => DropdownMenuItem<Department>(
+                                value: e, child: Text(e.label)))
+                            .toList(),
+                        onChanged: (value) {
+                          _selected_departement = value!;
+                        },
+                        onSaved: (value) {
+                          _selected_departement = value!;
+                        },
+                      );
+                    }),
                 const SizedBox(
                   height: 20,
                 ),
@@ -316,7 +329,10 @@ class _ImportAgentState extends State<ImportAgent> {
                                   setState(() {
                                     _adding = true;
                                   });
-                                  _uploadExcel.crateAgentFromExcel(_excel!);
+                                  _uploadExcel.crateAgentFromExcel(
+                                      _excel!,
+                                      _selected_departement,
+                                      _selected_typeAgents);
                                   setState(() {
                                     _adding = false;
                                     Navigator.pop(context);

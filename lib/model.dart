@@ -224,11 +224,11 @@ class Agent extends Equatable {
   List<Object?> get props => [code];
 //
   void genererCode() {
-    for (int i = 1; i <= 8; i++) {
+    for (int i = 1; i <= 4; i++) {
       int num = Random().nextInt(9);
       code += "$num";
     }
-    code = "${department?.label.substring(1, 4) ?? "AGE"}$code";
+    code = "${department?.label.substring(0, 3) ?? "SEC"}$code";
   }
 //
 

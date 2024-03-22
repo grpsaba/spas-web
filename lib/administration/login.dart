@@ -237,6 +237,49 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
                               const SizedBox(
                                 height: 30,
                               ),
+                              /* TextButton(
+                                  onPressed: () async {
+                                    List<Agent> agents =
+                                        await AgentService().allFuture();
+                                    /* agents = agents.where((element) {
+                                      if (element.site != null) {
+                                        return element.site!.UID !=
+                                            "rXkVVl9AH8MYSPn25FSHS7eESpc2";
+                                      } else {
+                                        return true;
+                                      }
+                                    }).toList();*/
+
+                                    for (Agent ag in agents) {
+                                      /* Agent newAg = Agent(
+                                          code: "",
+                                          firstName: ag.firstName,
+                                          lastName: ag.lastName,
+                                          phone: ag.phone,
+                                          email: ag.email,
+                                          tracking: ag.tracking,
+                                          site: ag.site,
+                                          department: ag.department,
+                                          typeAgent: ag.typeAgent,
+                                          actif: ag.actif,
+                                          docs: ag.docs,
+                                          contacts: ag.contacts,
+                                          dateEmbauche: ag.dateEmbauche,
+                                          dateArret: ag.dateArret);*/
+                                      //newAg.genererCode();
+                                      // AgentService().add(newAg);
+                                      if (int.tryParse(ag.phone) == null) {
+                                        ag.phone = "";
+                                      }
+                                      AgentService().update(ag);
+                                    }
+                                    MotionToast.success(description: Text("OK"))
+                                        .show(context);
+                                  },
+                                  child: Text(
+                                    "update all agent",
+                                    style: TextStyle(color: Colors.white),
+                                  )),*/
                               Text(
                                 _message,
                                 style: const TextStyle(color: Colors.white),

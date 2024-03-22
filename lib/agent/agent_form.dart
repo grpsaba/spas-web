@@ -228,9 +228,7 @@ class _AddSupervisorState extends State<AddAgent> {
                   onChanged: (value) {
                     widget.agent.code = value;
                   },
-                  validator: (value) {
-                    return value!.isNotEmpty ? null : "Code obligatoir";
-                  },
+
                   decoration: const InputDecoration(
                       //filled: true,
                       hintText: "Code",
