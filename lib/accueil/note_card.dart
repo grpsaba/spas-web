@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/note_list_tb.dart';
+import 'package:spas_web/services/loading.dart';
 
 import '../administration/noteStat_wiget.dart';
 import '../const.dart';
@@ -61,7 +62,7 @@ class NoteCard extends StatelessWidget {
             ),
             const SizedBox(height: 10),
             StreamBuilder(
-                stream: NoteService().all(),
+                stream: NoteService().allNoViewedNote(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
                     return const Text(
@@ -77,7 +78,7 @@ class NoteCard extends StatelessWidget {
                     List<Note>? data =
                         docs?.map((e) => Note.fromJson(e)).toList();
 
-                    data = data?.where((note) => note.viewed == false).toList();
+                    //data = data?.where((note) => note.viewed == false).toList();
 
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.center,
@@ -91,9 +92,9 @@ class NoteCard extends StatelessWidget {
                       ],
                     );
                   } else {
-                    return const Text(
-                      "0",
-                      style: TextStyle(color: Colors.white, fontSize: 30),
+                    return  Loading(
+                      inline: false, size: 18,
+                      
                     );
                   }
                 })

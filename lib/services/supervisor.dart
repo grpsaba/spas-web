@@ -25,7 +25,14 @@ class SupervisorService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
-
+  Future<List<Supervisor>> allActifFuture(String filter) async {
+    var snpshot = await _collectionReference.where('actif',isEqualTo: true).get();
+    List<Supervisor> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+        Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data.where((e) => e.firstName.contains(filter)).toList();
+  }
   Future<List<Supervisor>> allFuture(String filter) async {
     var snpshot = await _collectionReference.get();
     List<Supervisor> data = snpshot.docs

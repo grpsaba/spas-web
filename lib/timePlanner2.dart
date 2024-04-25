@@ -30,7 +30,7 @@ class _CalendarPlannerState extends State<CalendarPlanner> {
     final List<Meeting> meetings = <Meeting>[];
     final DateTime today = DateTime.now();
     final DateTime startTime = DateTime.now();
-    final DateTime endTime = startTime.add(Duration(days: 1));
+    final DateTime endTime = startTime.add(const Duration(days: 1));
     meetings.add(Meeting(
         'Conference', startTime, endTime, const Color(0xFF0F8644), false));
     return meetings;

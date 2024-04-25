@@ -36,7 +36,7 @@ class Loading extends StatelessWidget {
               child: LoadingAnimationWidget.staggeredDotsWave(
                   color: Theme.of(context).primaryColor, size: size))
           : Center(
-              child: LoadingAnimationWidget.discreteCircle(
+              child: LoadingAnimationWidget.hexagonDots(
                   color: Theme.of(context).primaryColor, size: size));
     }
   }

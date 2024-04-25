@@ -24,6 +24,14 @@ class AgentService {
         .toList();
     return data;
   }
+  Future<List<Agent>> allByDomaine(String domaine) async {
+    var snpshot = await _collectionReference.where("typeAgent.label",isEqualTo: domaine).where("site",isNotEqualTo: null).where("actif",isEqualTo: true).get();
+    List<Agent> data = snpshot.docs
+        .map((QueryDocumentSnapshot e) =>
+        Agent.fromJson(jsonDecode(jsonEncode(e.data()))))
+        .toList();
+    return data;
+  }
 
   Future<List<Agent>> allBySupervisor(uid) async {
     var snapshot = await _collectionReference.get();
@@ -43,14 +51,14 @@ class AgentService {
   }
 
   Future<List<Agent>> allBySite(uid) async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await _collectionReference.where("site.UID",isEqualTo: uid).get();
     var collection = snapshot.docs
         .map((snap) {
           return Agent.fromJson(jsonDecode(jsonEncode(snap.data())));
         })
-        .toList()
-        .where((element) => element.site?.UID == uid)
         .toList();
+       /* .where((element) => element.site?.UID == uid)
+        .toList();*/
     return collection;
   }
 

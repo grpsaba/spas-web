@@ -16,6 +16,9 @@ class PointingSiteService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+  Stream<QuerySnapshot> allBySupervisor({required Supervisor supervisor}) {
+    return _collectionReference.where('supervisor.UID',isEqualTo: supervisor.UID).snapshots();
+  }
 
   Future<DocumentSnapshot<Object?>> one(child) {
     return _collectionReference.doc(child).get();

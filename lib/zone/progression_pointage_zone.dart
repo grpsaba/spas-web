@@ -71,23 +71,15 @@ class _ZonePointageProgressionListState
             ),*/
             const Divider(),
             Expanded(
-              child: StreamBuilder(
-                  stream: _zoneService.all(),
+              child: FutureBuilder(
+                  future: _zoneService.allActifAsModel(),
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-                      var docs = snapshot.data?.docs
-                          .map((e) => jsonDecode(jsonEncode(e.data())))
-                          .toList();
-                      var lst = jsonDecode(jsonEncode(docs));
-                      //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
-                      var data = docs
-                          ?.map((e) => ZoneMember.fromJson(e))
-                          .toList()
-                          .where((element) => element.actif == true)
-                          .toList();
+                      var data = snapshot.data??[];
+
                       data = data
-                          ?.where((element) =>
+                          .where((element) =>
                               element.zone!.name
                                   .toLowerCase()
                                   .contains(_keyword.toLowerCase()) ||
@@ -96,9 +88,9 @@ class _ZonePointageProgressionListState
                                   .contains(_keyword.toLowerCase()))
                           .toList();
                       return ListView.builder(
-                          itemCount: data!.length,
+                          itemCount: data.length,
                           itemBuilder: (context, index) {
-                            ZoneMember zoneMember = data![index];
+                            ZoneMember zoneMember = data[index];
                             return Card(
                               elevation: 0.2,
                               color:

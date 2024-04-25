@@ -35,6 +35,14 @@ class ZoneMemberService {
 
     return collection;
   }
+  Future<List<ZoneMember>> allActifAsModel() async {
+    var snapshot = await _collectionReference.where('actif',isEqualTo: true).get();
+    var collection = snapshot.docs.map((snap) {
+      return ZoneMember.fromJson(jsonDecode(jsonEncode(snap.data())));
+    }).toList();
+
+    return collection;
+  }
 
   Future<void> delete(ZoneMember zoneMember) async {
     return _collectionReference.doc(zoneMember.UID).delete();

@@ -96,7 +96,7 @@ class _SupervisorListState extends State<NoteListTB> {
             height: MediaQuery.of(context).size.height -
                 (MediaQuery.of(context).size.height - 556),
             child: StreamBuilder(
-                stream: _service.all(),
+                stream: _service.allNoViewedNote(),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     var docs = snapshot.data?.docs
@@ -111,8 +111,8 @@ class _SupervisorListState extends State<NoteListTB> {
                                     .contains(_keyword.toLowerCase()) ||
                                 element.source
                                     .toLowerCase()
-                                    .contains(_keyword.toLowerCase())) &&
-                            element.viewed == false)
+                                    .contains(_keyword.toLowerCase()))
+                            )
                         .toList()
                         .reversed
                         .toList();

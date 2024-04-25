@@ -26,7 +26,7 @@ class _NoteStatState extends State<NoteStat> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: _siteService.all(),
+        stream: _siteService.allNoViewedNote(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             var docs = snapshot.data?.docs
@@ -36,7 +36,7 @@ class _NoteStatState extends State<NoteStat> {
             //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
             List<Note>? data = docs?.map((e) => Note.fromJson(e)).toList();
-            data = data?.where((note) => note.viewed == false).toList();
+            //data = data?.where((note) => note.viewed == false).toList();
             if (data == null) {
               Audio().stopSOs();
               return const SizedBox.shrink();

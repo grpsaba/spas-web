@@ -68,30 +68,22 @@ class _SupervisorListState extends State<SiteListWithStatus> {
             ),
             const Divider(),
             Expanded(
-              child: StreamBuilder(
-                  stream: _siteService.all(),
+              child: FutureBuilder(
+                  future: _siteService.allActifAsModel(),
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-                      var docs = snapshot.data?.docs
-                          .map((e) => jsonDecode(jsonEncode(e.data())))
-                          .toList();
-                      var lst = jsonDecode(jsonEncode(docs));
-                      //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
-                      var data = docs
-                          ?.map((e) => Site.fromJson(e))
-                          .toList()
-                          .where((element) => element.actif == true)
-                          .toList();
-                      data = data
+
+                     var data = snapshot.data
                           ?.where((element) => element.name
                               .toLowerCase()
                               .contains(_keyword.toLowerCase()))
                           .toList();
+
                       return ListView.builder(
                           itemCount: data!.length,
                           itemBuilder: (context, index) {
-                            Site site = data![index];
+                            Site site = data[index];
                             return Card(
                               elevation: 0.2,
                               color:
@@ -107,12 +99,12 @@ class _SupervisorListState extends State<SiteListWithStatus> {
                                       color: AppConstants.textColor),
                                 ),
                                 subtitle: NbAgentStatus(site: site),
-                                leading: SizedBox(
+                               /* leading: SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: SiteStatus(
                                       site: site,
-                                    )),
+                                    )),*/
                                 onTap: () {
                                   showDialog(
                                       context: context,

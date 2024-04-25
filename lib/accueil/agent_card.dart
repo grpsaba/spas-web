@@ -33,7 +33,7 @@ class AgentCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           FutureBuilder(
-              future: AgentService().allFuture(),
+              future: AgentService().allByDomaine(domaine),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Text(
@@ -42,12 +42,12 @@ class AgentCard extends StatelessWidget {
                   );
                 }
                 if (snapshot.hasData) {
-                  var data = snapshot.data
-                      ?.where((element) =>
+                  var data = snapshot.data;
+                      /*?.where((element) =>
                           element.typeAgent?.label == domaine &&
                           element.site != null &&
                           element.actif == true)
-                      .toList();
+                      .toList();*/
 
                   return Text(
                     "${data?.length}",

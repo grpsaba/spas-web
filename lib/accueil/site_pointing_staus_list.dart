@@ -70,8 +70,8 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
             ),
             const Divider(),
             Expanded(
-              child: StreamBuilder(
-                  stream: _supervisorService.all(),
+              child: FutureBuilder(
+                  future: _supervisorService.allActifFuture(_keyword),
                   builder: (context, snapshot) {
                     switch (snapshot.connectionState) {
                       case ConnectionState.none:
@@ -83,188 +83,94 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
 
                       case ConnectionState.active:
                         // TODO: Handle this case.
-                        var docs = snapshot.data?.docs
-                            .map((e) => jsonDecode(jsonEncode(e.data())))
-                            .toList();
 
-                        var data = docs
-                                ?.map((e) => Supervisor.fromJson(e))
-                                .toList()
-                                .where((element) => element.actif == true)
-                                .toList() ??
-                            [];
-                        data = data
-                            .where((element) => element.firstName
-                                .toLowerCase()
-                                .contains(_keyword.toLowerCase()))
-                            .toList();
-                        return ListView.builder(
-                            itemCount: data.length,
-                            itemBuilder: (context, index) {
-                              Supervisor supervisor = data![index];
-                              return Card(
-                                elevation: 0.2,
-                                color: AppConstants.secondaryColor
-                                    .withOpacity(0.3),
-                                child: ListTile(
-                                  //selected: site.UID == _selectedSite.UID,
-                                  selectedTileColor:
-                                      AppConstants.secondaryColor,
-                                  title: Text(
-                                    '${supervisor.firstName} ${supervisor.lastName}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  subtitle:
-                                      NbPointageStatus(supervisor: supervisor),
-                                  trailing: IconButton(
-                                    tooltip: "Rapport",
-                                    icon: const Icon(
-                                      Icons.description,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      context.go('/notes/rapport',
-                                          extra:
-                                              "${supervisor.firstName} ${supervisor.lastName}");
-                                    },
-                                  ),
-                                  /* leading: const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircleAvatar(
-                                      radius: 24,
-                                      backgroundImage:
-                                          AssetImage(Assets.assetsAgent),
-                                    )),*/
-                                  onTap: () {
-                                    showDialog(
-                                        context: context,
-                                        builder: (_) {
-                                          return AlertDialog(
-                                            contentPadding:
-                                                const EdgeInsets.all(0.0),
-                                            alignment: Alignment.center,
-                                            content: Builder(
-                                              builder: (context) {
-                                                // Get available height and width of the build area of this widget. Make a choice depending on the size.
+                      var  data = snapshot.data??[];
 
-                                                var width =
-                                                    MediaQuery.of(context)
-                                                        .size
-                                                        .width;
-
-                                                return Container(
-                                                  width: width - (width - 500),
-                                                  child: SiteNonVisite(
-                                                    supervisor: supervisor,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        });
-                                  },
-                                ),
-                              );
-                            });
+                      return sipervisorList(data: data);
                       case ConnectionState.done:
-                        var docs = snapshot.data?.docs
-                            .map((e) => jsonDecode(jsonEncode(e.data())))
-                            .toList();
-
-                        var data = docs
-                                ?.map((e) => Supervisor.fromJson(e))
-                                .toList()
-                                .where((element) => element.actif == true)
-                                .toList() ??
-                            [];
-                        data = data
-                            .where((element) => element.firstName
-                                .toLowerCase()
-                                .contains(_keyword.toLowerCase()))
-                            .toList();
-                        return ListView.builder(
-                            itemCount: data.length,
-                            itemBuilder: (context, index) {
-                              Supervisor supervisor = data![index];
-                              return Card(
-                                elevation: 0.2,
-                                color: AppConstants.secondaryColor
-                                    .withOpacity(0.3),
-                                child: ListTile(
-                                  //selected: site.UID == _selectedSite.UID,
-                                  selectedTileColor:
-                                      AppConstants.secondaryColor,
-                                  title: Text(
-                                    '${supervisor.firstName} ${supervisor.lastName}',
-                                    style: const TextStyle(
-                                      color: Colors.white,
-                                      fontSize: 15,
-                                    ),
-                                  ),
-                                  subtitle:
-                                      NbPointageStatus(supervisor: supervisor),
-                                  trailing: IconButton(
-                                    tooltip: "Rapport",
-                                    icon: const Icon(
-                                      Icons.description,
-                                      color: Colors.white,
-                                    ),
-                                    onPressed: () {
-                                      Navigator.push(
-                                          context,
-                                          MaterialPageRoute(
-                                              builder: (_) => ImprimeRapport(
-                                                  source:
-                                                      "${supervisor.firstName} ${supervisor.lastName}")));
-                                    },
-                                  ),
-                                  /* leading: const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircleAvatar(
-                                      radius: 24,
-                                      backgroundImage:
-                                          AssetImage(Assets.assetsAgent),
-                                    )),*/
-                                  onTap: () {
-                                    showDialog(
-                                        context: context,
-                                        builder: (_) {
-                                          return AlertDialog(
-                                            contentPadding:
-                                                const EdgeInsets.all(0.0),
-                                            alignment: Alignment.center,
-                                            content: Builder(
-                                              builder: (context) {
-                                                // Get available height and width of the build area of this widget. Make a choice depending on the size.
-
-                                                var width =
-                                                    MediaQuery.of(context)
-                                                        .size
-                                                        .width;
-
-                                                return Container(
-                                                  width: width - (width - 500),
-                                                  child: SiteNonVisite(
-                                                    supervisor: supervisor,
-                                                  ),
-                                                );
-                                              },
-                                            ),
-                                          );
-                                        });
-                                  },
-                                ),
-                              );
-                            });
+                        var  data = snapshot.data??[];
+                        return sipervisorList(data: data);
                     }
                   }),
             ),
           ],
         ));
+  }
+  Widget sipervisorList({required List<Supervisor> data}){
+    return ListView.builder(
+        itemCount: data.length,
+        itemBuilder: (context, index) {
+          Supervisor supervisor = data[index];
+          return Card(
+            elevation: 0.2,
+            color: AppConstants.secondaryColor
+                .withOpacity(0.3),
+            child: ListTile(
+              //selected: site.UID == _selectedSite.UID,
+              selectedTileColor:
+              AppConstants.secondaryColor,
+              title: Text(
+                '${supervisor.firstName} ${supervisor.lastName}',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 15,
+                ),
+              ),
+              subtitle:
+              NbPointageStatus(supervisor: supervisor),
+              trailing: IconButton(
+                tooltip: "Rapport",
+                icon: const Icon(
+                  Icons.description,
+                  color: Colors.white,
+                ),
+                onPressed: () {
+                  Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                          builder: (_) => ImprimeRapport(
+                              source:
+                              "${supervisor.firstName} ${supervisor.lastName}")));
+                },
+              ),
+              /* leading: const SizedBox(
+                                    width: 24,
+                                    height: 24,
+                                    child: CircleAvatar(
+                                      radius: 24,
+                                      backgroundImage:
+                                          AssetImage(Assets.assetsAgent),
+                                    )),*/
+              onTap: () {
+                showDialog(
+                    context: context,
+                    builder: (_) {
+                      return AlertDialog(
+                        contentPadding:
+                        const EdgeInsets.all(0.0),
+                        alignment: Alignment.center,
+                        content: Builder(
+                          builder: (context) {
+                            // Get available height and width of the build area of this widget. Make a choice depending on the size.
+
+                            var width =
+                                MediaQuery.of(context)
+                                    .size
+                                    .width;
+
+                            return Container(
+                              width: width - (width - 500),
+                              child: SiteNonVisite(
+                                supervisor: supervisor,
+                              ),
+                            );
+                          },
+                        ),
+                      );
+                    });
+              },
+            ),
+          );
+        });
   }
 }

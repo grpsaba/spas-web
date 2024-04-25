@@ -25,6 +25,9 @@ class SiteService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+  Stream<QuerySnapshot> allActifSite() {
+    return _collectionReference.where("actif",isEqualTo: true).snapshots();
+  }
 
   Future<List<Site>> allAsModel() async {
     var snapshot = await _collectionReference.get();
@@ -34,16 +37,24 @@ class SiteService {
 
     return collection;
   }
+  Future<List<Site>> allActifAsModel() async {
+    var snapshot = await _collectionReference.where("actif",isEqualTo: true).get();
+    var collection = snapshot.docs.map((snap) {
+      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+    }).toList();
+
+    return collection;
+  }
 
   Future<List<Site>> allBySupervisor(uid) async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await _collectionReference.where('actif',isEqualTo: true).get();
     var collection = snapshot.docs
         .map((snap) {
           return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
         })
         .toList()
         .where((element) {
-          return element.actif == true &&
+          return
               (element.supervisor?.UID == uid ||
                   element.supervisor_2?.UID == uid);
         })
@@ -53,16 +64,13 @@ class SiteService {
   }
 
   Future<List<Site>> allByZone(Zone zone) async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await _collectionReference.where('zone.codeZone',isEqualTo: zone.codeZone).where('actif',isEqualTo: true).get();
     var collection = snapshot.docs
         .map((snap) {
           return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
         })
-        .toList()
-        .where((element) {
-          return element.actif == true && (element.zone == zone);
-        })
         .toList();
+
 
     return collection;
   }

@@ -18,6 +18,9 @@ class NoteService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+  Stream<QuerySnapshot> allNoViewedNote() {
+    return _collectionReference.where("viewed",isEqualTo: false).snapshots();
+  }
 
   Future<void> delete(Note note) async {
     return _collectionReference.doc(note.id).delete();
