@@ -45,7 +45,7 @@ class _ProfilListState extends State<ProfilList> {
             children: [
               Container(
                 padding: const EdgeInsets.all(8.0),
-                decoration: BoxDecoration(color: Colors.blueGrey),
+                decoration: const BoxDecoration(color: Colors.blueGrey),
                 child: Form(
                   key: _key,
                   child: Row(
