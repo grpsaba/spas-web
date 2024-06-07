@@ -35,7 +35,7 @@ class SupervisorCard extends StatelessWidget {
           ),
           const SizedBox(height: 10),
           FutureBuilder(
-              future: SupervisorService().allFuture(""),
+              future: SupervisorService().allFuture(),
               builder: (context, snapshot) {
                 if (snapshot.hasError) {
                   return const Text(

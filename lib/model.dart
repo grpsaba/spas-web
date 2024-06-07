@@ -26,7 +26,42 @@ class LatLngModel {
   }
 //
 }
+class SuperviseurLocaion {
+  DateTime date;
+  LatLngModel latlng;
+  Supervisor? supervisor;
 
+  SuperviseurLocaion(
+      {
+        required this.latlng,
+        required this.date,
+        required this.supervisor,
+      });
+
+  factory SuperviseurLocaion.fromJson(Map<String, dynamic> json) {
+    return SuperviseurLocaion(
+      date: DateTime.parse(json["date"]),
+      latlng: LatLngModel.fromJson(json["latlng"]),
+      supervisor:Supervisor.fromJson(json["supervisor"]),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "date": date.toIso8601String(),
+      "latlng": latlng.toJson(),
+      "supervisor": supervisor?.toJson(),
+
+    };
+  }
+
+  bool isToday() {
+    DateTime today = DateTime.now();
+    return date.year == today.year &&
+        date.day == today.day &&
+        date.month == today.month;
+  }
+}
 class Supervisor {
   String UID;
   String code;

@@ -8,6 +8,7 @@ import 'package:spas_web/services/supervisor.dart';
 
 import '../model.dart';
 import '../services/player.dart';
+import 'maps_component.dart';
 
 class SupervisorTracker extends StatefulWidget {
   SupervisorTracker({super.key, required this.supervisor});
@@ -96,45 +97,7 @@ class _SupervisorTrackerState extends State<SupervisorTracker> {
       pageIdex: 4,
       titile:
           "Position de ${widget.supervisor.firstName} ${widget.supervisor.lastName}",
-      child: GoogleMap(
-        polylines: {
-          Polyline(
-              geodesic: true,
-              polylineId: const PolylineId("route"),
-              points: _polyLineCoordinates,
-              color: Colors.red,
-              width: 2),
-        },
-        trafficEnabled: true,
-        mapType: _mapType,
-        markers: {
-          Marker(
-            onTap: () {
-              /* CameraUpdate cameraUpdate = CameraUpdate.newCameraPosition(
-                  CameraPosition(
-                      target: LatLng(supervisor.latlng?.lat ?? 0.0,
-                          supervisor.latlng?.lng ?? 0.0),
-                      zoom: 17));
-              _mapController.animateCamera(cameraUpdate);*/
-            },
-            icon: markerIcon,
-            markerId: MarkerId(widget.supervisor.UID),
-            position: LatLng(widget.supervisor.latlng?.lat ?? 0.0,
-                widget.supervisor.latlng?.lng ?? 0.0),
-            infoWindow: InfoWindow(
-              title:
-                  "${widget.supervisor.firstName} ${widget.supervisor.lastName}",
-              snippet: widget.supervisor.phone,
-            ),
-          )
-        },
-        onMapCreated: _onMapCreated,
-        initialCameraPosition: CameraPosition(
-            // ignore: unnecessary_null_comparison
-            target: LatLng(widget.supervisor.latlng?.lat ?? 0.0,
-                widget.supervisor.latlng?.lng ?? 0.0),
-            zoom: 15),
-      ),
+      child: LocationMapsComponent(supervisor: widget.supervisor,),
     );
   }
 }

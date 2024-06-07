@@ -75,16 +75,7 @@ class _SupervisorListState extends State<PointageAgentList> {
                                 .contains(_keyword.toLowerCase()) ||
                             element.agent.code
                                 .toLowerCase()
-                                .contains(_keyword.toLowerCase()) ||
-                            element.agent.typeAgent!.label
-                                .toLowerCase()
-                                .contains(_keyword.toLowerCase()) ||
-                            element.agent.department!.label
-                                .toLowerCase()
-                                .contains(_keyword.toLowerCase())) &&
-                        (element.date.isAfter(_debut) &&
-                            element.date
-                                .isBefore(_fin.add(const Duration(days: 1))));
+                                .contains(_keyword.toLowerCase()));
                   }).toList();
 
                   List<Map<String, dynamic>> pointages = [];
@@ -736,13 +727,7 @@ class _DataPresence extends DataTableSource {
                 .toLowerCase()
                 .contains(keyword.toLowerCase()) ||
             element.agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
-            element.agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
-            element.agent.typeAgent!.label
-                .toLowerCase()
-                .contains(keyword.toLowerCase()) ||
-            element.agent.department!.label
-                .toLowerCase()
-                .contains(keyword.toLowerCase()))
+            element.agent.phone.toLowerCase().contains(keyword.toLowerCase()))
         .toList();
     dataToExport = data;
     if (index >= data.length) {

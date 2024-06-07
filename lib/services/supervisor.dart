@@ -33,13 +33,13 @@ class SupervisorService {
         .toList();
     return data.where((e) => e.firstName.contains(filter)).toList();
   }
-  Future<List<Supervisor>> allFuture(String filter) async {
+  Future<List<Supervisor>> allFuture() async {
     var snpshot = await _collectionReference.get();
     List<Supervisor> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>
             Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
         .toList();
-    return data.where((e) => e.firstName.contains(filter)).toList();
+    return data;
   }
 
   Future<Supervisor?> one(uid) async {

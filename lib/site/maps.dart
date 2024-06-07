@@ -26,13 +26,13 @@ class _MapsState extends State<Maps> {
   final Map<String, Marker> _markers = {};
   late List<Site> _sites;
   late List<Site> _Sidesites;
-  MapType _mapType = MapType.normal;
+  MapType _mapType = MapType.hybrid;
   String _keyword = "";
 
 //variable de test de recherche de site dans le maps
   bool _searchSite = true;
   bool _polyLines = false;
-  bool _trafficEnabled = false;
+  bool _trafficEnabled = true;
 
   BitmapDescriptor markerIcon = AppConstants.defaultMarkerIcon;
 

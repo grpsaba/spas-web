@@ -1,14 +1,18 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:spas_web/administration/home.dart';
+import 'package:spas_web/services/superviseur_location.dart';
 import 'package:spas_web/services/supervisor.dart';
 
+import '../const.dart';
 import '../model.dart';
 import '../search_textField.dart';
 import '../services/loading.dart';
 import '../services/player.dart';
+import 'maps_component.dart';
 
 class SupervisorMaps extends StatefulWidget {
   const SupervisorMaps({super.key});
@@ -18,54 +22,24 @@ class SupervisorMaps extends StatefulWidget {
 }
 
 class _SupervisorMapsState extends State<SupervisorMaps> {
-  late GoogleMapController _mapController;
-  final SupervisorService _siteService = SupervisorService();
-  final Map<String, Marker> _markers = {};
-  late List<Supervisor> _supervisors;
-  late List<Supervisor> _Sidesupervisors;
-  MapType _mapType = MapType.normal;
+
+  final SupervisorService _supervisorService = SupervisorService();
+
+  List<SuperviseurLocaion> _locations = [];
+
+  Supervisor _selectedSupervisor =Supervisor(UID: '', code: '', firstName: '', lastName: '', phone: '', email: '', token: '', tracking: true, latlng: null, actif: null, department: null);
   String _keyword = "";
-
+  List<LatLng> _polylineCoordinates = [];
 //variable de test de recherche de site dans le maps
-  bool _searchSupervisor = true;
-  bool _polyLines = false;
-  bool _trafficEnabled = false;
-  Future<void> addMarkerTomap() async {
-    _markers.clear();
-    for (final supervisor in _supervisors) {
-      final marker = Marker(
-        onTap: () {
-          CameraUpdate cameraUpdate = CameraUpdate.newCameraPosition(
-              CameraPosition(
-                  target: LatLng(supervisor.latlng?.lat ?? 0.0,
-                      supervisor.latlng?.lng ?? 0.0),
-                  zoom: 17));
-          _mapController.animateCamera(cameraUpdate);
-        },
-        markerId: MarkerId(supervisor.UID),
-        position: LatLng(
-            supervisor.latlng?.lat ?? 0.0, supervisor.latlng?.lng ?? 0.0),
-        infoWindow: InfoWindow(
-          title: "${supervisor.firstName} ${supervisor.lastName}",
-          snippet: supervisor.phone,
-        ),
-      );
-      _markers[supervisor.UID] = marker;
-    }
-  }
 
-  void _onMapCreated(GoogleMapController controller) {
-    _mapController = controller;
-    setState(() {
-      addMarkerTomap();
-    });
-  }
+
+
 
   @override
   void dispose() {
     // TODO: implement dispose
     super.dispose();
-    _mapController.dispose();
+
     Audio().stopSOs();
   }
 
@@ -73,130 +47,70 @@ class _SupervisorMapsState extends State<SupervisorMaps> {
   Widget build(BuildContext context) {
     return PageModel(
       pageIdex: 4,
-      titile: "Dernière position des superviseurs",
-      child: StreamBuilder(
-          stream: _siteService.all(),
+      titile: "Positions des superviseurs",
+      child: FutureBuilder(
+          future: _supervisorService.allFuture(),
           builder: (context, snapshot) {
             if (snapshot.hasData) {
-              try {
-                var docs = snapshot.data?.docs
-                    .map((e) => jsonDecode(jsonEncode(e.data())))
-                    .toList();
 
-                _supervisors = docs!
-                    .map((e) => Supervisor.fromJson(e))
-                    .toList()
-                    .where((element) => element.actif == true)
-                    .toList();
-                _Sidesupervisors = _supervisors
-                    .where((element) =>
-                        element.firstName
-                            .toLowerCase()
-                            .contains(_keyword.toLowerCase()) ||
-                        element.lastName
-                            .toLowerCase()
-                            .contains(_keyword.toLowerCase()) ||
-                        element.phone
-                            .toLowerCase()
-                            .contains(_keyword.toLowerCase()))
-                    .toList();
-                //return SiteScatter(sites: _sites);
+              try {
+                List<Supervisor> supervisors = snapshot.data?.where((e) =>e.UID.toLowerCase().contains(_keyword.toLowerCase()) || e.lastName.toLowerCase().contains(_keyword.toLowerCase())|| e.firstName.toLowerCase().contains(_keyword.toLowerCase())).toList() ?? [];
+
 
                 return Row(
                   children: [
-                    !_searchSupervisor
-                        ? const SizedBox.shrink()
-                        : Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: SearchTextField(
-                                    onSearch: (value) {
-                                      setState(() {
-                                        _keyword = value;
-                                      });
-                                    },
-                                    onPress: () {}),
-                              ),
-                              SizedBox(
-                                width: 150,
-                                height: MediaQuery.of(context).size.height -
-                                    (MediaQuery.of(context).size.height - 620),
-                                child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    itemCount: _Sidesupervisors.length,
-                                    itemBuilder: (context, index) {
-                                      Supervisor? supervisor =
-                                          _Sidesupervisors[index];
-                                      return ListTile(
-                                        leading: const SizedBox(
-                                            width: 15,
-                                            height: 15,
-                                            child: Icon(
-                                              Icons.person,
-                                              color: Colors.red,
-                                            )),
-                                        onTap: () {
-                                          setState(() {
-                                            _searchSupervisor = false;
-                                            _mapType = MapType.hybrid;
-                                            _mapController.showMarkerInfoWindow(
-                                                MarkerId(supervisor.UID));
-                                          });
-
-                                          CameraUpdate cameraUpdate =
-                                              CameraUpdate.newCameraPosition(
-                                                  CameraPosition(
-                                                      target: LatLng(
-                                                          supervisor.latlng
-                                                                  ?.lat ??
-                                                              0.0,
-                                                          supervisor.latlng
-                                                                  ?.lng ??
-                                                              0.0),
-                                                      zoom: 17));
-
-                                          _mapController
-                                              .animateCamera(cameraUpdate);
-                                        },
-                                        title: Text(
-                                          "${supervisor.firstName} ${supervisor.lastName}",
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              color: Theme.of(context)
-                                                  .primaryColor),
-                                        ),
-                                      );
-                                    }),
-                              ),
-                            ],
-                          ),
-                    Expanded(
-                      child: GoogleMap(
-                        polylines: !_polyLines
-                            ? {}
-                            : {
-                                Polyline(
-                                    geodesic: true,
-                                    polylineId: const PolylineId("1"),
-                                    points: _supervisors
-                                        .map((site) => LatLng(
-                                            site.latlng?.lat ?? 0.0,
-                                            site.latlng?.lng ?? 0.0))
-                                        .toList(),
-                                    color: Colors.red,
-                                    width: 2),
+                    Column(
+                      children: [
+                        Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: SearchTextField(
+                              onSearch: (value) {
+                                setState(() {
+                                  _keyword = value;
+                                });
                               },
-                        trafficEnabled: _trafficEnabled,
-                        mapType: _mapType,
-                        markers: _markers.values.toSet(),
-                        onMapCreated: _onMapCreated,
-                        initialCameraPosition: CameraPosition(
-                            // ignore: unnecessary_null_comparison
-                            target: LatLng(_supervisors[0].latlng?.lat ?? 0.0,
-                                _supervisors[0].latlng?.lng ?? 0.0),
-                            zoom: 15),
-                      ),
+                              onPress: () {}),
+                        ),
+                        SizedBox(
+                          width: 150,
+                          height: MediaQuery.of(context).size.height -
+                              (MediaQuery.of(context).size.height - 620),
+                          child: ListView.builder(
+                              padding: EdgeInsets.zero,
+                              itemCount: supervisors.length,
+                              itemBuilder: (context, index) {
+                                Supervisor? supervisor =
+                                supervisors[index];
+                                return ListTile(
+                                  leading: const SizedBox(
+                                      width: 15,
+                                      height: 15,
+                                      child: Icon(
+                                        Icons.person,
+                                        color: Colors.red,
+                                      )),
+                                  onTap: () {
+                                    setState(() {
+                                      _selectedSupervisor = supervisor;
+                                      setState(() {
+
+                                      });
+                                    });
+
+                                  },
+                                  title: Text(
+                                    "${supervisor.firstName} ${supervisor.lastName}",
+                                    style: TextStyle(
+                                        fontSize: 12,
+                                        color: Theme.of(context).primaryColor),
+                                  ),
+                                );
+                              }),
+                        ),
+                      ],
+                    ),
+                   Expanded(
+                      child: LocationMapsComponent(supervisor:_selectedSupervisor),
                     ),
                   ],
                 );
@@ -210,7 +124,7 @@ class _SupervisorMapsState extends State<SupervisorMaps> {
                           size: 64,
                           color: Theme.of(context).primaryColor,
                         ),
-                        const Text("Pas de données")
+                         Text("Pas de données ${error.toString()}")
                       ]),
                 );
               }

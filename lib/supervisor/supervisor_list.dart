@@ -107,7 +107,7 @@ class _SupervisorListState extends State<SupervisorList> {
                         const SizedBox(
                           width: 10,
                         ),
-                        Tooltip(
+                       /* Tooltip(
                           message: "Dernières Position des superviseurs",
                           child: ElevatedButton(
                             onPressed: () {
@@ -115,7 +115,7 @@ class _SupervisorListState extends State<SupervisorList> {
                             },
                             child: const Icon(Icons.location_on),
                           ),
-                        )
+                        )*/
                       ],
                     ),
                     actions: [

@@ -61,7 +61,7 @@ class _SitePointageMapState extends State<SitePointageMap> {
                 if (snapshot.hasData) {
                   var pointageSite = snapshot.data;
                   return FutureBuilder(
-                    future: SupervisorService().allFuture(""),
+                    future: SupervisorService().allFuture(),
                     builder: (BuildContext context,
                         AsyncSnapshot<List<Supervisor>> snapshot) {
                       if (snapshot.hasData) {

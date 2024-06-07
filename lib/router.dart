@@ -47,9 +47,11 @@ GoRouter routeConfig = GoRouter(
     initialLocation: "/home",
     //routes Guard
     redirect: (BuildContext context, GoRouterState state) async {
-      var authState = await AuthService().authState();
+      if(AuthService.currentManager==null){
+        await AuthService().authState();
+      }
 
-      bool isAuthenticated = authState != null;
+      bool isAuthenticated = AuthService.currentManager != null;
 
       if (isAuthenticated) {
         return null;
