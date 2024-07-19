@@ -107,15 +107,15 @@ class _SupervisorListState extends State<SupervisorList> {
                         const SizedBox(
                           width: 10,
                         ),
-                       /* Tooltip(
-                          message: "Dernières Position des superviseurs",
+                       Tooltip(
+                          message: "Position des superviseurs",
                           child: ElevatedButton(
                             onPressed: () {
-                              context.go("/superviseurs/maps");
+                              context.go("/superviseurs/locationtracker");
                             },
                             child: const Icon(Icons.location_on),
                           ),
-                        )*/
+                        )
                       ],
                     ),
                     actions: [

@@ -235,7 +235,7 @@ class _SupervisorListState extends State<SiteList> {
                             });
                           },
                           label: const Text("Nom")),
-                      //const DataColumn(label: Text("Email")),
+                      const DataColumn(label: Text("Zone")),
                       const DataColumn(label: Text("Contact")),
                       // const DataColumn(label: Text("Adresse")),
                       const DataColumn(label: Text("NB Agent"), numeric: true),
@@ -325,7 +325,7 @@ class _DataSource extends DataTableSource {
     if (index >= data.length) {
       return const DataRow(cells: [
         //DataCell(Text("")),
-        //DataCell(Text("")),
+        DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
@@ -342,7 +342,7 @@ class _DataSource extends DataTableSource {
     return DataRow(cells: [
       DataCell(Text(site.codeSite)),
       DataCell(Text(site.name)),
-      //DataCell(Text(site.email)),
+      DataCell(Text(site.zone?.name??'')),
       DataCell(Text(site.phone)),
       // DataCell(Text(site.adresse)),
       DataCell(Text(site.nbAgent.toString())),

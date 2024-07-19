@@ -354,7 +354,7 @@ class _PageModelState extends State<PageModel> {
                 ),
                 ListTile(
                   onTap: () {
-                    context.go("/maps");
+                    context.go("/sites/maps");
                   },
                   leading: const CircleAvatar(
                       radius: 18,

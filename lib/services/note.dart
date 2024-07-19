@@ -16,13 +16,14 @@ class NoteService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return _collectionReference.orderBy('date',descending: true).snapshots();
   }
   Stream<QuerySnapshot> allNoViewedNote() {
-    return _collectionReference.where("viewed",isEqualTo: false).snapshots();
+    return _collectionReference.where("viewed",isEqualTo: false).orderBy('date',descending: true).snapshots();
   }
 
   Future<void> delete(Note note) async {
+
     return _collectionReference.doc(note.id).delete();
   }
 
@@ -37,7 +38,7 @@ class NoteService {
   }
 
   Future<List<Note>> allFuture() async {
-    var snpshot = await _collectionReference.get();
+    var snpshot = await _collectionReference.orderBy('date',descending: true).get();
     List<Note> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>
             Note.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -46,7 +47,7 @@ class NoteService {
   }
 
   Future<List<Note>> allBySource(String source) async {
-    var query = await _collectionReference.where("source", isEqualTo: source);
+    var query = await _collectionReference.where("source", isEqualTo: source).orderBy('date',descending: true);
     var snpshot = await query.get();
     List<Note> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>

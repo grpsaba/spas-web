@@ -7,10 +7,16 @@ import '../model.dart';
 
 class LocationService {
   final CollectionReference _collectionReference =
-      FirebaseFirestore.instance.collection("locationTracker");
+  FirebaseFirestore.instance.collection("locationTracker");
   Future<void> add(SuperviseurLocaion location) async {
+    String docID = '';
     if(location.supervisor!=null){
-      _collectionReference.doc('${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().microsecond}').set(location.toJson());
+      if(location.supervisor!.tracking==true){
+        //docID = '${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().millisecond}${DateTime.now().microsecond}';
+        docID = location.supervisor?.UID??'';
+        _collectionReference.doc(docID).set(location.toJson());
+      }
+
     }
 
   }
@@ -28,16 +34,22 @@ class LocationService {
     return data;
   }
 
-  Future<List<SuperviseurLocaion>> allBySupervisor({required Supervisor supervisor}) async {
-    var snapshot = await _collectionReference.where('supervisor.UID',isEqualTo: supervisor.UID).get();
+  Future<List<SuperviseurLocaion>> allBySupervisor(uid) async {
+    var snapshot = await _collectionReference.get();
     var collection = snapshot.docs
         .map((snap) {
-          return SuperviseurLocaion.fromJson(jsonDecode(jsonEncode(snap.data())));
-        })
-        .toList();
+      return SuperviseurLocaion.fromJson(jsonDecode(jsonEncode(snap.data())));
+    })
+        .toList()
+        .where((element) {
 
+      return element.supervisor?.UID == uid;
+
+    })
+        .toList();
     return collection;
   }
+
 
 
   Future<SuperviseurLocaion> one(code) async {
@@ -48,10 +60,22 @@ class LocationService {
   }
 
   Future<void> delete(SuperviseurLocaion location) async {
-    return _collectionReference.doc('${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().microsecond}').delete();
+    String docID='';
+    if(location.supervisor!.tracking=true){
+      docID = '${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().millisecond}${DateTime.now().microsecond}';
+    }else{
+      docID = location.supervisor?.UID??'';
+    }
+    return _collectionReference.doc(docID).delete();
   }
 
   Future<void> update(SuperviseurLocaion location) {
-    return _collectionReference.doc('${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().microsecond}').update(location.toJson());
+    String docID='';
+    if(location.supervisor!.tracking=true){
+      docID = '${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().millisecond}${DateTime.now().microsecond}';
+    }else{
+      docID = location.supervisor?.UID??'';
+    }
+    return _collectionReference.doc(docID).update(location.toJson());
   }
 }

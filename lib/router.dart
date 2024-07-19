@@ -19,6 +19,7 @@ import 'package:spas_web/supervisor/supervisor_form.dart';
 import 'package:spas_web/supervisor/supervisor_list.dart';
 import 'package:spas_web/supervisor/supervisor_maps.dart';
 import 'package:spas_web/supervisor/supervisor_tracker.dart';
+import 'package:spas_web/supervisor/supervisors_location.dart';
 import 'package:spas_web/tools/checklist.dart';
 import 'package:spas_web/tools/tool_form.dart';
 import 'package:spas_web/tools/tool_list.dart';
@@ -100,6 +101,10 @@ GoRouter routeConfig = GoRouter(
                 builder: (context, state) => AddSite(
                       site: state.extra as Site,
                     )),
+            GoRoute(
+                name: "sites maps",
+                path: "maps",
+                builder: (context, state) => const Maps()),
           ]),
       //routes pointages site
       GoRoute(
@@ -173,6 +178,12 @@ GoRouter routeConfig = GoRouter(
                 path: "location",
                 builder: (context, state) =>
                     SupervisorTracker(supervisor: state.extra as Supervisor)),
+            //routes locations
+            GoRoute(
+              name: "supervisors location",
+              path: "locationtracker",
+              builder: (context, state) => const SupervisorsLocation(),
+            ),
           ]),
       //routes tools
       GoRoute(
@@ -213,12 +224,7 @@ GoRouter routeConfig = GoRouter(
                       source: state.extra as String,
                     )),
           ]),
-      //routes maps
-      GoRoute(
-        name: "sites maps",
-        path: "/maps",
-        builder: (context, state) => const Maps(),
-      ),
+
       //routes equipements
       GoRoute(
           name: "liste des equipements",
