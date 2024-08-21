@@ -310,6 +310,28 @@ class _PageModelState extends State<PageModel> {
                 ),
                 ListTile(
                   onTap: () {
+                    context.go("/pointagesrondiers");
+                  },
+                  leading: const CircleAvatar(
+                      radius: 18,
+                      child: Image(
+                        fit: BoxFit.contain,
+                        image: AssetImage(Assets.assetsIconScanAgent),
+                      )),
+                  title: !_howDrawer
+                      ? null
+                      : const Text(
+                    "Pointage rondiers",
+                    style: TextStyle(color: AppConstants.textColor),
+                  ),
+                  hoverColor: Colors.grey.withOpacity(0.1),
+                  selectedTileColor: Colors.blueGrey,
+                  selectedColor: Colors.white,
+                  style: ListTileStyle.drawer,
+                  selected: widget.pageIdex == 17,
+                ),
+                ListTile(
+                  onTap: () {
                     context.go("/checklist");
                   },
                   leading: const CircleAvatar(

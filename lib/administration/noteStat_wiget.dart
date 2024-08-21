@@ -38,14 +38,14 @@ class _NoteStatState extends State<NoteStat> {
             List<Note>? data = docs?.map((e) => Note.fromJson(e)).toList();
             //data = data?.where((note) => note.viewed == false).toList();
             if (data == null) {
-              Audio().stopSOs();
+
               return const SizedBox.shrink();
             }
             if (data.isEmpty) {
-              Audio().stopSOs();
+
               return const SizedBox.shrink();
             } else {
-              Audio().sos();
+              TTS().speetch('${data.length} Notes superviseur en attente de traitement.');
               return GestureDetector(
                   onTap: () {
                     /* Navigator.push(context,

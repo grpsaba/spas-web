@@ -8,4 +8,6 @@ class AssetsRes {
 
   static const String PLUGIN_NAME = 'spas_web';
   static const String PLUGIN_VERSION = '1.0.0+1';
+  static const String GEOPIN3 = 'assets/geopin3.png';
+  static const String GEOPOIN2 = 'assets/geopoin2.png';
 }

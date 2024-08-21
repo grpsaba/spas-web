@@ -58,6 +58,7 @@ class _MapsComponentState extends State<LocationMapsComponent> {
 
 
     super.initState();
+    WidgetsFlutterBinding.ensureInitialized();
     LocationService().all().listen((event){
       var collection = event.docs
           .map((snap) {
@@ -87,7 +88,8 @@ class _MapsComponentState extends State<LocationMapsComponent> {
 
       trafficEnabled: true,
       mapType: _mapType,
-      markers: {Marker(
+      markers: {
+        Marker(
         onTap: () {
           CameraUpdate cameraUpdate = CameraUpdate.newCameraPosition(
               CameraPosition(

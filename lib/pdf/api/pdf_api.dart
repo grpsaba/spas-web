@@ -1,3 +1,5 @@
+import 'dart:convert';
+
 import 'package:flutter/foundation.dart';
 import 'package:pdf/widgets.dart';
 import 'package:universal_html/html.dart' as html;
@@ -17,5 +19,12 @@ class PdfApi {
     final url = html.Url.createObjectUrlFromBlob(blob);
     html.window.open(url, "_blank");
     html.Url.revokeObjectUrl(url);
+  }
+  static downLoad(Uint8List bytes){
+    List<int> fileInts = List.from(bytes);
+    html.AnchorElement()
+      ..href = "data:application/octet-stream;charset=utf-16le;base64,${base64.encode(fileInts)}"
+      ..setAttribute("download", "pointageRondiers.pdf")
+      ..click();
   }
 }

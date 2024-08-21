@@ -8,6 +8,7 @@ import 'package:spas_web/model.dart';
 import 'package:spas_web/notes/imprime_rapport.dart';
 import 'package:spas_web/notes/note_list.dart';
 import 'package:spas_web/pointage_agent/pointage_agent_list.dart';
+import 'package:spas_web/pointage_agent/pointage_rondier_list.dart';
 import 'package:spas_web/pointage_site/pointage_site_list.dart';
 import 'package:spas_web/pointage_site/site_monthly_pointage.dart';
 import 'package:spas_web/pointage_site/site_pointage_map.dart';
@@ -131,6 +132,7 @@ GoRouter routeConfig = GoRouter(
           path: "/agents",
           builder: (context, state) => const AgentList(),
           routes: [
+
             GoRoute(
                 name: "Ajoute un agent",
                 path: "add",
@@ -141,6 +143,7 @@ GoRouter routeConfig = GoRouter(
                 name: "import agents",
                 path: "import",
                 builder: (context, state) => const ImportAgent()),
+
             GoRoute(
                 name: "documents agents",
                 path: "documents",
@@ -204,6 +207,10 @@ GoRouter routeConfig = GoRouter(
         path: "/pointageagents",
         builder: (context, state) => const PointageAgentList(),
       ),
+      GoRoute(
+          name: "pointage rondier",
+          path: "/pointagesrondiers",
+          builder: (context, state) => const PointageRondierList()),
       //routes Checklist
       GoRoute(
         name: "liste des Checklist",

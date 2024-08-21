@@ -28,6 +28,7 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
   final Map<String, Marker> _markers = {};
   Supervisor? _supervisorFolowed;
   late List<SuperviseurLocaion> _locations;
+  List<Site> _sites = [];
   MapType _mapType = MapType.hybrid;
   String _keyword = "";
 
@@ -37,7 +38,17 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
   bool _trafficEnabled = false;
 
   BitmapDescriptor markerIcon = AppConstants.defaultMarkerIcon;
+  BitmapDescriptor siteMarkerIcon = AppConstants.defaultMarkerIcon;
 
+  void setSiteCustomIcon() {
+    BitmapDescriptor.fromAssetImage(
+        const ImageConfiguration(size: Size(28, 28)), Assets.assetsGeopin3)
+        .then((value) {
+      siteMarkerIcon = value;
+    }).onError((error, stackTrace) {
+      print("erreur : ${error.toString()}");
+    });
+  }
   void setCustomIcon() {
     BitmapDescriptor.fromAssetImage(
         const ImageConfiguration(size: Size(28, 28)), Assets.assetsGeopin)
@@ -47,7 +58,29 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
       print("erreur : ${error.toString()}");
     });
   }
+  Future<void> addSiteMarkerTomap() async {
 
+    for (final site in _sites) {
+
+      final marker = Marker(
+        icon: siteMarkerIcon,
+        onTap: () {
+          CameraUpdate cameraUpdate = CameraUpdate.newCameraPosition(
+              CameraPosition(
+                  target: LatLng(site.latLng.lat, site.latLng.lng), zoom: 17));
+          _mapController.animateCamera(cameraUpdate);
+        },
+        markerId: MarkerId(site.UID),
+        position: LatLng(site.latLng.lat, site.latLng.lng),
+        infoWindow: InfoWindow(
+          title:site.name,
+          snippet:
+          "${site.supervisor?.firstName??""},${site.supervisor?.lastName??""}",
+        ),
+      );
+      _markers[site.UID] = marker;
+    }
+  }
   Future<void> addMarkerTomap() async {
     _markers.clear();
     for (final location in _locations) {
@@ -70,6 +103,7 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
       );
       _markers[location.supervisor?.UID??''] = marker;
     }
+    addSiteMarkerTomap();
   }
 
   void _onMapCreated(GoogleMapController controller) {
@@ -82,6 +116,8 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
     // TODO: implement initState
     WidgetsFlutterBinding.ensureInitialized();
     setCustomIcon();
+    setSiteCustomIcon();
+
     super.initState();
   }
 
@@ -168,60 +204,80 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
               ],
             ),
 
- Expanded(
-              child: StreamBuilder(
-                  stream: _locationService.all(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-              
-                        var docs = snapshot.data?.docs
-                            .map((e) => jsonDecode(jsonEncode(e.data())))
-                            .toList()??[];
+                Expanded(
+              child: FutureBuilder(
+                future: SiteService().allAsModel(),
+                builder: (context, snapshot) {
+                  if(snapshot.hasData){
+                    _sites=snapshot.data??[];
 
-                        _locations = docs
-                            .map((e) => SuperviseurLocaion.fromJson(e)).toList();
-                       var supFoloweds=_locations.where((l)=>l.supervisor==_supervisorFolowed);
-                        SuperviseurLocaion? supervisorFolowedLocaion;
-                       if(supFoloweds.isNotEmpty){
-                          supervisorFolowedLocaion=supFoloweds.first;
-                       }
-                        addMarkerTomap();
-                        return  GoogleMap(
-                            polylines: !_polyLines
-                                ? {}
-                                : {
-                              Polyline(
-                                  geodesic: true,
-                                  polylineId: const PolylineId("1"),
-                                  points: _locations
-                                      .map((sl) => LatLng(
-                                      sl.latlng.lat, sl.latlng.lng))
-                                      .toList(),
-                                  color: Colors.red,
-                                  width: 2),
-                            },
-                            trafficEnabled: _trafficEnabled,
-                            mapType: _mapType,
-                            markers: _markers.values.toSet(),
-                            onMapCreated: _onMapCreated,
-                            initialCameraPosition: CameraPosition(
-              // ignore: unnecessary_null_comparison
-                                target: LatLng(
-                                    supervisorFolowedLocaion!=null?supervisorFolowedLocaion.latlng.lat: _locations[0].latlng.lat,supervisorFolowedLocaion!=null?supervisorFolowedLocaion.latlng.lng: _locations[0].latlng.lng),
-                                zoom: 15),
-                          );
-              
-              
-              
-                    } else {
-                      return Center(
-                        child: Loading(
-                          size: 64,
-                          inline: false,
-                        ),
-                      );
-                    }
-                  }),
+
+                    return StreamBuilder(
+                        stream: _locationService.all(),
+                        builder: (context, snapshot) {
+                          if (snapshot.hasData) {
+
+                            var docs = snapshot.data?.docs
+                                .map((e) => jsonDecode(jsonEncode(e.data())))
+                                .toList()??[];
+
+                            _locations = docs
+                                .map((e) => SuperviseurLocaion.fromJson(e)).toList();
+                            var supFoloweds=_locations.where((l)=>l.supervisor==_supervisorFolowed);
+                            SuperviseurLocaion? supervisorFolowedLocaion;
+                            if(supFoloweds.isNotEmpty){
+                              supervisorFolowedLocaion=supFoloweds.first;
+                            }
+
+                            addMarkerTomap();
+                            return  GoogleMap(
+                              polylines: !_polyLines
+                                  ? {}
+                                  : {
+                                Polyline(
+                                    geodesic: true,
+                                    polylineId: const PolylineId("1"),
+                                    points: _locations
+                                        .map((sl) => LatLng(
+                                        sl.latlng.lat, sl.latlng.lng))
+                                        .toList(),
+                                    color: Colors.red,
+                                    width: 2),
+                              },
+                              trafficEnabled: _trafficEnabled,
+                              mapType: _mapType,
+                              markers: _markers.values.toSet(),
+                              onMapCreated: _onMapCreated,
+                              initialCameraPosition: CameraPosition(
+                                // ignore: unnecessary_null_comparison
+                                  target: LatLng(
+                                      supervisorFolowedLocaion!=null?supervisorFolowedLocaion.latlng.lat: _locations[0].latlng.lat,supervisorFolowedLocaion!=null?supervisorFolowedLocaion.latlng.lng: _locations[0].latlng.lng),
+                                  zoom: 15),
+                            );
+
+
+
+                          } else {
+                            return Center(
+                              child: Loading(
+                                size: 64,
+                                inline: false,
+                              ),
+                            );
+                          }
+                        });
+                  }else {
+                    return Center(
+                      child: Loading(
+                        size: 64,
+                        inline: false,
+                      ),
+                    );
+                  }
+
+                }
+
+              ),
             ),
           ],
         )

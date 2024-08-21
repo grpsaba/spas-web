@@ -38,7 +38,7 @@ class _MapsState extends State<Maps> {
 
   void setCustomIcon() {
     BitmapDescriptor.fromAssetImage(
-            const ImageConfiguration(size: Size(28, 28)), Assets.assetsGeopin)
+            const ImageConfiguration(size: Size(28, 28)), Assets.assetsGeopin3)
         .then((value) {
       markerIcon = value;
     }).onError((error, stackTrace) {

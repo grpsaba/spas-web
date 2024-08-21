@@ -37,6 +37,7 @@ class _AgentListState extends State<AgentList> {
 
     rowParPage = defauldRowParPage;
     _texController.text = defauldRowParPage.toString();
+
   }
 
   @override

@@ -8,7 +8,9 @@ class Assets {
   static const String assetsFlyer = 'assets/flyer.png';
   static const String assetsFondscatter = 'assets/fondscatter.jpg';
   static const String assetsGeopin = 'assets/geopin.png';
+  static const String assetsGeopin3 = 'assets/geopin3.png';
   static const String assetsGeopinanimated = 'assets/geopinanimated.gif';
+  static const String assetsGeopoin2 = 'assets/geopoin2.png';
   static const String assetsIconAgent = 'assets/icon_agent.png';
   static const String assetsIconManager = 'assets/icon_manager.png';
   static const String assetsIconMap = 'assets/icon_map.png';
@@ -24,4 +26,6 @@ class Assets {
   static const String assetsPdfLogo = 'assets/pdfLogo.png';
   static const String assetsPosition = 'assets/position.png';
   static const String assetsSos = 'assets/sos.mp3';
+  static const String spasWebAssetsGeopoin2 = 'assets/geopoin2.png';
+
 }

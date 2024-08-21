@@ -53,16 +53,19 @@ class _AlertState extends State<Sos> {
               return const SizedBox.shrink();
             } else {
               TTS().speetch(
-                  "Sos sur ${data.first.name},superviseur ${data.first.supervisor!.firstName} ${data.first.supervisor!.lastName}, Zone ${data.first.zone?.codeZone ?? ""}");
+                  "Sos sur ${data.first.name}, superviseur ${data.first.supervisor!.firstName} ${data.first.supervisor!.lastName}");
               Audio().sos();
 
-              return GestureDetector(
-                  onTap: () {
-                    /* Navigator.push(context,
-                        MaterialPageRoute(builder: (_) => const SiteSOSList()));*/
-                  },
-                  child: Loading(
-                      size: 34, inline: false, sos: true, status: true));
+              return Tooltip(
+                message: data.map((site)=>" ${site.name} : ${site.supervisor?.firstName??''} ${site.supervisor?.lastName}??'").toList().toString(),
+                child: GestureDetector(
+                    onTap: () {
+                      /* Navigator.push(context,
+                          MaterialPageRoute(builder: (_) => const SiteSOSList()));*/
+                    },
+                    child: Loading(
+                        size: 34, inline: false, sos: true, status: true)),
+              );
             }
           } else {
             return const SizedBox.shrink();

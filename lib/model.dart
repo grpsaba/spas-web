@@ -576,7 +576,54 @@ class PointingAgent extends Equatable {
   // TODO: implement props
   List<Object?> get props => [date.day, date.month, date.year];
 }
+class PointingRondier extends Equatable {
+  DateTime date;
+  LatLngModel latlng;
+  Agent agent;
+  Site site;
+  double distance;
+  bool confirmed;
+  PointingRondier(
+      {required this.agent,
+        required this.latlng,
+        required this.date,
+        required this.distance,
+        required this.confirmed,
+        required this.site
+      });
 
+  factory PointingRondier.fromJson(Map<String, dynamic> json) {
+    return PointingRondier(
+        date: DateTime.parse(json["date"]),
+        latlng: LatLngModel.fromJson(json["latlng"]),
+        agent: Agent.fromJson(json["agent"]),
+        site: Site.fromJson(json["site"]),
+        distance: json["distance"],
+        confirmed: json["confirmed"]);
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      "date": date.toIso8601String(),
+      "latlng": latlng.toJson(),
+      "agent": agent.toJson(),
+      "site": site.toJson(),
+      "distance": distance,
+      "confirmed": confirmed
+    };
+  }
+
+  bool isToday() {
+    DateTime today = DateTime.now();
+    return date.year == today.year &&
+        date.day == today.day &&
+        date.month == today.month;
+  }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [date.day, date.month, date.year];
+}
 class Note extends Equatable {
   String id;
   DateTime date;
