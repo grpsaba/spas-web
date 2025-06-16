@@ -3,6 +3,7 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../model.dart';
 import 'authentication.dart';
@@ -25,21 +26,38 @@ class SupervisorService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+
   Future<List<Supervisor>> allActifFuture(String filter) async {
-    var snpshot = await _collectionReference.where('actif',isEqualTo: true).get();
-    List<Supervisor> data = snpshot.docs
-        .map((QueryDocumentSnapshot e) =>
-        Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
-        .toList();
-    return data.where((e) => e.firstName.contains(filter)).toList();
+    try {
+      var snpshot =
+          await _collectionReference.where('actif', isEqualTo: true).get();
+      List<Supervisor> data = snpshot.docs
+          .map((QueryDocumentSnapshot e) =>
+              Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
+          .toList();
+      debugPrint("Sup lenght : ${data.length}");
+      return data.where((e) => e.firstName.contains(filter)).toList();
+    } catch (e) {
+      print("Catched");
+      debugPrint("Error == $e");
+      return [];
+    }
   }
+
   Future<List<Supervisor>> allFuture() async {
-    var snpshot = await _collectionReference.get();
-    List<Supervisor> data = snpshot.docs
-        .map((QueryDocumentSnapshot e) =>
-            Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
-        .toList();
-    return data;
+    try {
+      var snpshot =
+          await _collectionReference.where("actif", isEqualTo: true).get();
+      List<Supervisor> data = snpshot.docs
+          .map((QueryDocumentSnapshot e) =>
+              Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
+          .toList();
+      return data;
+    } catch (e) {
+      print("Catch");
+      debugPrint("Err == $e");
+      return [];
+    }
   }
 
   Future<Supervisor?> one(uid) async {

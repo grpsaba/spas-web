@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
+import 'package:provider/provider.dart';
+import 'package:spas_web/providers/home_provider.dart';
 import 'package:spas_web/router.dart';
 import 'package:url_strategy/url_strategy.dart';
 
@@ -18,7 +20,10 @@ Future<void> main() async {
   //Audio().stopSOs();
   //enlever le # dans url de la page
   setPathUrlStrategy();
-  runApp(const MyApp());
+  runApp(MultiProvider(providers: [
+    ChangeNotifierProvider<HomeProvider>(create: (_) => HomeProvider()),
+  ], child: const MyApp()));
+  //runApp(const MyApp());
 }
 
 class MyApp extends StatelessWidget {

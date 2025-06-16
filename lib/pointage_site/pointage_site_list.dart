@@ -57,7 +57,7 @@ class _SupervisorListState extends State<PointageSiteList> {
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
+                      .map((e) => e.data() as Map<String, dynamic>)
                       .toList();
                   //var lst = jsonDecode(jsonEncode(docs));
                   //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);

@@ -39,6 +39,10 @@ class _PageModelState extends State<PageModel> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+        floatingActionButton: FloatingActionButton(
+          onPressed: () {},
+          child: Icon(Icons.refresh),
+        ),
         backgroundColor:
             widget.pageIdex == 0 ? AppConstants.bgColor : Colors.white,
         appBar: AppBar(
@@ -321,9 +325,9 @@ class _PageModelState extends State<PageModel> {
                   title: !_howDrawer
                       ? null
                       : const Text(
-                    "Pointage rondiers",
-                    style: TextStyle(color: AppConstants.textColor),
-                  ),
+                          "Pointage rondiers",
+                          style: TextStyle(color: AppConstants.textColor),
+                        ),
                   hoverColor: Colors.grey.withOpacity(0.1),
                   selectedTileColor: Colors.blueGrey,
                   selectedColor: Colors.white,

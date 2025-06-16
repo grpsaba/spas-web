@@ -13,7 +13,8 @@ import '../services/site.dart';
 import 'nombreAgentStatut.dart';
 
 class SiteListWithStatus extends StatefulWidget {
-  const SiteListWithStatus({super.key});
+  final List<Site> sites;
+  const SiteListWithStatus({super.key, required this.sites});
 
   @override
   _SupervisorListState createState() => _SupervisorListState();
@@ -36,6 +37,10 @@ class _SupervisorListState extends State<SiteListWithStatus> {
       token: '');*/
   @override
   Widget build(BuildContext context) {
+    var data = widget.sites
+        .where((element) =>
+            element.name.toLowerCase().contains(_keyword.toLowerCase()))
+        .toList();
     return Container(
         padding: const EdgeInsets.all(8.0),
         height: MediaQuery.of(context).size.height - 192,
@@ -68,198 +73,215 @@ class _SupervisorListState extends State<SiteListWithStatus> {
             ),
             const Divider(),
             Expanded(
-              child: FutureBuilder(
-                  future: _siteService.allActifAsModel(),
-                  builder: (context, snapshot) {
-                    if (snapshot.hasData) {
-
-
-                     var data = snapshot.data
-                          ?.where((element) => element.name
-                              .toLowerCase()
-                              .contains(_keyword.toLowerCase()))
-                          .toList();
-
-                      return ListView.builder(
-                          itemCount: data!.length,
-                          itemBuilder: (context, index) {
-                            Site site = data[index];
-                            return Card(
-                              elevation: 0.2,
-                              color:
-                                  AppConstants.secondaryColor.withOpacity(0.3),
-                              child: ListTile(
-                                //selected: site.UID == _selectedSite.UID,
-                                selectedTileColor:
-                                    Colors.blueGrey.withOpacity(0.4),
-                                title: Text(
-                                  site.name,
-                                  style: const TextStyle(
-                                      fontSize: 15,
-                                      color: AppConstants.textColor),
-                                ),
-                                subtitle: NbAgentStatus(site: site),
-                               /* leading: SizedBox(
+                child: ListView.builder(
+                    itemCount: data.length,
+                    itemBuilder: (context, index) {
+                      Site site = data[index];
+                      return Card(
+                        elevation: 0.2,
+                        color: AppConstants.secondaryColor.withAlpha(40),
+                        child: ListTile(
+                          leading: Text(
+                            "${index + 1}",
+                            style: const TextStyle(
+                                fontSize: 12, color: AppConstants.textColor),
+                          ),
+                          //selected: site.UID == _selectedSite.UID,
+                          selectedTileColor: Colors.blueGrey.withAlpha(60),
+                          title: Text(
+                            site.name,
+                            style: const TextStyle(
+                                fontSize: 15, color: AppConstants.textColor),
+                          ),
+                          subtitle: NbAgentStatus(site: site),
+                          /* leading: SizedBox(
                                     width: 20,
                                     height: 20,
                                     child: SiteStatus(
                                       site: site,
                                     )),*/
-                                onTap: () {
-                                  showDialog(
-                                      context: context,
-                                      builder: (_) {
-                                        return AlertDialog(
-                                          contentPadding:
-                                              const EdgeInsets.all(0.0),
-                                          alignment: Alignment.center,
-                                          content: Builder(
-                                            builder: (context) {
-                                              // Get available height and width of the build area of this widget. Make a choice depending on the size.
-                                              var height =
-                                                  MediaQuery.of(context)
-                                                      .size
-                                                      .height;
-                                              var width = MediaQuery.of(context)
-                                                  .size
-                                                  .width;
+                          onTap: () {
+                            showDialog(
+                                context: context,
+                                builder: (_) {
+                                  return AlertDialog(
+                                    contentPadding: const EdgeInsets.all(0.0),
+                                    alignment: Alignment.center,
+                                    content: Builder(
+                                      builder: (context) {
+                                        // Get available height and width of the build area of this widget. Make a choice depending on the size.
+                                        var height =
+                                            MediaQuery.of(context).size.height;
+                                        var width =
+                                            MediaQuery.of(context).size.width;
 
-                                              return Padding(
-                                                padding: const EdgeInsets.only(
-                                                    bottom: 8.0),
-                                                child: Column(
-                                                  mainAxisSize:
-                                                      MainAxisSize.min,
-                                                  children: [
-                                                    Row(
-                                                      children: [
-                                                        Expanded(
-                                                          child: Container(
-                                                              padding:
-                                                                  const EdgeInsets
-                                                                      .symmetric(
-                                                                      horizontal:
-                                                                          8.0),
-                                                              alignment: Alignment
-                                                                  .center,
-                                                              decoration: BoxDecoration(
-                                                                  color: Theme.of(
+                                        return Padding(
+                                          padding: const EdgeInsets.only(
+                                              bottom: 8.0),
+                                          child: Column(
+                                            mainAxisSize: MainAxisSize.min,
+                                            children: [
+                                              Row(
+                                                children: [
+                                                  Expanded(
+                                                    child: Container(
+                                                        padding:
+                                                            const EdgeInsets
+                                                                .symmetric(
+                                                                horizontal:
+                                                                    8.0),
+                                                        alignment:
+                                                            Alignment.center,
+                                                        decoration: BoxDecoration(
+                                                            color: Theme.of(
+                                                                    context)
+                                                                .primaryColor,
+                                                            borderRadius: const BorderRadius
+                                                                .only(
+                                                                topLeft: Radius
+                                                                    .circular(
+                                                                        20),
+                                                                topRight: Radius
+                                                                    .circular(
+                                                                        20))),
+                                                        height: 50,
+                                                        child: Row(
+                                                          mainAxisAlignment:
+                                                              MainAxisAlignment
+                                                                  .spaceBetween,
+                                                          children: [
+                                                            Text(
+                                                              site.name,
+                                                              style: const TextStyle(
+                                                                  color: Colors
+                                                                      .white),
+                                                            ),
+                                                            IconButton(
+                                                                onPressed: () {
+                                                                  Navigator.of(
                                                                           context)
-                                                                      .primaryColor,
-                                                                  borderRadius: const BorderRadius
-                                                                      .only(
-                                                                      topLeft: Radius
-                                                                          .circular(
-                                                                              20),
-                                                                      topRight:
-                                                                          Radius.circular(
-                                                                              20))),
-                                                              height: 50,
-                                                              child: Row(
-                                                                mainAxisAlignment:
-                                                                    MainAxisAlignment
-                                                                        .spaceBetween,
-                                                                children: [
-                                                                  Text(
-                                                                    site.name,
-                                                                    style: const TextStyle(
-                                                                        color: Colors
-                                                                            .white),
-                                                                  ),
-                                                                  IconButton(
-                                                                      onPressed:
-                                                                          () {
-                                                                        Navigator.of(context)
-                                                                            .pop();
-                                                                      },
-                                                                      icon:
-                                                                          const Icon(
-                                                                        Icons
-                                                                            .cancel,
-                                                                        color: Colors
-                                                                            .white,
-                                                                      ))
-                                                                ],
-                                                              )),
+                                                                      .pop();
+                                                                },
+                                                                icon:
+                                                                    const Icon(
+                                                                  Icons.cancel,
+                                                                  color: Colors
+                                                                      .white,
+                                                                ))
+                                                          ],
+                                                        )),
+                                                  ),
+                                                ],
+                                              ),
+                                              Padding(
+                                                padding:
+                                                    const EdgeInsets.all(8.0),
+                                                child: Row(
+                                                  mainAxisAlignment:
+                                                      MainAxisAlignment
+                                                          .spaceEvenly,
+                                                  children: [
+                                                    Column(
+                                                      children: [
+                                                        const Text(
+                                                          "Adresse",
+                                                          style: TextStyle(
+                                                              color: Colors
+                                                                  .black54),
+                                                        ),
+                                                        Text(
+                                                          site.adresse,
+                                                          style:
+                                                              const TextStyle(
+                                                                  color: Colors
+                                                                      .black),
                                                         ),
                                                       ],
                                                     ),
-                                                    Padding(
-                                                      padding:
-                                                          const EdgeInsets.all(
-                                                              8.0),
-                                                      child: Row(
-                                                        mainAxisAlignment:
-                                                            MainAxisAlignment
-                                                                .spaceEvenly,
-                                                        children: [
-                                                          Column(
-                                                            children: [
-                                                              const Text(
-                                                                "Adresse",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .black54),
-                                                              ),
-                                                              Text(
-                                                                site.adresse,
-                                                                style: const TextStyle(
-                                                                    color: Colors
-                                                                        .black),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 10,
-                                                          ),
-                                                          Column(
-                                                            children: [
-                                                              const Text(
-                                                                "Contact",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .black54),
-                                                              ),
-                                                              Text(
-                                                                site.phone,
-                                                                style: const TextStyle(
-                                                                    color: Colors
-                                                                        .black),
-                                                              ),
-                                                            ],
-                                                          ),
-                                                          const SizedBox(
-                                                            width: 10,
-                                                          ),
-                                                          Column(
-                                                            children: [
-                                                              const Text(
-                                                                "Agents",
-                                                                style: TextStyle(
-                                                                    color: Colors
-                                                                        .black54),
-                                                              ),
-                                                              siteAgent(site)
-                                                            ],
-                                                          )
-                                                        ],
-                                                      ),
+                                                    const SizedBox(
+                                                      width: 10,
                                                     ),
-                                                    const CircleAvatar(
-                                                      radius: 64,
-                                                      backgroundImage:
-                                                          AssetImage(Assets
-                                                              .assetsAgent),
+                                                    Column(
+                                                      children: [
+                                                        const Text(
+                                                          "Contact",
+                                                          style: TextStyle(
+                                                              color: Colors
+                                                                  .black54),
+                                                        ),
+                                                        Text(
+                                                          site.phone,
+                                                          style:
+                                                              const TextStyle(
+                                                                  color: Colors
+                                                                      .black),
+                                                        ),
+                                                      ],
                                                     ),
-                                                    const Text(
-                                                      "Superviseur 1",
+                                                    const SizedBox(
+                                                      width: 10,
+                                                    ),
+                                                    Column(
+                                                      children: [
+                                                        const Text(
+                                                          "Agents",
+                                                          style: TextStyle(
+                                                              color: Colors
+                                                                  .black54),
+                                                        ),
+                                                        siteAgent(site)
+                                                      ],
+                                                    )
+                                                  ],
+                                                ),
+                                              ),
+                                              const CircleAvatar(
+                                                radius: 64,
+                                                backgroundImage: AssetImage(
+                                                    Assets.assetsAgent),
+                                              ),
+                                              const Text(
+                                                "Superviseur 1",
+                                                style: TextStyle(
+                                                    color: Colors.black54,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                              Text(
+                                                "${site.supervisor?.firstName} ${site.supervisor?.lastName}",
+                                                style: TextStyle(
+                                                    color: Theme.of(context)
+                                                        .primaryColor,
+                                                    fontSize: 16,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                              Text(
+                                                "Contact: ${site.supervisor!.phone}",
+                                                style: const TextStyle(
+                                                    color: Colors.black54,
+                                                    fontWeight:
+                                                        FontWeight.bold),
+                                              ),
+                                              const SizedBox(
+                                                height: 10,
+                                              ),
+                                              site.supervisor_2 == null
+                                                  ? const SizedBox.shrink()
+                                                  : const Divider(),
+                                              site.supervisor_2 == null
+                                                  ? const SizedBox.shrink()
+                                                  : const Text(
+                                                      "Superviseur 2",
                                                       style: TextStyle(
                                                           color: Colors.black54,
                                                           fontWeight:
                                                               FontWeight.bold),
                                                     ),
-                                                    Text(
-                                                      "${site.supervisor?.firstName} ${site.supervisor?.lastName}",
+                                              site.supervisor_2 == null
+                                                  ? const SizedBox.shrink()
+                                                  : Text(
+                                                      "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}",
                                                       style: TextStyle(
                                                           color:
                                                               Theme.of(context)
@@ -268,82 +290,310 @@ class _SupervisorListState extends State<SiteListWithStatus> {
                                                           fontWeight:
                                                               FontWeight.bold),
                                                     ),
-                                                    Text(
-                                                      "Contact: ${site.supervisor!.phone}",
+                                              site.supervisor_2 == null
+                                                  ? const SizedBox.shrink()
+                                                  : Text(
+                                                      "Contact: ${site.supervisor_2!.phone}",
                                                       style: const TextStyle(
                                                           color: Colors.black54,
                                                           fontWeight:
                                                               FontWeight.bold),
                                                     ),
-                                                    const SizedBox(
-                                                      height: 10,
-                                                    ),
-                                                    site.supervisor_2 == null
-                                                        ? const SizedBox
-                                                            .shrink()
-                                                        : const Divider(),
-                                                    site.supervisor_2 == null
-                                                        ? const SizedBox
-                                                            .shrink()
-                                                        : const Text(
-                                                            "Superviseur 2",
-                                                            style: TextStyle(
-                                                                color: Colors
-                                                                    .black54,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                          ),
-                                                    site.supervisor_2 == null
-                                                        ? const SizedBox
-                                                            .shrink()
-                                                        : Text(
-                                                            "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}",
-                                                            style: TextStyle(
-                                                                color: Theme.of(
-                                                                        context)
-                                                                    .primaryColor,
-                                                                fontSize: 16,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                          ),
-                                                    site.supervisor_2 == null
-                                                        ? const SizedBox
-                                                            .shrink()
-                                                        : Text(
-                                                            "Contact: ${site.supervisor_2!.phone}",
-                                                            style: const TextStyle(
-                                                                color: Colors
-                                                                    .black54,
-                                                                fontWeight:
-                                                                    FontWeight
-                                                                        .bold),
-                                                          ),
-                                                  ],
-                                                ),
-                                              );
-                                            },
+                                            ],
                                           ),
                                         );
-                                      });
-                                  /*  setState(() {
+                                      },
+                                    ),
+                                  );
+                                });
+                            /*  setState(() {
                                             _selectedSite = site;
                                           });*/
-                                },
-                              ),
-                            );
-                          });
-                    } else {
-                      return Center(
-                        child: Loading(
-                          size: 64,
-                          inline: false,
+                          },
                         ),
                       );
-                    }
-                  }),
-            ),
+                    })
+
+                // FutureBuilder(
+                //     future: _siteService.allActifAsModel(),
+                //     builder: (context, snapshot) {
+                //       if (snapshot.hasData) {
+                //         var data = snapshot.data
+                //             ?.where((element) => element.name
+                //                 .toLowerCase()
+                //                 .contains(_keyword.toLowerCase()))
+                //             .toList();
+
+                //         return ListView.builder(
+                //             itemCount: data!.length,
+                //             itemBuilder: (context, index) {
+                //               Site site = data[index];
+                //               return Card(
+                //                 elevation: 0.2,
+                //                 color: AppConstants.secondaryColor.withAlpha(40),
+                //                 child: ListTile(
+                //                   leading: Text(
+                //                     "${index + 1}",
+                //                     style: const TextStyle(
+                //                         fontSize: 12,
+                //                         color: AppConstants.textColor),
+                //                   ),
+                //                   //selected: site.UID == _selectedSite.UID,
+                //                   selectedTileColor:
+                //                       Colors.blueGrey.withAlpha(60),
+                //                   title: Text(
+                //                     site.name,
+                //                     style: const TextStyle(
+                //                         fontSize: 15,
+                //                         color: AppConstants.textColor),
+                //                   ),
+                //                   subtitle: NbAgentStatus(site: site),
+                //                   /* leading: SizedBox(
+                //                       width: 20,
+                //                       height: 20,
+                //                       child: SiteStatus(
+                //                         site: site,
+                //                       )),*/
+                //                   onTap: () {
+                //                     showDialog(
+                //                         context: context,
+                //                         builder: (_) {
+                //                           return AlertDialog(
+                //                             contentPadding:
+                //                                 const EdgeInsets.all(0.0),
+                //                             alignment: Alignment.center,
+                //                             content: Builder(
+                //                               builder: (context) {
+                //                                 // Get available height and width of the build area of this widget. Make a choice depending on the size.
+                //                                 var height =
+                //                                     MediaQuery.of(context)
+                //                                         .size
+                //                                         .height;
+                //                                 var width = MediaQuery.of(context)
+                //                                     .size
+                //                                     .width;
+
+                //                                 return Padding(
+                //                                   padding: const EdgeInsets.only(
+                //                                       bottom: 8.0),
+                //                                   child: Column(
+                //                                     mainAxisSize:
+                //                                         MainAxisSize.min,
+                //                                     children: [
+                //                                       Row(
+                //                                         children: [
+                //                                           Expanded(
+                //                                             child: Container(
+                //                                                 padding:
+                //                                                     const EdgeInsets
+                //                                                         .symmetric(
+                //                                                         horizontal:
+                //                                                             8.0),
+                //                                                 alignment: Alignment
+                //                                                     .center,
+                //                                                 decoration: BoxDecoration(
+                //                                                     color: Theme.of(
+                //                                                             context)
+                //                                                         .primaryColor,
+                //                                                     borderRadius: const BorderRadius
+                //                                                         .only(
+                //                                                         topLeft: Radius
+                //                                                             .circular(
+                //                                                                 20),
+                //                                                         topRight:
+                //                                                             Radius.circular(
+                //                                                                 20))),
+                //                                                 height: 50,
+                //                                                 child: Row(
+                //                                                   mainAxisAlignment:
+                //                                                       MainAxisAlignment
+                //                                                           .spaceBetween,
+                //                                                   children: [
+                //                                                     Text(
+                //                                                       site.name,
+                //                                                       style: const TextStyle(
+                //                                                           color: Colors
+                //                                                               .white),
+                //                                                     ),
+                //                                                     IconButton(
+                //                                                         onPressed:
+                //                                                             () {
+                //                                                           Navigator.of(context)
+                //                                                               .pop();
+                //                                                         },
+                //                                                         icon:
+                //                                                             const Icon(
+                //                                                           Icons
+                //                                                               .cancel,
+                //                                                           color: Colors
+                //                                                               .white,
+                //                                                         ))
+                //                                                   ],
+                //                                                 )),
+                //                                           ),
+                //                                         ],
+                //                                       ),
+                //                                       Padding(
+                //                                         padding:
+                //                                             const EdgeInsets.all(
+                //                                                 8.0),
+                //                                         child: Row(
+                //                                           mainAxisAlignment:
+                //                                               MainAxisAlignment
+                //                                                   .spaceEvenly,
+                //                                           children: [
+                //                                             Column(
+                //                                               children: [
+                //                                                 const Text(
+                //                                                   "Adresse",
+                //                                                   style: TextStyle(
+                //                                                       color: Colors
+                //                                                           .black54),
+                //                                                 ),
+                //                                                 Text(
+                //                                                   site.adresse,
+                //                                                   style: const TextStyle(
+                //                                                       color: Colors
+                //                                                           .black),
+                //                                                 ),
+                //                                               ],
+                //                                             ),
+                //                                             const SizedBox(
+                //                                               width: 10,
+                //                                             ),
+                //                                             Column(
+                //                                               children: [
+                //                                                 const Text(
+                //                                                   "Contact",
+                //                                                   style: TextStyle(
+                //                                                       color: Colors
+                //                                                           .black54),
+                //                                                 ),
+                //                                                 Text(
+                //                                                   site.phone,
+                //                                                   style: const TextStyle(
+                //                                                       color: Colors
+                //                                                           .black),
+                //                                                 ),
+                //                                               ],
+                //                                             ),
+                //                                             const SizedBox(
+                //                                               width: 10,
+                //                                             ),
+                //                                             Column(
+                //                                               children: [
+                //                                                 const Text(
+                //                                                   "Agents",
+                //                                                   style: TextStyle(
+                //                                                       color: Colors
+                //                                                           .black54),
+                //                                                 ),
+                //                                                 siteAgent(site)
+                //                                               ],
+                //                                             )
+                //                                           ],
+                //                                         ),
+                //                                       ),
+                //                                       const CircleAvatar(
+                //                                         radius: 64,
+                //                                         backgroundImage:
+                //                                             AssetImage(Assets
+                //                                                 .assetsAgent),
+                //                                       ),
+                //                                       const Text(
+                //                                         "Superviseur 1",
+                //                                         style: TextStyle(
+                //                                             color: Colors.black54,
+                //                                             fontWeight:
+                //                                                 FontWeight.bold),
+                //                                       ),
+                //                                       Text(
+                //                                         "${site.supervisor?.firstName} ${site.supervisor?.lastName}",
+                //                                         style: TextStyle(
+                //                                             color:
+                //                                                 Theme.of(context)
+                //                                                     .primaryColor,
+                //                                             fontSize: 16,
+                //                                             fontWeight:
+                //                                                 FontWeight.bold),
+                //                                       ),
+                //                                       Text(
+                //                                         "Contact: ${site.supervisor!.phone}",
+                //                                         style: const TextStyle(
+                //                                             color: Colors.black54,
+                //                                             fontWeight:
+                //                                                 FontWeight.bold),
+                //                                       ),
+                //                                       const SizedBox(
+                //                                         height: 10,
+                //                                       ),
+                //                                       site.supervisor_2 == null
+                //                                           ? const SizedBox
+                //                                               .shrink()
+                //                                           : const Divider(),
+                //                                       site.supervisor_2 == null
+                //                                           ? const SizedBox
+                //                                               .shrink()
+                //                                           : const Text(
+                //                                               "Superviseur 2",
+                //                                               style: TextStyle(
+                //                                                   color: Colors
+                //                                                       .black54,
+                //                                                   fontWeight:
+                //                                                       FontWeight
+                //                                                           .bold),
+                //                                             ),
+                //                                       site.supervisor_2 == null
+                //                                           ? const SizedBox
+                //                                               .shrink()
+                //                                           : Text(
+                //                                               "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}",
+                //                                               style: TextStyle(
+                //                                                   color: Theme.of(
+                //                                                           context)
+                //                                                       .primaryColor,
+                //                                                   fontSize: 16,
+                //                                                   fontWeight:
+                //                                                       FontWeight
+                //                                                           .bold),
+                //                                             ),
+                //                                       site.supervisor_2 == null
+                //                                           ? const SizedBox
+                //                                               .shrink()
+                //                                           : Text(
+                //                                               "Contact: ${site.supervisor_2!.phone}",
+                //                                               style: const TextStyle(
+                //                                                   color: Colors
+                //                                                       .black54,
+                //                                                   fontWeight:
+                //                                                       FontWeight
+                //                                                           .bold),
+                //                                             ),
+                //                                     ],
+                //                                   ),
+                //                                 );
+                //                               },
+                //                             ),
+                //                           );
+                //                         });
+                //                     /*  setState(() {
+                //                               _selectedSite = site;
+                //                             });*/
+                //                   },
+                //                 ),
+                //               );
+                //             });
+                //       } else {
+                //         return Center(
+                //           child: Loading(
+                //             size: 64,
+                //             inline: false,
+                //           ),
+                //         );
+                //       }
+                //     }),
+
+                ),
           ],
         ));
   }

@@ -68,36 +68,42 @@ class _SupervisorListState extends State<PointageAgentList> {
                               .isBefore(_fin.add(const Duration(days: 1)))))
                       .toList();
 
-                  //filtrage des données de comptage de présence
                   data = data?.where((element) {
                     return (element.agent.firstName
-                                .toLowerCase()
-                                .contains(_keyword.toLowerCase()) ||
-                            element.agent.code
-                                .toLowerCase()
-                                .contains(_keyword.toLowerCase()));
+                            .toLowerCase()
+                            .contains(_keyword.toLowerCase()) ||
+                        element.agent.code
+                            .toLowerCase()
+                            .contains(_keyword.toLowerCase()));
                   }).toList();
 
+                  //filtrage des données de comptage de présence
                   List<Map<String, dynamic>> pointages = [];
                   List<Agent>? agents =
                       data?.map((e) => e.agent).toSet().toList();
 
                   for (Agent agent in agents ?? []) {
-                    var Listpointage = data
+                    var listPoint = data
                         ?.where((element) => element.agent.code == agent.code)
                         .toSet()
                         .toList();
                     pointages
-                        .add({"agent": agent, "pointages": Listpointage ?? []});
+                        .add({"agent": agent, "pointages": listPoint ?? []});
+                    var listP = [];
+                    data?.forEach((current) {
+                      if (current.agent == agent) {
+                        //listP.add();
+                      }
+                    });
                   }
                   if (_isBefore30) {
                     pointages = pointages.where((element) {
-                      List<PointingAgent> pointages = element["pointages"];
+                      List<PointingAgent> pointage = element["pointages"];
                       return pointages.length < 30;
                     }).toList();
                   } else {
                     pointages = pointages.where((element) {
-                      List<PointingAgent> pointages = element["pointages"];
+                      List<PointingAgent> point = element["pointages"];
                       return pointages.length > 30;
                     }).toList();
                   }

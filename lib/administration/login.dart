@@ -56,7 +56,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       body: AnimatedBackground(
         behaviour: RandomParticleBehaviour(
             options: const ParticleOptions(
-                baseColor: Colors.white, spawnMaxRadius: 25)),
+                baseColor: Colors.white, spawnMaxRadius: 7)),
         vsync: this,
         child: Center(
           child: SizedBox(
@@ -300,7 +300,7 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
   }
 
 //methode de connexion
-  void login() {
+  void login() async {
     if (_key.currentState!.validate()) {
       setState(() {
         _isLogin = true;
@@ -308,14 +308,15 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
       });
       _authService
           .loginWithEmail(_email_ctrl.text, _pass_ctrl.text)
-          .then((user) {
+          .then((user) async {
+        await _authService.authState();
         setState(() {
           _isLogin = false;
           _message = "";
         });
         //your code hier
 
-        context.go('/home');
+        if (mounted) context.go('/home');
       }).onError((error, stackTrace) {
         setState(() {
           _isLogin = false;

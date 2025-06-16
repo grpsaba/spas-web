@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:spas_web/administration/path_error_page.dart';
 import 'package:spas_web/agent/add_file_agent.dart';
 import 'package:spas_web/agent/agent_form.dart';
 import 'package:spas_web/agent/agent_list.dart';
@@ -47,9 +48,19 @@ import 'manager/user_page.dart';
 
 GoRouter routeConfig = GoRouter(
     initialLocation: "/home",
+    // errorBuilder: (context, state) => const PathErrorPage(),
+    onException: (context, state, router) {
+      if (state.matchedLocation == '/agent/dossier') {
+        router.go('/error', extra: 'Code agent inconnu');
+      } else {
+        router.go('/error', extra: 'Page Not Found');
+      }
+    },
+    // errorPageBuilder: (context, state) =>
+    //     const MaterialPage(child: PathErrorPage()),
     //routes Guard
     redirect: (BuildContext context, GoRouterState state) async {
-      if(AuthService.currentManager==null){
+      if (AuthService.currentManager == null) {
         await AuthService().authState();
       }
 
@@ -61,14 +72,20 @@ GoRouter routeConfig = GoRouter(
         if (state.fullPath == "/agents/recherche" ||
             state.fullPath == "/agents/dossier") {
           return null;
+        } else if (state.fullPath == '/error' || state.fullPath == '/login') {
+          return null;
         }
         return "/login";
 
-        // return "null" to display the intended route without redirecting
+        // return null; //to display the intended route without redirecting
       }
     },
     routes: [
       //routes auth
+      GoRoute(
+          name: "page d'erreur",
+          path: "/error",
+          builder: (context, state) => const PathErrorPage()),
       GoRoute(
           name: "page d'authentification",
           path: "/login",
@@ -76,7 +93,10 @@ GoRouter routeConfig = GoRouter(
       GoRoute(
           name: "Tableau de bord",
           path: "/home",
-          builder: (context, state) => HomePage()),
+          builder: (context, state) {
+          
+            return HomePage();
+          }),
       //routes manager/user
       GoRoute(
           name: "liste des utilisateur",
@@ -132,7 +152,6 @@ GoRouter routeConfig = GoRouter(
           path: "/agents",
           builder: (context, state) => const AgentList(),
           routes: [
-
             GoRoute(
                 name: "Ajoute un agent",
                 path: "add",
@@ -143,7 +162,6 @@ GoRouter routeConfig = GoRouter(
                 name: "import agents",
                 path: "import",
                 builder: (context, state) => const ImportAgent()),
-
             GoRoute(
                 name: "documents agents",
                 path: "documents",

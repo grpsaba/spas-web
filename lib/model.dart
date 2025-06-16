@@ -26,23 +26,23 @@ class LatLngModel {
   }
 //
 }
+
 class SuperviseurLocaion {
   DateTime date;
   LatLngModel latlng;
   Supervisor? supervisor;
 
-  SuperviseurLocaion(
-      {
-        required this.latlng,
-        required this.date,
-        required this.supervisor,
-      });
+  SuperviseurLocaion({
+    required this.latlng,
+    required this.date,
+    required this.supervisor,
+  });
 
   factory SuperviseurLocaion.fromJson(Map<String, dynamic> json) {
     return SuperviseurLocaion(
       date: DateTime.parse(json["date"]),
       latlng: LatLngModel.fromJson(json["latlng"]),
-      supervisor:Supervisor.fromJson(json["supervisor"]),
+      supervisor: Supervisor.fromJson(json["supervisor"]),
     );
   }
 
@@ -51,7 +51,6 @@ class SuperviseurLocaion {
       "date": date.toIso8601String(),
       "latlng": latlng.toJson(),
       "supervisor": supervisor?.toJson(),
-
     };
   }
 
@@ -62,6 +61,7 @@ class SuperviseurLocaion {
         date.month == today.month;
   }
 }
+
 class Supervisor {
   String UID;
   String code;
@@ -257,14 +257,16 @@ class Agent extends Equatable {
   @override
   // TODO: implement props
   List<Object?> get props => [code];
+
+  void genererCode() {}
 //
-  void genererCode() {
+/*  void genererCode() {
     for (int i = 1; i <= 4; i++) {
       int num = Random().nextInt(9);
       code += "$num";
     }
     code = "${department?.label.substring(0, 3) ?? "SEC"}$code";
-  }
+  }*/
 //
 
 //
@@ -576,6 +578,7 @@ class PointingAgent extends Equatable {
   // TODO: implement props
   List<Object?> get props => [date.day, date.month, date.year];
 }
+
 class PointingRondier extends Equatable {
   DateTime date;
   LatLngModel latlng;
@@ -585,12 +588,11 @@ class PointingRondier extends Equatable {
   bool confirmed;
   PointingRondier(
       {required this.agent,
-        required this.latlng,
-        required this.date,
-        required this.distance,
-        required this.confirmed,
-        required this.site
-      });
+      required this.latlng,
+      required this.date,
+      required this.distance,
+      required this.confirmed,
+      required this.site});
 
   factory PointingRondier.fromJson(Map<String, dynamic> json) {
     return PointingRondier(
@@ -624,6 +626,7 @@ class PointingRondier extends Equatable {
   // TODO: implement props
   List<Object?> get props => [date.day, date.month, date.year];
 }
+
 class Note extends Equatable {
   String id;
   DateTime date;

@@ -65,7 +65,6 @@ class NoteCard extends StatelessWidget {
                 stream: NoteService().allNoViewedNote(),
                 builder: (context, snapshot) {
                   if (snapshot.hasError) {
-
                     return const Text(
                       "0",
                       style: TextStyle(color: Colors.white, fontSize: 30),
@@ -93,9 +92,9 @@ class NoteCard extends StatelessWidget {
                       ],
                     );
                   } else {
-                    return  Loading(
-                      inline: false, size: 18,
-                      
+                    return Loading(
+                      inline: false,
+                      size: 18,
                     );
                   }
                 })

@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/progressionPointageSiteGlobal.dart';
 import 'package:spas_web/const.dart';
+import 'package:spas_web/model.dart';
 import 'package:spas_web/services/pointerSite.dart';
 
 class PointageSiteCard extends StatelessWidget {
+  final int nombreSite;
   const PointageSiteCard({
     super.key,
+    required this.nombreSite,
   });
 
   @override
@@ -44,10 +47,23 @@ class PointageSiteCard extends StatelessWidget {
                   );
                 }
                 if (snapshot.hasData) {
-                  return const Padding(
-                    padding: EdgeInsets.all(8.0),
-                    child: PointageSiteGlobal(),
+                  // print("connectionState = ${snapshot.data?.docs.first[""]}");
+                  var docs = snapshot.data?.docs.map((e) => e.data()).toList();
+                  var collection = docs
+                      ?.map((e) =>
+                          PointingSite.fromJson(e as Map<String, dynamic>))
+                      .toList();
+
+                  return Padding(
+                    padding: const EdgeInsets.all(8.0),
+                    child: PointageSiteGlobal(
+                      nbSite: nombreSite,
+                      data: snapshot.data,
+                    ),
                   );
+                } else if (snapshot.connectionState ==
+                    ConnectionState.waiting) {
+                  return const CircularProgressIndicator();
                 } else {
                   return const Text(
                     "0",

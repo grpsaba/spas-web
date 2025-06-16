@@ -1,11 +1,14 @@
 import 'package:flutter/material.dart';
+import 'package:spas_web/model.dart';
 
 import '../const.dart';
 import '../services/supervisor.dart';
 
 class SupervisorCard extends StatelessWidget {
+  final List<Supervisor> superviseur;
   const SupervisorCard({
     super.key,
+    required this.superviseur,
   });
 
   @override
@@ -34,30 +37,34 @@ class SupervisorCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          FutureBuilder(
-              future: SupervisorService().allFuture(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Text(
-                    "0",
-                    style: TextStyle(color: Colors.white, fontSize: 30),
-                  );
-                }
-                if (snapshot.hasData) {
-                  var data = snapshot.data
-                      ?.where((element) => element.actif == true)
-                      .toList();
-                  return Text(
-                    "${data?.length}",
-                    style: const TextStyle(color: Colors.white, fontSize: 30),
-                  );
-                } else {
-                  return const Text(
-                    "0",
-                    style: TextStyle(color: Colors.white, fontSize: 30),
-                  );
-                }
-              })
+          Text(
+            "${superviseur.length}",
+            style: const TextStyle(color: Colors.white, fontSize: 30),
+          )
+          // FutureBuilder(
+          //     future: SupervisorService().allFuture(),
+          //     builder: (context, snapshot) {
+          //       if (snapshot.hasError) {
+          //         return const Text(
+          //           "0",
+          //           style: TextStyle(color: Colors.white, fontSize: 30),
+          //         );
+          //       }
+          //       if (snapshot.hasData) {
+          //         var data = snapshot.data
+          //             ?.where((element) => element.actif == true)
+          //             .toList();
+          //         return Text(
+          //           "${data?.length}",
+          //           style: const TextStyle(color: Colors.white, fontSize: 30),
+          //         );
+          //       } else {
+          //         return const Text(
+          //           "0",
+          //           style: TextStyle(color: Colors.white, fontSize: 30),
+          //         );
+          //       }
+          //     })
         ],
       ),
     );

@@ -13,7 +13,8 @@ import 'Site_non_visite_par_sup.dart';
 import 'nombrePointageStatut.dart';
 
 class SitePointingListWithStatus extends StatefulWidget {
-  const SitePointingListWithStatus({super.key});
+  final List<Supervisor> supList;
+  const SitePointingListWithStatus({super.key, required this.supList});
 
   @override
   _SupervisorListState createState() => _SupervisorListState();
@@ -70,45 +71,46 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
             ),
             const Divider(),
             Expanded(
-              child: FutureBuilder(
-                  future: _supervisorService.allActifFuture(_keyword),
-                  builder: (context, snapshot) {
-                    switch (snapshot.connectionState) {
-                      case ConnectionState.none:
-                        // TODO: Handle this case.
-                        return const SizedBox.shrink();
-                      case ConnectionState.waiting:
-                        // TODO: Handle this case.
-                        return Loading(size: 64, inline: false);
+              child: sipervisorList(data: widget.supList),
 
-                      case ConnectionState.active:
-                        // TODO: Handle this case.
+              // FutureBuilder(
+              //     future: _supervisorService.allActifFuture(_keyword),
+              //     builder: (context, snapshot) {
+              //       switch (snapshot.connectionState) {
+              //         case ConnectionState.none:
+              //           // TODO: Handle this case.
+              //           return const SizedBox.shrink();
+              //         case ConnectionState.waiting:
+              //           // TODO: Handle this case.
+              //           return Loading(size: 64, inline: false);
 
-                      var  data = snapshot.data??[];
+              //         case ConnectionState.active:
+              //           // TODO: Handle this case.
 
-                      return sipervisorList(data: data);
-                      case ConnectionState.done:
-                        var  data = snapshot.data??[];
-                        return sipervisorList(data: data);
-                    }
-                  }),
+              //           var data = snapshot.data ?? [];
+
+              //           return sipervisorList(data: data);
+              //         case ConnectionState.done:
+              //           var data = snapshot.data ?? [];
+              //           return sipervisorList(data: data);
+              //       }
+              //     }),
             ),
           ],
         ));
   }
-  Widget sipervisorList({required List<Supervisor> data}){
+
+  Widget sipervisorList({required List<Supervisor> data}) {
     return ListView.builder(
         itemCount: data.length,
         itemBuilder: (context, index) {
           Supervisor supervisor = data[index];
           return Card(
             elevation: 0.2,
-            color: AppConstants.secondaryColor
-                .withOpacity(0.3),
+            color: AppConstants.secondaryColor.withOpacity(0.3),
             child: ListTile(
               //selected: site.UID == _selectedSite.UID,
-              selectedTileColor:
-              AppConstants.secondaryColor,
+              selectedTileColor: AppConstants.secondaryColor,
               title: Text(
                 '${supervisor.firstName} ${supervisor.lastName}',
                 style: const TextStyle(
@@ -116,8 +118,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                   fontSize: 15,
                 ),
               ),
-              subtitle:
-              NbPointageStatus(supervisor: supervisor),
+              subtitle: NbPointageStatus(supervisor: supervisor),
               trailing: IconButton(
                 tooltip: "Rapport",
                 icon: const Icon(
@@ -130,7 +131,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                       MaterialPageRoute(
                           builder: (_) => ImprimeRapport(
                               source:
-                              "${supervisor.firstName} ${supervisor.lastName}")));
+                                  "${supervisor.firstName} ${supervisor.lastName}")));
                 },
               ),
               /* leading: const SizedBox(
@@ -146,21 +147,19 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                     context: context,
                     builder: (_) {
                       return AlertDialog(
-                        contentPadding:
-                        const EdgeInsets.all(0.0),
+                        contentPadding: const EdgeInsets.all(0.0),
                         alignment: Alignment.center,
                         content: Builder(
                           builder: (context) {
                             // Get available height and width of the build area of this widget. Make a choice depending on the size.
 
-                            var width =
-                                MediaQuery.of(context)
-                                    .size
-                                    .width;
+                            var width = MediaQuery.of(context).size.width;
 
                             return Container(
                               width: width - (width - 500),
-                              child: SiteNonVisite(
+                              child:
+                                  // Container()
+                                  SiteNonVisite(
                                 supervisor: supervisor,
                               ),
                             );

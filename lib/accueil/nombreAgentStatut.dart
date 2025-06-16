@@ -29,7 +29,7 @@ class _NbAgentStatusState extends State<NbAgentStatus> {
                 FAProgressBar(
                   //progressType: LinearProgressBar.progressTypeLinear,
                   displayText: "%",
-                  size: 12,
+                  size: 15,
                   maxValue: 100.0,
                   currentValue: purcent,
                   progressColor: purcent <= 30

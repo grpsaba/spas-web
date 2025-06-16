@@ -16,8 +16,11 @@ class PointingZoneService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+
   Stream<QuerySnapshot> allByZoneMember(ZoneMember zoneMember) {
-    return _collectionReference.where('zoneMember.UID',isEqualTo: zoneMember.UID).snapshots();
+    return _collectionReference
+        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
+        .snapshots();
   }
 
   Future<DocumentSnapshot<Object?>> one(child) {

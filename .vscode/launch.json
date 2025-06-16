@@ -1,0 +1,36 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+    "name": "Flutter for web (hot reloadable)",
+    "type": "dart",
+    "request": "launch",
+    "program": "lib/main.dart",
+    "args": [
+      "-d",
+      "chrome",
+      "--web-experimental-hot-reload",
+    ]
+  },
+        {
+            "name": "spas-web",
+            "request": "launch",
+            "type": "dart"
+        },
+        {
+            "name": "spas-web (profile mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "profile"
+        },
+        {
+            "name": "spas-web (release mode)",
+            "request": "launch",
+            "type": "dart",
+            "flutterMode": "release"
+        }
+    ]
+}

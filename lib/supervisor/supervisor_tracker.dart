@@ -59,8 +59,12 @@ class _SupervisorTrackerState extends State<SupervisorTracker> {
     PolylinePoints polylinePoints = PolylinePoints();
     PointLatLng pointLatLng = PointLatLng(widget.supervisor.latlng?.lat ?? 0.0,
         widget.supervisor.latlng?.lng ?? 0.0);
+    PolylineRequest request = PolylineRequest(
+        origin: pointLatLng,
+        destination: pointLatLng,
+        mode: TravelMode.transit);
     PolylineResult result = await polylinePoints.getRouteBetweenCoordinates(
-        AppConstants.maps_api_key, pointLatLng, pointLatLng);
+        request: request, googleApiKey: AppConstants.maps_api_key);
     if (result.points.isNotEmpty) {
       for (var polyPoint in result.points) {
         _polyLineCoordinates
@@ -97,7 +101,9 @@ class _SupervisorTrackerState extends State<SupervisorTracker> {
       pageIdex: 4,
       titile:
           "Position de ${widget.supervisor.firstName} ${widget.supervisor.lastName}",
-      child: LocationMapsComponent(supervisor: widget.supervisor,),
+      child: LocationMapsComponent(
+        supervisor: widget.supervisor,
+      ),
     );
   }
 }

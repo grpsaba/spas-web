@@ -5,8 +5,10 @@ import '../const.dart';
 import '../services/site.dart';
 
 class SiteCard extends StatelessWidget {
+  final int nombreSites;
   const SiteCard({
     super.key,
+    required this.nombreSites,
   });
 
   @override
@@ -41,30 +43,34 @@ class SiteCard extends StatelessWidget {
             ),
           ),
           const SizedBox(height: 10),
-          FutureBuilder(
-              future: SiteService().allAsModel(),
-              builder: (context, snapshot) {
-                if (snapshot.hasError) {
-                  return const Text(
-                    "0",
-                    style: TextStyle(color: Colors.white, fontSize: 30),
-                  );
-                }
-                if (snapshot.hasData) {
-                  var data = snapshot.data
-                      ?.where((element) => element.actif == true)
-                      .toList();
-                  return Text(
-                    "${data?.length}",
-                    style: const TextStyle(color: Colors.white, fontSize: 30),
-                  );
-                } else {
-                  return const Text(
-                    "0",
-                    style: TextStyle(color: Colors.white, fontSize: 30),
-                  );
-                }
-              }),
+          Text(
+            "$nombreSites",
+            style: const TextStyle(color: Colors.white, fontSize: 30),
+          )
+          // FutureBuilder(
+          //     future: SiteService().allAsModel(),
+          //     builder: (context, snapshot) {
+          //       if (snapshot.hasError) {
+          //         return const Text(
+          //           "0",
+          //           style: TextStyle(color: Colors.white, fontSize: 30),
+          //         );
+          //       }
+          //       if (snapshot.hasData) {
+          //         var data = snapshot.data
+          //             ?.where((element) => element.actif == true)
+          //             .toList();
+          //         return Text(
+          //           "${data?.length}",
+          //           style: const TextStyle(color: Colors.white, fontSize: 30),
+          //         );
+          //       } else {
+          //         return const Text(
+          //           "0",
+          //           style: TextStyle(color: Colors.white, fontSize: 30),
+          //         );
+          //       }
+          //     }),
         ],
       ),
     );

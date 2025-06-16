@@ -75,9 +75,7 @@ class _ZonePointageProgressionListState
                   future: _zoneService.allActifAsModel(),
                   builder: (context, snapshot) {
                     if (snapshot.hasData) {
-
-                      var data = snapshot.data??[];
-
+                      var data = snapshot.data ?? [];
                       data = data
                           .where((element) =>
                               element.zone!.name

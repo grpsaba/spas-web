@@ -78,6 +78,8 @@ dependencies:
   go_router: ^13.2.0
   file_selector: ^1.0.3
   geocoding: ^3.0.0
+  skeletonizer: ^2.0.1
+  provider: ^6.1.4
 
 dev_dependencies:
   flutter_test:
@@ -106,7 +108,7 @@ flutter:
     - assets/
     - assets/geopin3.png
     - assets/geopoin2.png
-  #   - images/a_dot_ham.jpeg
+    - assets/images/
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/assets-and-images/#resolution-aware

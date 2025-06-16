@@ -105,7 +105,7 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                           .toList();
 
                       return StreamBuilder(
-                          stream: PointingAgentService().all(),
+                          stream: PointingAgentService().allByDay(),
                           builder: (context, snapshot) {
                             if (snapshot.hasError) {
                               return const SizedBox.shrink();
@@ -150,7 +150,7 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                                     Agent agent = _listAgent[index];
                                     return Card(
                                       color: AppConstants.secondaryColor
-                                          .withOpacity(0.3),
+                                          .withAlpha(45),
                                       elevation: 0.3,
                                       child: ListTile(
                                         onTap: () {},

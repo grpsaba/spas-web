@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart' as intl;
+import 'package:spas_web/administration/path_error_page.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/generated/assets.dart';
 import 'package:spas_web/model.dart';
@@ -11,7 +12,7 @@ import '../uploadManager/file_image.dart';
 
 class AgentFolder extends StatefulWidget {
   const AgentFolder({super.key, this.code = "XXXX"});
-  final String code;
+  final String? code;
   @override
   _AgentFolderState createState() => _AgentFolderState();
 }
@@ -26,86 +27,93 @@ class _AgentFolderState extends State<AgentFolder>
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(
-        backgroundColor: AppConstants.primaryColor,
-        leading: const Image(
-          image: AssetImage(Assets.assetsLogo),
-        ),
-        title: const Text(
-          "GROUPE SABA : CONSULTATION DE DOSSIER AGANT",
-          style: TextStyle(color: Colors.white),
-        ),
-      ),
-      body: FutureBuilder(
-        future: AgentService().one(widget.code),
-        builder: (context, snapshot) {
-          if (snapshot.hasData) {
-            Agent? agent = snapshot.data;
-            if (agent == null) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off,
-                      size: 80,
-                      color: AppConstants.primaryColor,
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Text(
-                      "Agent ${widget.code} introuvable!",
-                      style: const TextStyle(color: Colors.black, fontSize: 20),
-                    )
-                  ],
-                ),
-              );
-            } else {
-              return body(agent);
-            }
-          } else {
-            if (snapshot.hasError) {
-              return Center(
-                child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Icon(
-                      Icons.cloud_off,
-                      size: 80,
-                      color: AppConstants.primaryColor,
-                    ),
-                    const SizedBox(
-                      height: 10,
-                    ),
-                    Text(
-                      "Agent ${widget.code} introuvable!",
-                      style: const TextStyle(color: Colors.black, fontSize: 20),
-                    )
-                  ],
-                ),
-              );
-            }
-            return Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Loading(size: 64, inline: false),
-                  const SizedBox(
-                    height: 10,
-                  ),
-                  Text(
-                    "Recherche de l'agent ${widget.code} en cours...",
-                    style: const TextStyle(color: Colors.black, fontSize: 20),
-                  )
-                ],
+    return widget.code == null
+        ? const PathErrorPage2(
+            error: 'Code agent inconnu',
+          )
+        : Scaffold(
+            appBar: AppBar(
+              backgroundColor: AppConstants.primaryColor,
+              leading: const Image(
+                image: AssetImage(Assets.assetsLogo),
               ),
-            );
-          }
-        },
-      ),
-    );
+              title: const Text(
+                "GROUPE SABA : CONSULTATION DE DOSSIER AGANT",
+                style: TextStyle(color: Colors.white),
+              ),
+            ),
+            body: FutureBuilder(
+              future: AgentService().one(widget.code),
+              builder: (context, snapshot) {
+                if (snapshot.hasData) {
+                  Agent? agent = snapshot.data;
+                  if (agent == null) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off,
+                            size: 80,
+                            color: AppConstants.primaryColor,
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          Text(
+                            "Agent ${widget.code} introuvable!",
+                            style: const TextStyle(
+                                color: Colors.black, fontSize: 20),
+                          )
+                        ],
+                      ),
+                    );
+                  } else {
+                    return body(agent);
+                  }
+                } else {
+                  if (snapshot.hasError) {
+                    return Center(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          const Icon(
+                            Icons.cloud_off,
+                            size: 80,
+                            color: AppConstants.primaryColor,
+                          ),
+                          const SizedBox(
+                            height: 10,
+                          ),
+                          Text(
+                            "Agent ${widget.code} introuvable!",
+                            style: const TextStyle(
+                                color: Colors.black, fontSize: 20),
+                          )
+                        ],
+                      ),
+                    );
+                  }
+                  return Center(
+                    child: Column(
+                      mainAxisAlignment: MainAxisAlignment.center,
+                      children: [
+                        Loading(size: 64, inline: false),
+                        const SizedBox(
+                          height: 10,
+                        ),
+                        Text(
+                          "Recherche de l'agent ${widget.code} en cours...",
+                          style: const TextStyle(
+                              color: Colors.black, fontSize: 20),
+                        )
+                      ],
+                    ),
+                  );
+                }
+              },
+            ),
+          );
   }
 
   Widget body(Agent agent) {

@@ -15,6 +15,17 @@ class PointingAgentService {
     return _collectionReference.snapshots();
   }
 
+  Stream<QuerySnapshot> allByDay() {
+    DateTime now = DateTime.now();
+    DateTime startOfDay = DateTime(now.year, now.month, now.day);
+    DateTime endOfDay = startOfDay.add(const Duration(days: 1));
+
+    return _collectionReference
+        .where("datetimestamp", isGreaterThanOrEqualTo: startOfDay)
+        .where("datetimestamp", isLessThan: endOfDay)
+        .snapshots();
+  }
+
   Future<DocumentSnapshot<Object?>> one(child) {
     return _collectionReference.doc(child).get();
   }
