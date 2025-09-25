@@ -25,6 +25,9 @@ class SiteService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+    Stream<QuerySnapshot> allSos() {
+    return _collectionReference.where('sos', isEqualTo: true).snapshots();
+  }
 
   Stream<QuerySnapshot> allActifSite() {
     return _collectionReference.where("actif", isEqualTo: true).snapshots();

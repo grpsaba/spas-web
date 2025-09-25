@@ -28,20 +28,15 @@ class _AlertState extends State<Sos> {
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
-        stream: _siteService.all(),
+        stream: _siteService.allSos(),
         builder: (context, snapshot) {
           if (snapshot.hasData) {
             var docs = snapshot.data?.docs
                 .map((e) => jsonDecode(jsonEncode(e.data())))
                 .toList();
-            var lst = jsonDecode(jsonEncode(docs));
-            //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
             List<Site>? data = docs?.map((e) => Site.fromJson(e)).toList();
-            data = data
-                ?.where((site) => site.sos == true && site.actif == true)
-                .toList();
-
+           
             if (data == null) {
               Audio().stopSOs();
 
@@ -52,6 +47,7 @@ class _AlertState extends State<Sos> {
 
               return const SizedBox.shrink();
             } else {
+              debugPrint("${data.length} sos");
               TTS().speetch(
                   "Sos sur ${data.first.name}, superviseur ${data.first.supervisor!.firstName} ${data.first.supervisor!.lastName}");
               Audio().sos();

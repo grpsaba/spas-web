@@ -50,13 +50,14 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
+             const Text(
+                  "Pointages site",
+                  style: TextStyle(fontSize: 16, color: Colors.white,fontWeight: FontWeight.w500),
+                  textAlign: TextAlign.center,
+                ),
             Row(
               children: [
-                const Text(
-                  "Pointages site",
-                  style: TextStyle(fontSize: 15, color: Colors.white),
-                ),
-                const SizedBox(width: 5),
+               
                 Expanded(
                   child: SearchTextField(
                       fillColor: AppConstants.bgColor,
@@ -69,7 +70,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                       },
                       onPress: () {}),
                 ),
-                const SizedBox(width: 10),
+                const SizedBox(width: 5),
                 _buildDateFilterDropdown(),
               ],
             ),
@@ -184,7 +185,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
 
   Widget _buildDateFilterDropdown() {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       decoration: BoxDecoration(
         color: AppConstants.bgColor.withOpacity(0.3),
         borderRadius: BorderRadius.circular(8),
@@ -193,6 +194,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<DateFilter>(
           value: _selectedDateFilter,
+          padding: EdgeInsets.all(0),
           dropdownColor: AppConstants.bgColor,
           style: const TextStyle(color: Colors.white, fontSize: 12),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),

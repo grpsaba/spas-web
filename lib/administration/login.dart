@@ -110,7 +110,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
         child: SafeArea(
           child: Center(
             child: SingleChildScrollView(
-              padding: const EdgeInsets.all(16.0),
+              padding: const EdgeInsets.all(12.0),
               child: FadeTransition(
                 opacity: _fadeAnimation,
                 child: SlideTransition(
@@ -128,15 +128,15 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                             Sos(),
                           ],
                         ),
-                        const SizedBox(height: 20),
+                        const SizedBox(height: 6),
 
                         // Logo and Title
                         _buildHeader(),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 10),
 
                         // Daily Instructions Card
                         _buildInstructionsCard(),
-                        const SizedBox(height: 30),
+                        const SizedBox(height: 10),
 
                         // Login Form
                         _buildLoginForm(),
@@ -158,7 +158,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
         Hero(
           tag: 'logo',
           child: Container(
-            padding: const EdgeInsets.all(16),
+            padding: const EdgeInsets.all(14),
             decoration: BoxDecoration(
               shape: BoxShape.circle,
               color: Colors.white,
@@ -171,18 +171,18 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
               ],
             ),
             child: const CircleAvatar(
-              radius: 50,
+              radius: 45,
               backgroundImage: AssetImage("assets/logo.png"),
               backgroundColor: Colors.transparent,
             ),
           ),
         ),
-        const SizedBox(height: 20),
+        const SizedBox(height: 5),
         Text(
           AppConstants.oragnisationName,
           style: const TextStyle(
             color: Colors.white,
-            fontSize: 28,
+            fontSize: 25,
             fontWeight: FontWeight.bold,
             letterSpacing: 1.2,
           ),
@@ -204,10 +204,10 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   Widget _buildInstructionsCard() {
     return Card(
       elevation: 8,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
       color: Colors.white.withValues(alpha: 0.95),
       child: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.all(14),
         child: Column(
           children: [
             Row(
@@ -231,12 +231,12 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                 ),
               ],
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 6),
             Container(
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 4),
               decoration: BoxDecoration(
                 color: AppConstants.primaryColor.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(20),
+                borderRadius: BorderRadius.circular(16),
               ),
               child: Text(
                 _consigne.consigne,
@@ -247,7 +247,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                 ),
               ),
             ),
-            const SizedBox(height: 12),
+            const SizedBox(height: 8),
             Text(
               _consigne.tache,
               style: const TextStyle(
@@ -269,7 +269,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
       color: Colors.white,
       child: Padding(
-        padding: const EdgeInsets.all(32),
+        padding: const EdgeInsets.all(25),
         child: Form(
           key: _formKey,
           child: Column(
@@ -277,12 +277,12 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
               const Text(
                 "Connexion",
                 style: TextStyle(
-                  fontSize: 24,
+                  fontSize: 22,
                   fontWeight: FontWeight.bold,
                   color: Colors.black87,
                 ),
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 20),
 
               // Email Field
               _buildTextField(
@@ -295,7 +295,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                   FocusScope.of(context).requestFocus(_passwordFocusNode); // Move focus to password field
                 },
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 16),
 
               // Password Field
               _buildTextField(
@@ -318,7 +318,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                 focusNode: _passwordFocusNode, // Assign FocusNode to password field
                 onFieldSubmitted: (_) => _login(), // Trigger login on Enter
               ),
-              const SizedBox(height: 30),
+              const SizedBox(height: 24),
 
               // Login Button
               SizedBox(
@@ -352,7 +352,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                         ),
                 ),
               ),
-              const SizedBox(height: 20),
+              const SizedBox(height: 14),
 
               // Error Message
               if (_message.isNotEmpty)

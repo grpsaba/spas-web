@@ -37,6 +37,7 @@ class _HomePageState extends State<HomePage> {
       _initializeData();
     });
   }
+  bool isStatsHiden = false;
   List<AgentType> _agentTypes = []; // Store fetched AgentType data
   bool _isLoadingAgentTypes = true; // Track loading state
   Future<void> _initializeData() async {
@@ -59,7 +60,11 @@ class _HomePageState extends State<HomePage> {
     }
   }
   final manager = AuthService.currentManager;
-
+void hideStats(){
+  setState(() {
+    isStatsHiden = !isStatsHiden;
+  });
+}
   @override
   Widget build(BuildContext context) {
     return Consumer<HomeProvider>(
@@ -208,7 +213,15 @@ class _HomePageState extends State<HomePage> {
     return ListView(
       padding: const EdgeInsets.all(16),
       children: [
-        _buildStatsCards(context, provider, isDesktop, isTablet, isMobile),
+           Row(
+
+          children: [const Spacer(),
+             _buildHideButton(),
+             SizedBox(width: 10,),
+          _buildRefreshButton(provider),
+          ],
+         ),
+      isStatsHiden? const SizedBox.shrink() :  _buildStatsCards(context, provider, isDesktop, isTablet, isMobile),
         const SizedBox(height: 24),
         _buildDataGrids(context, provider, isDesktop, isTablet, isMobile),
       ],
@@ -238,15 +251,34 @@ class _HomePageState extends State<HomePage> {
       ),
       child: Column(
         children: [
-          _buildRefreshButton(provider),
-          const SizedBox(height: 16),
+      
           _buildStatsRow(context, provider, isDesktop, isTablet, isMobile),
         ],
       ),
     );
   }
-
-  Widget _buildRefreshButton(HomeProvider provider) {
+  Widget _buildHideButton() {
+    return Align(
+      alignment: Alignment.centerRight,
+      child: InkWell(
+        radius: 0,
+        splashColor: Colors.transparent,
+        onTap: ()=> hideStats(),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
+          ),
+          child:    Icon(isStatsHiden? Icons.visibility:Icons.visibility_off,color: Colors.white,size: 20,)
+           
+        ),
+      ),
+    );
+  }
+  Widget _buildRefreshButton(HomeProvider provider,{bool stats = false}) {
     return Align(
       alignment: Alignment.centerRight,
       child: Material(
@@ -261,7 +293,8 @@ class _HomePageState extends State<HomePage> {
               borderRadius: BorderRadius.circular(12),
               border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
             ),
-            child: Row(
+            child: stats? GestureDetector(onTap: ()=>hideStats(),child:  Icon(isStatsHiden? Icons.visibility:Icons.visibility_off,color: Colors.white,size: 20,),)
+             :   Row(
               mainAxisSize: MainAxisSize.min,
               children: [
                 if (provider.isLoading)
