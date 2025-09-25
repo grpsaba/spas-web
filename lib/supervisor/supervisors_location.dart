@@ -132,8 +132,8 @@ class SupervisorsLocationState extends State<SupervisorsLocation> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-        pageIdex: 10,
-        titile: "Sites maps",
+        pageIndex: 10,
+        title: "Sites maps",
         child: Row(
           children: [
             !_searchsupervisor

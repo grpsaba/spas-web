@@ -11,8 +11,8 @@ class UserPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 1,
-      titile: "Gestion utilisateurs",
+      pageIndex: 1,
+      title: "Gestion utilisateurs",
       child: DefaultTabController(
           length: 2,
           child: Scaffold(

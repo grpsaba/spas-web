@@ -46,8 +46,8 @@ class _SupervisorMapsState extends State<SupervisorMaps> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 4,
-      titile: "Positions des superviseurs",
+      pageIndex: 4,
+      title: "Positions des superviseurs",
       child: FutureBuilder(
           future: _supervisorService.allFuture(),
           builder: (context, snapshot) {

@@ -94,7 +94,6 @@ GoRouter routeConfig = GoRouter(
           name: "Tableau de bord",
           path: "/home",
           builder: (context, state) {
-          
             return HomePage();
           }),
       //routes manager/user

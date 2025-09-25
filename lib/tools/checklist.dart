@@ -46,8 +46,8 @@ class _CheckListViewState extends State<CheckListView> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 8,
-      titile: "Checklist",
+      pageIndex: 8,
+      title: "Checklist",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

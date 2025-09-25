@@ -51,8 +51,8 @@ class _PointageZoneState extends State<PointageZone> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 15,
-      titile: "Pointages des chefs de zone",
+      pageIndex: 15,
+      title: "Pointages des chefs de zone",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

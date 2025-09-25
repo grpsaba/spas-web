@@ -102,8 +102,8 @@ class _AddSupervisorState extends State<AddSite> {
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 2,
-      titile: "Gestion des sites -> Edition de site",
+      pageIndex: 2,
+      title: "Gestion des sites -> Edition de site",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(

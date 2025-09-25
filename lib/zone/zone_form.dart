@@ -60,8 +60,8 @@ class _AddZoneState extends State<AddZone> {
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 14,
-      titile: "Gestion des zones -> Edition de Zone",
+      pageIndex: 14,
+      title: "Gestion des zones -> Edition de Zone",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(

@@ -12,7 +12,6 @@ import '../pdf/api/pdf_api.dart';
 import '../rowperPageWidget.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
-import '../services/pointerAgent.dart';
 import '../services/pointerRondier.dart';
 
 class PointageRondierList extends StatefulWidget {
@@ -63,8 +62,8 @@ class _State extends State<PointageRondierList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 17,
-      titile: "Pointages Rondier",
+      pageIndex: 17,
+      title: "Pointages Rondier",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

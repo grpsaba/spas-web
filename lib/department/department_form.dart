@@ -42,8 +42,8 @@ class _AddDepatmentState extends State<AddDepatment> {
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 12,
-      titile: "Edition Département",
+      pageIndex: 12,
+      title: "Edition Département",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(

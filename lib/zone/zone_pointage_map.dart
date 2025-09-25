@@ -34,8 +34,8 @@ class _SitePointageZoneMapState extends State<SitePointageZoneMap> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 15,
-      titile: "Rapport nombre de pointage par chef de zone",
+      pageIndex: 15,
+      title: "Rapport nombre de pointage par chef de zone",
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

@@ -27,8 +27,8 @@ class _SiteMonthlyPointageState extends State<SiteMonthlyPointage> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 6,
-      titile: "Pointages -> Nombre de visite des sites",
+      pageIndex: 6,
+      title: "Pointages -> Nombre de visite des sites",
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

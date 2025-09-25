@@ -44,6 +44,33 @@ class PointingSiteService {
         .snapshots();
   }
 
+  // Nouvelle méthode avec filtre de date personnalisé
+  Stream<QuerySnapshot> allBySupervisorWithDateFilter({
+    required Supervisor supervisor,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    return _collectionReference
+        .where('supervisor.UID', isEqualTo: supervisor.UID)
+        .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
+        .where('datetimestamp', isLessThan: endDate)
+        .orderBy('datetimestamp', descending: true)
+        .snapshots();
+  }
+
+  // Méthode optimisée pour obtenir les statistiques directement depuis Firebase
+  Stream<QuerySnapshot> getPointingStatsBySupervisor({
+    required Supervisor supervisor,
+    required DateTime startDate,
+    required DateTime endDate,
+  }) {
+    return _collectionReference
+        .where('supervisor.UID', isEqualTo: supervisor.UID)
+        .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
+        .where('datetimestamp', isLessThan: endDate)
+        .snapshots();
+  }
+
   Future<DocumentSnapshot<Object?>> one(child) {
     return _collectionReference.doc(child).get();
   }

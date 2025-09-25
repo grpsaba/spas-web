@@ -49,8 +49,8 @@ class _ZoneListState extends State<ZoneList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 14,
-      titile: "Gestion des zones",
+      pageIndex: 14,
+      title: "Gestion des zones",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

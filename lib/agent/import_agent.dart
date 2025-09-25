@@ -67,8 +67,8 @@ class _ImportAgentState extends State<ImportAgent> {
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 3,
-      titile: "Gestion des agents -> import Agents",
+      pageIndex: 3,
+      title: "Gestion des agents -> import Agents",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(

@@ -5,6 +5,7 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spas_web/providers/home_provider.dart';
 import 'package:spas_web/router.dart';
+import 'package:spas_web/models/menu_item_model.dart';
 import 'package:url_strategy/url_strategy.dart';
 
 import 'const.dart';
@@ -16,6 +17,9 @@ Future<void> main() async {
     options: DefaultFirebaseOptions.currentPlatform,
   );
   FirebaseFirestore firestore = FirebaseFirestore.instance;
+
+  // Preload menu assets for better performance
+  await MenuItemModel.preloadAssets();
 
   //Audio().stopSOs();
   //enlever le # dans url de la page

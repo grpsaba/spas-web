@@ -28,8 +28,8 @@ class _ZoneSiteMonthlyPointageState extends State<ZoneSiteMonthlyPointage> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 15,
-      titile: "Nombre de visite des sites par chef de zone",
+      pageIndex: 15,
+      title: "Nombre de visite des sites par chef de zone",
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

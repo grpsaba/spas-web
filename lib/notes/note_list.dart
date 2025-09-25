@@ -47,8 +47,8 @@ class _SupervisorListState extends State<NoteList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 9,
-      titile: "Gestion des notes",
+      pageIndex: 9,
+      title: "Gestion des notes",
       child: SingleChildScrollView(
           child: Row(
         children: [

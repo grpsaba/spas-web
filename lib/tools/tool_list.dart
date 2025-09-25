@@ -46,8 +46,8 @@ class _SupervisorListState extends State<ToolList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 5,
-      titile: "Gestion des matériaux",
+      pageIndex: 5,
+      title: "Gestion des matériaux",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

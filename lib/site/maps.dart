@@ -95,8 +95,8 @@ class _MapsState extends State<Maps> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 10,
-      titile: "Sites maps",
+      pageIndex: 10,
+      title: "Sites maps",
       child: StreamBuilder(
           stream: _siteService.all(),
           builder: (context, snapshot) {

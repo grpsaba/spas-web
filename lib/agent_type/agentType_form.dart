@@ -42,8 +42,8 @@ class _AddAgentYpeState extends State<AddAgentYpe> {
   Widget build(BuildContext context) {
     double _padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 13,
-      titile: "Edition Type Agent",
+      pageIndex: 13,
+      title: "Edition Type Agent",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(

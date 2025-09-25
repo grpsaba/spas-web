@@ -43,8 +43,8 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 16,
-      titile: "Gestion des chefs de zone",
+      pageIndex: 16,
+      title: "Gestion des chefs de zone",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

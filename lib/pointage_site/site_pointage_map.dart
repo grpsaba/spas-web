@@ -34,8 +34,8 @@ class _SitePointageMapState extends State<SitePointageMap> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 6,
-      titile: "Pointages -> Nombre de pointage par superviseur",
+      pageIndex: 6,
+      title: "Pointages -> Nombre de pointage par superviseur",
       child: Center(
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,

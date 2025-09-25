@@ -98,8 +98,8 @@ class _SupervisorTrackerState extends State<SupervisorTracker> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 4,
-      titile:
+      pageIndex: 4,
+      title:
           "Position de ${widget.supervisor.firstName} ${widget.supervisor.lastName}",
       child: LocationMapsComponent(
         supervisor: widget.supervisor,

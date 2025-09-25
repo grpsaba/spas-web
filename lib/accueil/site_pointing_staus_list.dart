@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/notes/imprime_rapport.dart';
 import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/models/date_filter.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -24,8 +25,9 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
   final SupervisorService _supervisorService = SupervisorService();
   final TextEditingController _texController = TextEditingController();
   String _keyword = "";
-  DateTime _dateDebut = DateTime.now();
-  DateTime _dateFin = DateTime.now();
+  DateFilter _selectedDateFilter = DateFilter.today;
+  DateTime? _customStartDate;
+  DateTime? _customEndDate;
   /*Site _selectedSite = Site(
       nbAgent: 0,
       UID: "",
@@ -54,19 +56,21 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                   "Pointages site",
                   style: TextStyle(fontSize: 15, color: Colors.white),
                 ),
-                const SizedBox(
-                  width: 5,
+                const SizedBox(width: 5),
+                Expanded(
+                  child: SearchTextField(
+                      fillColor: AppConstants.bgColor,
+                      hintColor: AppConstants.secondaryColor,
+                      textColor: Colors.white,
+                      onSearch: (value) {
+                        setState(() {
+                          _keyword = value;
+                        });
+                      },
+                      onPress: () {}),
                 ),
-                SearchTextField(
-                    fillColor: AppConstants.bgColor,
-                    hintColor: AppConstants.secondaryColor,
-                    textColor: Colors.white,
-                    onSearch: (value) {
-                      setState(() {
-                        _keyword = value;
-                      });
-                    },
-                    onPress: () {}),
+                const SizedBox(width: 10),
+                _buildDateFilterDropdown(),
               ],
             ),
             const Divider(),
@@ -118,7 +122,12 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
                   fontSize: 15,
                 ),
               ),
-              subtitle: NbPointageStatus(supervisor: supervisor),
+              subtitle: NbPointageStatus(
+                supervisor: supervisor,
+                dateFilter: _selectedDateFilter,
+                customStartDate: _customStartDate,
+                customEndDate: _customEndDate,
+              ),
               trailing: IconButton(
                 tooltip: "Rapport",
                 icon: const Icon(
@@ -171,5 +180,83 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
             ),
           );
         });
+  }
+
+  Widget _buildDateFilterDropdown() {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+      decoration: BoxDecoration(
+        color: AppConstants.bgColor.withOpacity(0.3),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: Colors.white.withOpacity(0.2)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<DateFilter>(
+          value: _selectedDateFilter,
+          dropdownColor: AppConstants.bgColor,
+          style: const TextStyle(color: Colors.white, fontSize: 12),
+          icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
+          items: DateFilter.values.map((DateFilter filter) {
+            return DropdownMenuItem<DateFilter>(
+              value: filter,
+              child: Text(
+                filter.label,
+                style: const TextStyle(fontSize: 12),
+              ),
+            );
+          }).toList(),
+          onChanged: (DateFilter? newValue) {
+            if (newValue != null) {
+              setState(() {
+                _selectedDateFilter = newValue;
+                if (newValue == DateFilter.custom) {
+                  _showCustomDatePicker();
+                } else {
+                  _customStartDate = null;
+                  _customEndDate = null;
+                }
+              });
+            }
+          },
+        ),
+      ),
+    );
+  }
+
+  Future<void> _showCustomDatePicker() async {
+    final DateTimeRange? picked = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime.now().subtract(const Duration(days: 365)),
+      lastDate: DateTime.now().add(const Duration(days: 1)),
+      initialDateRange: DateTimeRange(
+        start: _customStartDate ?? DateTime.now().subtract(const Duration(days: 7)),
+        end: _customEndDate ?? DateTime.now(),
+      ),
+      builder: (context, child) {
+        return Theme(
+          data: Theme.of(context).copyWith(
+            colorScheme: ColorScheme.light(
+              primary: AppConstants.primaryColor,
+              onPrimary: Colors.white,
+              surface: Colors.white,
+              onSurface: Colors.black,
+            ),
+          ),
+          child: child!,
+        );
+      },
+    );
+
+    if (picked != null) {
+      setState(() {
+        _customStartDate = DateTime(picked.start.year, picked.start.month, picked.start.day);
+        _customEndDate = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59);
+      });
+    } else {
+      // Si l'utilisateur annule, revenir au filtre précédent
+      setState(() {
+        _selectedDateFilter = DateFilter.today;
+      });
+    }
   }
 }

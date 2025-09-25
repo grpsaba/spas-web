@@ -1,297 +1,150 @@
 import 'dart:math';
 
-import 'package:animated_background/animated_background.dart';
-import 'package:animated_text_kit/animated_text_kit.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/model.dart';
 
 import '../services/authentication.dart';
-import '../services/loading.dart';
 import '../services/player.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
 
   @override
-  _LoginState createState() => _LoginState();
+  State<Login> createState() => _LoginState();
 }
 
-class _LoginState extends State<Login> with TickerProviderStateMixin {
-  final TextEditingController _email_ctrl = TextEditingController();
-  final TextEditingController _pass_ctrl = TextEditingController();
-  final GlobalKey<FormState> _key = GlobalKey<FormState>();
+class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
+  final TextEditingController _emailController = TextEditingController();
+  final TextEditingController _passwordController = TextEditingController();
+  final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
+  final FocusNode _passwordFocusNode = FocusNode(); // Added FocusNode for password field
+  
   String _message = "";
-  bool _isLogin = false;
-  Consigne_model consigne = Consigne_model(consigne: "", tache: "");
+  bool _isLoading = false;
+  bool _obscurePassword = true;
+  bool _enableTTS = false;
+  late Consigne_model _consigne;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    consigne = getCondignDuJours();
-    TTS().speetch(consigne.tache);
+    _initializeAnimations();
+    _consigne = _getConsigneOfTheDay();
+  }
+
+  void _initializeAnimations() {
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1200),
+      vsync: this,
+    );
+    
+    _fadeAnimation = Tween<double>(
+      begin: 0.0,
+      end: 1.0,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeInOut,
+    ));
+    
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.3),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+    
+    _animationController.forward();
   }
 
   @override
   void dispose() {
-    // TODO: implement dispose
+    _animationController.dispose();
+    _emailController.dispose();
+    _passwordController.dispose();
+    _passwordFocusNode.dispose(); // Dispose the FocusNode
     super.dispose();
-    _email_ctrl.dispose();
-    _pass_ctrl.dispose();
   }
 
-  Consigne_model getCondignDuJours() {
-    int index = Random().nextInt(AppConstants.consignes.length - 1);
+  Consigne_model _getConsigneOfTheDay() {
+    final random = Random();
+    final index = random.nextInt(AppConstants.consignes.length);
     return AppConstants.consignes[index];
+  }
+
+  void _toggleTTS() {
+    setState(() {
+      _enableTTS = !_enableTTS;
+    });
+    if (_enableTTS) {
+      TTS().speetch(_consigne.tache);
+    }
   }
 
   @override
   Widget build(BuildContext context) {
+    final size = MediaQuery.of(context).size;
+    final isDesktop = size.width > 768;
+    final cardWidth = isDesktop ? 450.0 : size.width * 0.9;
+
     return Scaffold(
-      backgroundColor: Theme.of(context).primaryColor,
-      body: AnimatedBackground(
-        behaviour: RandomParticleBehaviour(
-            options: const ParticleOptions(
-                baseColor: Colors.white, spawnMaxRadius: 7)),
-        vsync: this,
-        child: Center(
-          child: SizedBox(
-            width: 400,
-            child: Column(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Sos(),
-                const SizedBox(
-                  height: 10,
-                ),
-                const Text(
-                  "CONSIGNES DU JOUR",
-                  style: TextStyle(color: Colors.white),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                Chip(
-                  side: BorderSide.none,
-                  backgroundColor: Colors.white.withOpacity(0.4),
-                  label: Text(
-                    consigne.consigne,
-                    style: TextStyle(color: Theme.of(context).primaryColor),
-                  ),
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                AnimatedTextKit(
-                  animatedTexts: [
-                    TypewriterAnimatedText(
-                      consigne.tache,
-                      textStyle: const TextStyle(
-                        color: Colors.white,
-                      ),
-                      speed: const Duration(milliseconds: 100),
-                    ),
-                  ],
-                  totalRepeatCount: 4,
-                  pause: const Duration(milliseconds: 50),
-                  displayFullTextOnTap: true,
-                  stopPauseOnTap: true,
-                ),
-                const SizedBox(
-                  height: 20,
-                ),
-                Container(
-                  width: 400,
-                  height: 450,
-                  padding: const EdgeInsets.only(
-                      top: 8.0, bottom: 8.0, left: 15.0, right: 15.0),
-                  decoration: BoxDecoration(
-                      borderRadius: BorderRadius.circular(20),
-                      color: Colors.blueGrey.withOpacity(0.5)),
-                  child: SingleChildScrollView(
+      body: Container(
+        decoration: BoxDecoration(
+          gradient: LinearGradient(
+            begin: Alignment.topLeft,
+            end: Alignment.bottomRight,
+            colors: [
+              AppConstants.primaryColor,
+              AppConstants.primaryColor.withValues(alpha: 0.8),
+              AppConstants.bgColor,
+            ],
+          ),
+        ),
+        child: SafeArea(
+          child: Center(
+            child: SingleChildScrollView(
+              padding: const EdgeInsets.all(16.0),
+              child: FadeTransition(
+                opacity: _fadeAnimation,
+                child: SlideTransition(
+                  position: _slideAnimation,
+                  child: ConstrainedBox(
+                    constraints: BoxConstraints(maxWidth: cardWidth),
                     child: Column(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const CircleAvatar(
-                            radius: 64,
-                            backgroundImage: AssetImage("assets/logo.png")),
-                        const SizedBox(
-                          height: 20,
+                        // SOS Button
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            const Spacer(),
+                            Sos(),
+                          ],
                         ),
-                        Form(
-                          key: _key,
-                          child: Column(
-                            mainAxisAlignment: MainAxisAlignment.center,
-                            children: [
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                          color: Colors.black38,
-                                          borderRadius:
-                                              BorderRadius.circular(20)),
-                                      height: 48,
-                                      padding: const EdgeInsets.only(
-                                          left: 8.0, right: 8.0),
-                                      child: TextFormField(
-                                        controller: _email_ctrl,
-                                        style: const TextStyle(
-                                            color: Colors.white),
-                                        decoration: const InputDecoration(
-                                            hintText: "Email",
-                                            hintStyle:
-                                                TextStyle(color: Colors.white),
-                                            labelStyle:
-                                                TextStyle(color: Colors.white),
-                                            prefixIcon: Icon(
-                                              Icons.phone,
-                                              color: Colors.white,
-                                            ),
-                                            border: InputBorder.none),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(
-                                height: 20,
-                              ),
-                              Row(
-                                children: [
-                                  Expanded(
-                                    child: Container(
-                                      decoration: BoxDecoration(
-                                          color: Colors.black38,
-                                          borderRadius:
-                                              BorderRadius.circular(20)),
-                                      height: 48,
-                                      padding: const EdgeInsets.only(
-                                          left: 8.0, right: 8.0),
-                                      child: CallbackShortcuts(
-                                        bindings: <ShortcutActivator,
-                                            VoidCallback>{
-                                          const SingleActivator(
-                                              LogicalKeyboardKey.enter): () {
-                                            login();
-                                          }
-                                        },
-                                        child: Focus(
-                                          autofocus: true,
-                                          child: TextFormField(
-                                            controller: _pass_ctrl,
-                                            obscureText: true,
-                                            style: const TextStyle(
-                                                color: Colors.white),
-                                            decoration: const InputDecoration(
-                                                hintText: "Mot de passe",
-                                                hintStyle: TextStyle(
-                                                    color: Colors.white),
-                                                labelStyle: TextStyle(
-                                                    color: Colors.white),
-                                                prefixIcon: Icon(
-                                                  Icons.sms,
-                                                  color: Colors.white,
-                                                ),
-                                                border: InputBorder.none),
-                                          ),
-                                        ),
-                                      ),
-                                    ),
-                                  ),
-                                ],
-                              ),
-                              const SizedBox(
-                                height: 40,
-                              ),
-                              _isLogin
-                                  ? Loading(size: 64, inline: false)
-                                  : CallbackShortcuts(
-                                      bindings: <ShortcutActivator,
-                                          VoidCallback>{
-                                        const SingleActivator(
-                                            LogicalKeyboardKey.enter): () {
-                                          login();
-                                        }
-                                      },
-                                      child: Focus(
-                                        autofocus: true,
-                                        child: ElevatedButton(
-                                            style: ElevatedButton.styleFrom(
-                                                fixedSize: const Size(200, 48),
-                                                shape: RoundedRectangleBorder(
-                                                    borderRadius:
-                                                        BorderRadius.circular(
-                                                            20))),
-                                            onPressed: () {
-                                              login();
-                                            },
-                                            child:
-                                                const Text("Connectez-vous")),
-                                      ),
-                                    ),
-                              const SizedBox(
-                                height: 30,
-                              ),
-                              /* TextButton(
-                                  onPressed: () async {
-                                    List<Agent> agents =
-                                        await AgentService().allFuture();
-                                    /* agents = agents.where((element) {
-                                      if (element.site != null) {
-                                        return element.site!.UID !=
-                                            "rXkVVl9AH8MYSPn25FSHS7eESpc2";
-                                      } else {
-                                        return true;
-                                      }
-                                    }).toList();*/
+                        const SizedBox(height: 20),
 
-                                    for (Agent ag in agents) {
-                                      /* Agent newAg = Agent(
-                                          code: "",
-                                          firstName: ag.firstName,
-                                          lastName: ag.lastName,
-                                          phone: ag.phone,
-                                          email: ag.email,
-                                          tracking: ag.tracking,
-                                          site: ag.site,
-                                          department: ag.department,
-                                          typeAgent: ag.typeAgent,
-                                          actif: ag.actif,
-                                          docs: ag.docs,
-                                          contacts: ag.contacts,
-                                          dateEmbauche: ag.dateEmbauche,
-                                          dateArret: ag.dateArret);*/
-                                      //newAg.genererCode();
-                                      // AgentService().add(newAg);
-                                      if (int.tryParse(ag.phone) == null) {
-                                        ag.phone = "";
-                                      }
-                                      AgentService().update(ag);
-                                    }
-                                    MotionToast.success(description: Text("OK"))
-                                        .show(context);
-                                  },
-                                  child: Text(
-                                    "update all agent",
-                                    style: TextStyle(color: Colors.white),
-                                  )),*/
-                              Text(
-                                _message,
-                                style: const TextStyle(color: Colors.white),
-                              )
-                            ],
-                          ),
-                        ),
+                        // Logo and Title
+                        _buildHeader(),
+                        const SizedBox(height: 30),
+
+                        // Daily Instructions Card
+                        _buildInstructionsCard(),
+                        const SizedBox(height: 30),
+
+                        // Login Form
+                        _buildLoginForm(),
                       ],
                     ),
                   ),
                 ),
-              ],
+              ),
             ),
           ),
         ),
@@ -299,37 +152,337 @@ class _LoginState extends State<Login> with TickerProviderStateMixin {
     );
   }
 
-//methode de connexion
-  void login() async {
-    if (_key.currentState!.validate()) {
-      setState(() {
-        _isLogin = true;
-        _message = "";
-      });
-      _authService
-          .loginWithEmail(_email_ctrl.text, _pass_ctrl.text)
-          .then((user) async {
-        await _authService.authState();
-        setState(() {
-          _isLogin = false;
-          _message = "";
-        });
-        //your code hier
+  Widget _buildHeader() {
+    return Column(
+      children: [
+        Hero(
+          tag: 'logo',
+          child: Container(
+            padding: const EdgeInsets.all(16),
+            decoration: BoxDecoration(
+              shape: BoxShape.circle,
+              color: Colors.white,
+              boxShadow: [
+                BoxShadow(
+                  color: Colors.black.withValues(alpha: 0.1),
+                  blurRadius: 20,
+                  offset: const Offset(0, 10),
+                ),
+              ],
+            ),
+            child: const CircleAvatar(
+              radius: 50,
+              backgroundImage: AssetImage("assets/logo.png"),
+              backgroundColor: Colors.transparent,
+            ),
+          ),
+        ),
+        const SizedBox(height: 20),
+        Text(
+          AppConstants.oragnisationName,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 28,
+            fontWeight: FontWeight.bold,
+            letterSpacing: 1.2,
+          ),
+        ),
+        const SizedBox(height: 8),
+        const Text(
+          "Système de Protection et d'Assistance Sécuritaire",
+          style: TextStyle(
+            color: Colors.white70,
+            fontSize: 14,
+            fontWeight: FontWeight.w300,
+          ),
+          textAlign: TextAlign.center,
+        ),
+      ],
+    );
+  }
 
-        if (mounted) context.go('/home');
-      }).onError((error, stackTrace) {
-        setState(() {
-          _isLogin = false;
+  Widget _buildInstructionsCard() {
+    return Card(
+      elevation: 8,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(16)),
+      color: Colors.white.withValues(alpha: 0.95),
+      child: Padding(
+        padding: const EdgeInsets.all(20),
+        child: Column(
+          children: [
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
+                const Text(
+                  "CONSIGNES DU JOUR",
+                  style: TextStyle(
+                    color: AppConstants.primaryColor,
+                    fontSize: 16,
+                    fontWeight: FontWeight.bold,
+                  ),
+                ),
+                IconButton(
+                  onPressed: _toggleTTS,
+                  icon: Icon(
+                    _enableTTS ? Icons.volume_up : Icons.volume_off,
+                    color: AppConstants.primaryColor,
+                  ),
+                  tooltip: _enableTTS ? "Désactiver l'audio" : "Activer l'audio",
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            Container(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+              decoration: BoxDecoration(
+                color: AppConstants.primaryColor.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(20),
+              ),
+              child: Text(
+                _consigne.consigne,
+                style: const TextStyle(
+                  color: AppConstants.primaryColor,
+                  fontWeight: FontWeight.w600,
+                  fontSize: 14,
+                ),
+              ),
+            ),
+            const SizedBox(height: 12),
+            Text(
+              _consigne.tache,
+              style: const TextStyle(
+                color: Colors.black87,
+                fontSize: 13,
+                height: 1.4,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 
-          switch (error.hashCode) {
-            case 495537990:
-              _message = "Vérifiez votre connexion internet.";
-              break;
-            default:
-              _message = "Erreur de connexion";
-          }
+  Widget _buildLoginForm() {
+    return Card(
+      elevation: 12,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+      color: Colors.white,
+      child: Padding(
+        padding: const EdgeInsets.all(32),
+        child: Form(
+          key: _formKey,
+          child: Column(
+            children: [
+              const Text(
+                "Connexion",
+                style: TextStyle(
+                  fontSize: 24,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.black87,
+                ),
+              ),
+              const SizedBox(height: 30),
+
+              // Email Field
+              _buildTextField(
+                controller: _emailController,
+                hintText: "Adresse email",
+                prefixIcon: Icons.email_outlined,
+                keyboardType: TextInputType.emailAddress,
+                validator: _validateEmail,
+                onFieldSubmitted: (_) {
+                  FocusScope.of(context).requestFocus(_passwordFocusNode); // Move focus to password field
+                },
+              ),
+              const SizedBox(height: 20),
+
+              // Password Field
+              _buildTextField(
+                controller: _passwordController,
+                hintText: "Mot de passe",
+                prefixIcon: Icons.lock_outline,
+                obscureText: _obscurePassword,
+                suffixIcon: IconButton(
+                  onPressed: () {
+                    setState(() {
+                      _obscurePassword = !_obscurePassword;
+                    });
+                  },
+                  icon: Icon(
+                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
+                    color: Colors.grey,
+                  ),
+                ),
+                validator: _validatePassword,
+                focusNode: _passwordFocusNode, // Assign FocusNode to password field
+                onFieldSubmitted: (_) => _login(), // Trigger login on Enter
+              ),
+              const SizedBox(height: 30),
+
+              // Login Button
+              SizedBox(
+                width: double.infinity,
+                height: 50,
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _login,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: AppConstants.primaryColor,
+                    foregroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                      borderRadius: BorderRadius.circular(25),
+                    ),
+                    elevation: 4,
+                  ),
+                  child: _isLoading
+                      ? const SizedBox(
+                          height: 20,
+                          width: 20,
+                          child: CircularProgressIndicator(
+                            strokeWidth: 2,
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                          ),
+                        )
+                      : const Text(
+                          "Se connecter",
+                          style: TextStyle(
+                            fontSize: 16,
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                ),
+              ),
+              const SizedBox(height: 20),
+
+              // Error Message
+              if (_message.isNotEmpty)
+                Container(
+                  padding: const EdgeInsets.all(12),
+                  decoration: BoxDecoration(
+                    color: Colors.red.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(8),
+                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const SizedBox(width: 8),
+                      Expanded(
+                        child: Text(
+                          _message,
+                          style: const TextStyle(
+                            color: Colors.red,
+                            fontSize: 14,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildTextField({
+    required TextEditingController controller,
+    required String hintText,
+    required IconData prefixIcon,
+    TextInputType? keyboardType,
+    bool obscureText = false,
+    Widget? suffixIcon,
+    String? Function(String?)? validator,
+    void Function(String)? onFieldSubmitted,
+    FocusNode? focusNode, // Added focusNode parameter
+  }) {
+    return TextFormField(
+      controller: controller,
+      keyboardType: keyboardType,
+      obscureText: obscureText,
+      validator: validator,
+      onFieldSubmitted: onFieldSubmitted,
+      focusNode: focusNode, // Assign focusNode to TextFormField
+      decoration: InputDecoration(
+        hintText: hintText,
+        prefixIcon: Icon(prefixIcon, color: Colors.grey),
+        suffixIcon: suffixIcon,
+        filled: true,
+        fillColor: Colors.grey.withValues(alpha: 0.1),
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: AppConstants.primaryColor, width: 2),
+        ),
+        errorBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: Colors.red, width: 2),
+        ),
+        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+      ),
+    );
+  }
+
+  String? _validateEmail(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Veuillez saisir votre email';
+    }
+    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
+      return 'Veuillez saisir un email valide';
+    }
+    return null;
+  }
+
+  String? _validatePassword(String? value) {
+    if (value == null || value.isEmpty) {
+      return 'Veuillez saisir votre mot de passe';
+    }
+    if (value.length < 6) {
+      return 'Le mot de passe doit contenir au moins 6 caractères';
+    }
+    return null;
+  }
+
+  // Méthode de connexion optimisée
+  Future<void> _login() async {
+    if (!_formKey.currentState!.validate()) return;
+
+    setState(() {
+      _isLoading = true;
+      _message = "";
+    });
+
+    try {
+      await _authService.loginWithEmail(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
+      
+      await _authService.authState();
+      
+      if (mounted) {
+        context.go('/home');
+      }
+    } catch (error) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+          _message = _getErrorMessage(error);
         });
-      });
+      }
+    }
+  }
+
+  String _getErrorMessage(dynamic error) {
+    switch (error.hashCode) {
+      case 495537990:
+        return "Vérifiez votre connexion internet.";
+      default:
+        return "Email ou mot de passe incorrect.";
     }
   }
 }

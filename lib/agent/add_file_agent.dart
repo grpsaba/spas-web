@@ -33,8 +33,8 @@ class _AgentAddFileState extends State<AgentAddFile>
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 3,
-      titile: "${widget.agent.firstName} ${widget.agent.lastName}",
+      pageIndex: 3,
+      title: "${widget.agent.firstName} ${widget.agent.lastName}",
       child: Row(
         children: [
           agentInfo(),

@@ -45,8 +45,8 @@ class _DepartmentListState extends State<DepartmentList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 12,
-      titile: "Gestion des departements",
+      pageIndex: 12,
+      title: "Gestion des departements",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

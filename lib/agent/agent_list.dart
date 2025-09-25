@@ -50,8 +50,8 @@ class _AgentListState extends State<AgentList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 3,
-      titile: "Gestion des agents",
+      pageIndex: 3,
+      title: "Gestion des agents",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

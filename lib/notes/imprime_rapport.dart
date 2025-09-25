@@ -36,8 +36,8 @@ class _ImprimeRapportState extends State<ImprimeRapport> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 9,
-      titile: "Rapport de ${widget.source}",
+      pageIndex: 9,
+      title: "Rapport de ${widget.source}",
       child: Center(
         child: Container(
           padding: const EdgeInsets.all(8.0),

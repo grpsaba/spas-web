@@ -47,8 +47,8 @@ class _SupervisorListState extends State<SupervisorList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 4,
-      titile: "Gestion des superviseurs",
+      pageIndex: 4,
+      title: "Gestion des superviseurs",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

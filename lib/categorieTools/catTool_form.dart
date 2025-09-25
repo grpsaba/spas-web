@@ -45,8 +45,8 @@ class _AddCatToolState extends State<AddCatTool> {
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 11,
-      titile: "Gestion Equipements -> Edition Equipement",
+      pageIndex: 11,
+      title: "Gestion Equipements -> Edition Equipement",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(

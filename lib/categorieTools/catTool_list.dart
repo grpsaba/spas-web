@@ -45,8 +45,8 @@ class _CatToolListState extends State<CatToolList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 11,
-      titile: "Gestion des équipement",
+      pageIndex: 11,
+      title: "Gestion des équipement",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

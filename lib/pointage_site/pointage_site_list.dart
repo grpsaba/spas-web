@@ -49,8 +49,8 @@ class _SupervisorListState extends State<PointageSiteList> {
   @override
   Widget build(BuildContext context) {
     return PageModel(
-      pageIdex: 6,
-      titile: "Pointages des sites",
+      pageIndex: 6,
+      title: "Pointages des sites",
       child: SingleChildScrollView(
           child: StreamBuilder(
               stream: _service.all(),

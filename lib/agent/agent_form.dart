@@ -75,8 +75,8 @@ class _AddSupervisorState extends State<AddAgent> {
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
     return PageModel(
-      pageIdex: 3,
-      titile: "Gestion des agents -> Edition Agent",
+      pageIndex: 3,
+      title: "Gestion des agents -> Edition Agent",
       child: SingleChildScrollView(
         child: Padding(
           padding: EdgeInsets.only(
