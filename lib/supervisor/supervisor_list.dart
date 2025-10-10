@@ -278,7 +278,7 @@ class _DataSource extends DataTableSource {
 
   Widget nbSite(Supervisor supervisor) {
     return FutureBuilder(
-        future: SiteService().allBySupervisor(supervisor.UID),
+        future: SiteService().allBySupervisor(supervisor),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const SizedBox.shrink();
           if (snapshot.hasData) {

@@ -321,6 +321,8 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
       child: Material(
         color: Colors.transparent,
         child: InkWell(
+          splashColor: Colors.transparent,
+          radius: 0.0,
           onTap: () => context.go(item.route),
           borderRadius: BorderRadius.circular(12),
           child: Container(

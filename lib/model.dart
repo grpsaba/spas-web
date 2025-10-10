@@ -73,7 +73,9 @@ class Supervisor {
   LatLngModel? latlng;
   String token;
   bool? actif;
+   final bool isSpecial;
   Department? department;
+    Zone? zone;
   Supervisor(
       {required this.UID,
       required this.code,
@@ -85,6 +87,7 @@ class Supervisor {
       required this.tracking,
       required this.latlng,
       required this.actif,
+       this.isSpecial=false,  this.zone,
       required this.department});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
@@ -95,8 +98,9 @@ class Supervisor {
       lastName: json["lastName"],
       phone: json["phone"],
       email: json["email"],
-      token: json['token'],
+      token: json['token'], zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
       actif: json['actif'] ?? true,
+      isSpecial: json['isSpecial'] ?? false,
       tracking: json["tracking"],
       department: json['department'] == null
           ? null
@@ -118,6 +122,7 @@ class Supervisor {
       "tracking": tracking,
       'actif': actif,
       "latlng": latlng?.toJson(),
+      "isSpecial": isSpecial,"zone": zone?.toJson(),
       "department": department?.toJson()
     };
   }

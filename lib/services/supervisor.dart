@@ -50,9 +50,9 @@ class SupervisorService {
           await _collectionReference.where("actif", isEqualTo: true).get();
       List<Supervisor> data = snpshot.docs
           .map((QueryDocumentSnapshot e) =>
-              Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
+              Supervisor.fromJson(e.data() as dynamic))
           .toList();
-      return data;
+      return data;//.sublist(1,2);
     } catch (e) {
       print("Catch");
       debugPrint("Err == $e");

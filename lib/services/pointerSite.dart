@@ -64,6 +64,12 @@ class PointingSiteService {
     required DateTime startDate,
     required DateTime endDate,
   }) {
+    // if special, get for the month of the current date
+    if(supervisor.isSpecial){
+      var now = DateTime.now();
+      startDate=DateTime(now.year, now.month, 1);
+endDate=startDate.add(const Duration(days: 31));
+    }
     return _collectionReference
         .where('supervisor.UID', isEqualTo: supervisor.UID)
         .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
@@ -93,6 +99,23 @@ class PointingSiteService {
       print(e);
       return [];
     }
+  }
+      /// Count documents for a supervisor on a given day (date = DateTime with any time)
+  Future<int?> countForSupervisorOnDate(String supervisorUID, DateTime date) async {
+   try{
+     final start = DateTime(date.year, date.month, date.day);
+    final end = start.add(const Duration(days: 1));
+    final query = _collectionReference
+        .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisorUID),
+         Filter('supervisor_2.UID', isEqualTo: supervisorUID)))
+        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(end));
+    // Aggregation count() — server computes the count, returns a single int.
+    final agg = await query.count().get();
+    return agg.count;
+   }catch(exception){
+    print(Exception);
+   }
   }
 
   Future<List<Map<String, dynamic>>> nbSiteCheckedToDAyBySupervisor(
@@ -140,4 +163,9 @@ class PointingSiteService {
       return [];
     }
   }
+
+
+
+
+
 }

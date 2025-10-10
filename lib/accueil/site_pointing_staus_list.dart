@@ -194,7 +194,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
       child: DropdownButtonHideUnderline(
         child: DropdownButton<DateFilter>(
           value: _selectedDateFilter,
-          padding: EdgeInsets.all(0),
+          padding: const EdgeInsets.all(0),
           dropdownColor: AppConstants.bgColor,
           style: const TextStyle(color: Colors.white, fontSize: 12),
           icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
@@ -237,7 +237,7 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
-            colorScheme: ColorScheme.light(
+            colorScheme: const ColorScheme.light(
               primary: AppConstants.primaryColor,
               onPrimary: Colors.white,
               surface: Colors.white,

@@ -38,7 +38,7 @@ class HomeProvider extends ChangeNotifier {
 
     try {
       // Chargement parallèle pour optimiser les performances
-      final results = await Future.wait([
+   await Future.wait([
         _loadSites(),
         _loadSupervisors(),
       ]);
@@ -56,7 +56,7 @@ class HomeProvider extends ChangeNotifier {
     try {
       final allSites = await SiteService().allAsModel();
       _sites = allSites.where((site) => site.actif == true).toList();
-      _nbSite = _sites.length;
+       _nbSite = _sites.length;
       notifyListeners();
     } catch (e) {
       throw Exception('Impossible de charger les sites: $e');

@@ -52,8 +52,43 @@ class SiteService {
 
     return collection;
   }
+  Future<List<Site>> allSitesByZone(Zone zone) async {
+    var s1 = await _collectionReference
+        .where("zone.codeZone", isEqualTo: zone.codeZone)
+        .where("actif", isEqualTo: true)
+        .get();
+    
+    var s1Future = s1.docs.map((snap) {
+      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+    });
+   
+    return s1Future.toList();
+  }
+    Future<int?> allSitesCountByZone(Zone zone) async {
+    var s1 = await _collectionReference
+        .where("zone.codeZone", isEqualTo: zone.codeZone)
+        .where("actif", isEqualTo: true).count()
+        .get();
+    
+   return s1.count;
+  }
 
-  Future<List<Site>> allBySupervisor(uid) async {
+   Future<int?> allSitesCountBySupervisor(Supervisor supervisor) async {
+    if(supervisor.isSpecial && supervisor.zone!=null){
+      return await allSitesCountByZone(supervisor.zone!);
+    }
+    var snapshot =
+        await _collectionReference.where('actif', isEqualTo: true,)
+        .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisor.UID),
+         Filter('supervisor_2.UID', isEqualTo: supervisor.UID))).count().get();
+
+    return snapshot.count;
+  }
+  
+  Future<List<Site>> allBySupervisor(Supervisor supervisor) async {
+    if(supervisor.isSpecial && supervisor.zone!=null){
+      return await allSitesByZone(supervisor.zone!);
+    }
     var snapshot =
         await _collectionReference.where('actif', isEqualTo: true).get();
     var collection = snapshot.docs
@@ -62,8 +97,8 @@ class SiteService {
         })
         .toList()
         .where((element) {
-          return (element.supervisor?.UID == uid ||
-              element.supervisor_2?.UID == uid);
+          return (element.supervisor?.UID == supervisor.UID ||
+              element.supervisor_2?.UID == supervisor.UID);
         })
         .toList();
 

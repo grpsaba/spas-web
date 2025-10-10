@@ -1,15 +1,11 @@
 class UtilsClass {
   List<DateTime> jourDuMois(DateTime date) {
-    List<DateTime> dates = [];
-    int mois = date.month;
-    int day = date.day;
-    while (day != 1) {
-      date = date.subtract(const Duration(days: 1));
-      day = date.day;
-    }
-    while (mois == date.month) {
-      dates.add(date);
-      date = date.add(const Duration(days: 1));
+    final List<DateTime> dates = [];
+    final start = DateTime(date.year, date.month, 1);
+    DateTime cur = start;
+    while (cur.month == start.month) {
+      dates.add(cur);
+      cur = cur.add(const Duration(days: 1));
     }
     return dates;
   }

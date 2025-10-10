@@ -9,7 +9,6 @@ class Assets {
   static const String assetsFondscatter = 'assets/fondscatter.jpg';
   static const String assetsGeopin = 'assets/geopin.png';
   static const String assetsGeopin3 = 'assets/geopin3.png';
-  static const String assetsGeopinanimated = 'assets/geopinanimated.gif';
   static const String assetsGeopoin2 = 'assets/geopoin2.png';
   static const String assetsIconAgent = 'assets/icon_agent.png';
   static const String assetsIconManager = 'assets/icon_manager.png';

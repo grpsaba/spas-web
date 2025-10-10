@@ -49,119 +49,120 @@ class _SupervisorListState extends State<ToolList> {
       pageIndex: 5,
       title: "Gestion des matériaux",
       child: SingleChildScrollView(
-          child: StreamBuilder(
-              stream: _service.all(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
-                      .toList();
-                  var data = docs?.map((e) => Tool.fromJson(e)).toList();
+          // child: StreamBuilder(
+          //     stream: _service.all(),
+          //     builder: (context, snapshot) {
+          //       if (snapshot.hasData) {
+          //         var docs = snapshot.data?.docs
+          //             .map((e) => jsonDecode(jsonEncode(e.data())))
+          //             .toList();
+          //         var data = docs?.map((e) => Tool.fromJson(e)).toList();
 
-                  //copy to _dataToexport
-                  _dataToexport = data!;
-                  return PaginatedDataTable(
-                    header: Row(
-                      children: [
-                        const Text("Liste des matériaux"),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        SearchTextField(
-                            onSearch: (value) {
-                              setState(() {
-                                _keyword = value;
-                              });
-                            },
-                            onPress: () {}),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.TOOL)!
-                                .add
-                            ? ElevatedButton(
-                                onPressed: () {
-                                  Tool tool = Tool(
-                                    serialNumber: '',
-                                    label: '',
-                                    site: null,
-                                    catTool: null,
-                                  );
-                                  context.go('/tools/add', extra: tool);
-                                },
-                                child: const Icon(Icons.add),
-                              )
-                            : const SizedBox.shrink(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.TOOL)!
-                                .generBadge
-                            ? Tooltip(
-                                message: "Générer les QR CODES",
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(100))),
-                                  onPressed: () {
-                                    CarteGenerator.generateMiltiQrTool(
-                                        _dataToexport);
-                                  },
-                                  child: const Icon(
-                                    Icons.badge,
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                      ],
-                    ),
-                    actions: [
-                      RowPerPageWidget(
-                        controller: _texController,
-                        incremente: () {
-                          setState(() {
-                            rowParPage += 1;
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                        decremente: () {
-                          setState(() {
-                            rowParPage = rowParPage <= defauldRowParPage
-                                ? defauldRowParPage
-                                : rowParPage - 1;
+          //         //copy to _dataToexport
+          //         _dataToexport = data!;
+          //         return PaginatedDataTable(
+          //           header: Row(
+          //             children: [
+          //               const Text("Liste des matériaux"),
+          //               const SizedBox(
+          //                 width: 10,
+          //               ),
+          //               SearchTextField(
+          //                   onSearch: (value) {
+          //                     setState(() {
+          //                       _keyword = value;
+          //                     });
+          //                   },
+          //                   onPress: () {}),
+          //               const SizedBox(
+          //                 width: 10,
+          //               ),
+          //               AuthService.currentManager!.profil!
+          //                       .getModule(ModuleName.TOOL)!
+          //                       .add
+          //                   ? ElevatedButton(
+          //                       onPressed: () {
+          //                         Tool tool = Tool(
+          //                           serialNumber: '',
+          //                           label: '',
+          //                           site: null,
+          //                           catTool: null,
+          //                         );
+          //                         context.go('/tools/add', extra: tool);
+          //                       },
+          //                       child: const Icon(Icons.add),
+          //                     )
+          //                   : const SizedBox.shrink(),
+          //               const SizedBox(
+          //                 width: 10,
+          //               ),
+          //               AuthService.currentManager!.profil!
+          //                       .getModule(ModuleName.TOOL)!
+          //                       .generBadge
+          //                   ? Tooltip(
+          //                       message: "Générer les QR CODES",
+          //                       child: ElevatedButton(
+          //                         style: ElevatedButton.styleFrom(
+          //                             shape: RoundedRectangleBorder(
+          //                                 borderRadius:
+          //                                     BorderRadius.circular(100))),
+          //                         onPressed: () {
+          //                           CarteGenerator.generateMiltiQrTool(
+          //                               _dataToexport);
+          //                         },
+          //                         child: const Icon(
+          //                           Icons.badge,
+          //                         ),
+          //                       ),
+          //                     )
+          //                   : const SizedBox.shrink(),
+          //             ],
+          //           ),
+          //           actions: [
+          //             RowPerPageWidget(
+          //               controller: _texController,
+          //               incremente: () {
+          //                 setState(() {
+          //                   rowParPage += 1;
+          //                   _texController.text = rowParPage.toString();
+          //                 });
+          //               },
+          //               decremente: () {
+          //                 setState(() {
+          //                   rowParPage = rowParPage <= defauldRowParPage
+          //                       ? defauldRowParPage
+          //                       : rowParPage - 1;
 
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                      )
-                    ],
-                    rowsPerPage: rowParPage,
-                    showFirstLastButtons: true,
-                    columns: const [
-                      DataColumn(label: Text("SN")),
-                      DataColumn(label: Text("Libellé")),
-                      DataColumn(label: Text("Equipement")),
-                      DataColumn(label: Text("Site")),
-                      DataColumn(label: Text("Action")),
-                    ],
-                    source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data,
-                    ),
-                  );
-                } else {
-                  return Center(
-                    child: Loading(
-                      size: 64,
-                      inline: true,
-                    ),
-                  );
-                }
-              })),
+          //                   _texController.text = rowParPage.toString();
+          //                 });
+          //               },
+          //             )
+          //           ],
+          //           rowsPerPage: rowParPage,
+          //           showFirstLastButtons: true,
+          //           columns: const [
+          //             DataColumn(label: Text("SN")),
+          //             DataColumn(label: Text("Libellé")),
+          //             DataColumn(label: Text("Equipement")),
+          //             DataColumn(label: Text("Site")),
+          //             DataColumn(label: Text("Action")),
+          //           ],
+          //           source: _DataSource(
+          //             context: context,
+          //             keyword: _keyword,
+          //             data: data,
+          //           ),
+          //         );
+          //       } else {
+          //         return Center(
+          //           child: Loading(
+          //             size: 64,
+          //             inline: true,
+          //           ),
+          //         );
+          //       }
+          //     })
+              ),
     );
   }
 }
@@ -264,7 +265,7 @@ class _DataSource extends DataTableSource {
 
   Widget nbSite(Supervisor supervisor) {
     return FutureBuilder(
-        future: SiteService().allBySupervisor(supervisor.UID),
+        future: SiteService().allBySupervisor(supervisor),
         builder: (context, snapshot) {
           if (snapshot.hasError) return const SizedBox.shrink();
           if (snapshot.hasData) {

@@ -82,13 +82,13 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
             int visitedSitesCount = uniqueSiteIds.length;
 
             return FutureBuilder(
-                future: SiteService().allBySupervisor(widget.supervisor.UID),
+                future: SiteService().allSitesCountBySupervisor(widget.supervisor),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
-                    var totalSites = snapshot.data ?? [];
-                    double percentage = totalSites.isEmpty 
-                        ? 0.0 
-                        : (visitedSitesCount * 100.0 / totalSites.length).clamp(0.0, 100.0);
+                    int nbTotalSites = snapshot.data ?? 0;
+                   int diviseur= nbTotalSites<= 0 ? 1 : nbTotalSites;
+                    double percentage =  (visitedSitesCount * 100.0 / diviseur).clamp(0.0, 100.0);
+//                    print("$percentage - ${widget.supervisor.firstName} - visited : $visitedSitesCount - total : $nbTotalSites");
                     
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -107,7 +107,7 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "Sites: $visitedSitesCount/${totalSites.length}",
+                          "Sites: $visitedSitesCount/$nbTotalSites",
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.6),
                             fontSize: 12,

@@ -65,13 +65,13 @@ class _SupervisorListState extends State<PointageSiteList> {
                   var data =
                       docs?.map((e) => PointingSite.fromJson(e)).toList();
                   //tri sur la date et le supervieur
-                  data?.sort((p1, p2) {
-                    var a =
-                        "${p1.supervisor!.UID}${p1.date.year}${p1.date.month}${p1.date.day}";
-                    var b =
-                        "${p2.supervisor!.UID}${p2.date.year}${p2.date.month}${p2.date.day}";
-                    return a.compareTo(b);
-                  });
+                  // data?.sort((p1, p2) {
+                  //   var a =
+                  //       "${p1.supervisor!.UID}${p1.date.year}${p1.date.month}${p1.date.day}";
+                  //   var b =
+                  //       "${p2.supervisor!.UID}${p2.date.year}${p2.date.month}${p2.date.day}";
+                  //   return a.compareTo(b);
+                  // });
 
                   /* List<Map<String, dynamic>> pointages = [];
                   var sitesList = data?.map((e) => e.site).toSet().toList();
@@ -421,7 +421,8 @@ class _SupervisorListState extends State<PointageSiteList> {
                     ),
                   );
                 }
-              })),
+              })
+              ),
     );
   }
 }

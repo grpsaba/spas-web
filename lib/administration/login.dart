@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
@@ -36,6 +37,9 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   void initState() {
     super.initState();
     _initializeAnimations();
+    if(kDebugMode){
+      _emailController.text = 'bgaledou@groupesaba.com';
+    }
     _consigne = _getConsigneOfTheDay();
   }
 
