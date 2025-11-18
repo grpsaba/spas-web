@@ -28,17 +28,6 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
   DateFilter _selectedDateFilter = DateFilter.today;
   DateTime? _customStartDate;
   DateTime? _customEndDate;
-  /*Site _selectedSite = Site(
-      nbAgent: 0,
-      UID: "",
-      codeSite: "",
-      name: "",
-      adresse: "",
-      phone: "",
-      latLng: LatLngModel(lng: 0.0, lat: 0.0),
-      email: "",
-      supervisor: null,
-      token: '');*/
   @override
   Widget build(BuildContext context) {
     return Container(

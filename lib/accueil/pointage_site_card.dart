@@ -47,7 +47,6 @@ class PointageSiteCard extends StatelessWidget {
                   );
                 }
                 if (snapshot.hasData) {
-                  // print("connectionState = ${snapshot.data?.docs.first[""]}");
                   var docs = snapshot.data?.docs.map((e) => e.data()).toList();
                   var collection = docs
                       ?.map((e) =>

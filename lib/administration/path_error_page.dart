@@ -61,7 +61,6 @@ class _PathErrorPageState extends State<PathErrorPage> {
               ElevatedButton(
                 onPressed: () {
                   context.go('/login');
-                  print('object');
 
                   // Navigator.of(context).pushReplacement(
                   //   MaterialPageRoute(
@@ -146,7 +145,6 @@ class _PathErrorPage2State extends State<PathErrorPage2> {
               ElevatedButton(
                 onPressed: () {
                   context.go('/login');
-                  print('object');
 
                   // Navigator.of(context).pushReplacement(
                   //   MaterialPageRoute(

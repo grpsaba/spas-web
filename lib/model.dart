@@ -73,9 +73,9 @@ class Supervisor {
   LatLngModel? latlng;
   String token;
   bool? actif;
-   final bool isSpecial;
+  final bool isSpecial;
   Department? department;
-    Zone? zone;
+  Zone? zone;
   Supervisor(
       {required this.UID,
       required this.code,
@@ -87,7 +87,8 @@ class Supervisor {
       required this.tracking,
       required this.latlng,
       required this.actif,
-       this.isSpecial=false,  this.zone,
+      this.isSpecial = false,
+      this.zone,
       required this.department});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
@@ -98,7 +99,8 @@ class Supervisor {
       lastName: json["lastName"],
       phone: json["phone"],
       email: json["email"],
-      token: json['token'], zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
+      token: json['token'],
+      zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
       actif: json['actif'] ?? true,
       isSpecial: json['isSpecial'] ?? false,
       tracking: json["tracking"],
@@ -122,7 +124,8 @@ class Supervisor {
       "tracking": tracking,
       'actif': actif,
       "latlng": latlng?.toJson(),
-      "isSpecial": isSpecial,"zone": zone?.toJson(),
+      "isSpecial": isSpecial,
+      "zone": zone?.toJson(),
       "department": department?.toJson()
     };
   }
@@ -515,7 +518,9 @@ class PointingSite {
 
   factory PointingSite.fromJson(Map<String, dynamic> json) {
     return PointingSite(
-        date: DateTime.parse(json["date"]),
+        date: json["date"] != null
+            ? DateTime.parse(json["date"])
+            : DateTime.now(),
         latlng: LatLngModel.fromJson(json["latlng"]),
         site: Site.fromJson(json["site"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
@@ -527,6 +532,7 @@ class PointingSite {
       "date": date.toIso8601String(),
       "latlng": latlng.toJson(),
       "site": site.toJson(),
+      "datetimestamp": date,
       "distance": distance,
       "supervisor": supervisor?.toJson()
     };
@@ -572,12 +578,12 @@ class PointingAgent extends Equatable {
     };
   }
 
-  bool isToday() {
-    DateTime today = DateTime.now();
-    return date.year == today.year &&
-        date.day == today.day &&
-        date.month == today.month;
-  }
+  // bool isToday() {
+  //   DateTime today = DateTime.now();
+  //   return date.year == today.year &&
+  //       date.day == today.day &&
+  //       date.month == today.month;
+  // }
 
   @override
   // TODO: implement props

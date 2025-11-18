@@ -9,9 +9,15 @@ class PointingSiteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("sitePointings");
   Future<void> add(PointingSite point) async {
-    String child =
-        "${point.site.UID} ${point.date.year}-${point.date.month}-${point.date.day}";
-    return _collectionReference.doc(child).set(point.toJson());
+    try {
+      // Utiliser un ID unique basé sur le superviseur, site et date
+      String child =
+          "${point.supervisor?.UID}_${point.site.UID}_${point.date.year}-${point.date.month}-${point.date.day}";
+      await _collectionReference.doc(child).set(point.toJson());
+      print("Pointage enregistré avec succès");
+    } catch (e) {
+      print(e);
+    }
   }
 
   Stream<QuerySnapshot> all() {
@@ -65,10 +71,10 @@ class PointingSiteService {
     required DateTime endDate,
   }) {
     // if special, get for the month of the current date
-    if(supervisor.isSpecial){
+    if (supervisor.isSpecial) {
       var now = DateTime.now();
-      startDate=DateTime(now.year, now.month, 1);
-endDate=startDate.add(const Duration(days: 31));
+      startDate = DateTime(now.year, now.month, 1);
+      endDate = startDate.add(const Duration(days: 31));
     }
     return _collectionReference
         .where('supervisor.UID', isEqualTo: supervisor.UID)
@@ -100,22 +106,26 @@ endDate=startDate.add(const Duration(days: 31));
       return [];
     }
   }
-      /// Count documents for a supervisor on a given day (date = DateTime with any time)
-  Future<int?> countForSupervisorOnDate(String supervisorUID, DateTime date) async {
-   try{
-     final start = DateTime(date.year, date.month, date.day);
-    final end = start.add(const Duration(days: 1));
-    final query = _collectionReference
-        .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisorUID),
-         Filter('supervisor_2.UID', isEqualTo: supervisorUID)))
-        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(end));
-    // Aggregation count() — server computes the count, returns a single int.
-    final agg = await query.count().get();
-    return agg.count;
-   }catch(exception){
-    print(Exception);
-   }
+
+  /// Count documents for a supervisor on a given day (date = DateTime with any time)
+  Future<int?> countForSupervisorOnDate(
+      String supervisorUID, DateTime date) async {
+    try {
+      final start = DateTime(date.year, date.month, date.day);
+      final end = start.add(const Duration(days: 1));
+      final query = _collectionReference
+          .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisorUID),
+              Filter('supervisor_2.UID', isEqualTo: supervisorUID)))
+          .where('datetimestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+          .where('datetimestamp', isLessThan: Timestamp.fromDate(end));
+      // Aggregation count() — server computes the count, returns a single int.
+      final agg = await query.count().get();
+      return agg.count;
+    } catch (exception) {
+      print(exception);
+      return null;
+    }
   }
 
   Future<List<Map<String, dynamic>>> nbSiteCheckedToDAyBySupervisor(
@@ -133,10 +143,10 @@ endDate=startDate.add(const Duration(days: 31));
                   element.date.isBefore(_fin.add(const Duration(days: 1)))))
           .toList();
       List<Map<String, dynamic>> pointages = [];
-      List<Site>? sites = collection.map((e) => e.site).toSet().toList();
+      List<Site> sites = collection.map((e) => e.site).toSet().toList();
       //elimination des doublons
       var temps = [];
-      for (Site site in sites ?? []) {
+      for (Site site in sites) {
         temps.add(site);
         sites.removeWhere((element) => element.UID == site.UID);
       }
@@ -145,7 +155,7 @@ endDate=startDate.add(const Duration(days: 31));
             .where((element) => element.site.UID == site.UID)
             .toList();
 
-        pointages.add({"site": site, "pointages": Listpointage ?? []});
+        pointages.add({"site": site, "pointages": Listpointage});
       }
       pointages = pointages.where((element) {
         Site site = element["site"];
@@ -163,9 +173,4 @@ endDate=startDate.add(const Duration(days: 31));
       return [];
     }
   }
-
-
-
-
-
 }

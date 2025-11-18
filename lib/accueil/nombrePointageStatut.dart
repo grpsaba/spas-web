@@ -14,15 +14,15 @@ class NbPointageStatus extends StatefulWidget {
   final DateFilter dateFilter;
   final DateTime? customStartDate;
   final DateTime? customEndDate;
-  
+
   const NbPointageStatus({
-    super.key, 
+    super.key,
     required this.supervisor,
     this.dateFilter = DateFilter.today,
     this.customStartDate,
     this.customEndDate,
   });
-  
+
   @override
   _NbAgentStatusState createState() => _NbAgentStatusState();
 }
@@ -45,14 +45,16 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
   }*/
 
   DateTime get _startDate {
-    if (widget.dateFilter == DateFilter.custom && widget.customStartDate != null) {
+    if (widget.dateFilter == DateFilter.custom &&
+        widget.customStartDate != null) {
       return widget.customStartDate!;
     }
     return widget.dateFilter.startDate;
   }
 
   DateTime get _endDate {
-    if (widget.dateFilter == DateFilter.custom && widget.customEndDate != null) {
+    if (widget.dateFilter == DateFilter.custom &&
+        widget.customEndDate != null) {
       return widget.customEndDate!;
     }
     return widget.dateFilter.endDate;
@@ -76,20 +78,22 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
             var collection = docs
                 ?.map((e) => PointingSite.fromJson(e as Map<String, dynamic>))
                 .toList();
-            
+
             // Utiliser Set pour éviter les doublons de sites
-            Set<String> uniqueSiteIds = collection?.map((e) => e.site.UID).toSet() ?? {};
+            Set<String> uniqueSiteIds =
+                collection?.map((e) => e.site.UID).toSet() ?? {};
             int visitedSitesCount = uniqueSiteIds.length;
 
             return FutureBuilder(
-                future: SiteService().allSitesCountBySupervisor(widget.supervisor),
+                future:
+                    SiteService().allSitesCountBySupervisor(widget.supervisor),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     int nbTotalSites = snapshot.data ?? 0;
-                   int diviseur= nbTotalSites<= 0 ? 1 : nbTotalSites;
-                    double percentage =  (visitedSitesCount * 100.0 / diviseur).clamp(0.0, 100.0);
-//                    print("$percentage - ${widget.supervisor.firstName} - visited : $visitedSitesCount - total : $nbTotalSites");
-                    
+                    int diviseur = nbTotalSites <= 0 ? 1 : nbTotalSites;
+                    double percentage = (visitedSitesCount * 100.0 / diviseur)
+                        .clamp(0.0, 100.0);
+
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [

@@ -15,6 +15,11 @@ class AgentService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
+  
+  Stream<QuerySnapshot> allOfficePersonnel() {
+    return _collectionReference.where("actif",isEqualTo: true).where("site.UID", isEqualTo: "rXkVVl9AH8MYSPn25FSHS7eESpc2").snapshots();
+  }
+
 
   Future<List<Agent>> allFuture() async {
     var snpshot = await _collectionReference.get();

@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
 import 'package:spas_web/providers/home_provider.dart';
+import 'package:spas_web/providers/speech_provider.dart';
 import 'package:spas_web/router.dart';
 import 'package:spas_web/models/menu_item_model.dart';
 import 'package:url_strategy/url_strategy.dart';
@@ -26,6 +27,7 @@ Future<void> main() async {
   setPathUrlStrategy();
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider<HomeProvider>(create: (_) => HomeProvider()),
+    ChangeNotifierProvider<SpeechProvider>(create: (_) => SpeechProvider()),
   ], child: const MyApp()));
   //runApp(const MyApp());
 }

@@ -8,7 +8,7 @@ import 'package:spas_web/supervisor/rapportPointageGenerator.dart';
 import 'package:spas_web/utilsClass.dart';
 
 class SitePointageMap extends StatefulWidget {
-  const SitePointageMap({super.key,  this.date});
+  const SitePointageMap({super.key, this.date});
   final DateTime? date;
   @override
   _SitePointageMapState createState() => _SitePointageMapState();
@@ -19,7 +19,7 @@ class _SitePointageMapState extends State<SitePointageMap> {
   bool isLoading = false;
   double progress = 0.0;
   List<Map<String, dynamic>> reportData = [];
-late HomeProvider _provider;
+  late HomeProvider _provider;
   @override
   void initState() {
     _provider = Provider.of<HomeProvider>(listen: false, context);
@@ -39,29 +39,37 @@ late HomeProvider _provider;
       progress = 0.0;
     });
 
-    final days = UtilsClass().jourDuMois(widget.date?? DateTime.now());
+    final days = UtilsClass().jourDuMois(widget.date ?? DateTime.now());
     final uids = supervisors.map((s) => s.UID).toList();
     final total = uids.length * days.length;
     int done = 0;
-    
-   // final helper = AggregationHelper();
+
+    // final helper = AggregationHelper();
     final results = <Map<String, dynamic>>[];
 
     // On lance supervisor par supervisor pour garder la logique simple et CLARE
     for (final s in supervisors) {
-       
-       final sites =  _provider.sites.where((site)=>
-          site.supervisor?.UID==s.UID|| site.supervisor_2?.UID==s.UID).toList();
-          final nbSitesBySup =sites.length;
+      final sites = _provider.sites
+          .where((site) =>
+              site.supervisor?.UID == s.UID || site.supervisor_2?.UID == s.UID)
+          .toList();
+      final nbSitesBySup = sites.length;
       final perSupervisor = <Map<String, dynamic>>[];
       for (final day in days) {
-        final count = await PointingSiteService().countForSupervisorOnDate(s.UID, day);
-       
+        final count =
+            await PointingSiteService().countForSupervisorOnDate(s.UID, day);
+
         perSupervisor.add({'date': day, 'count': count});
         done++;
-        setState(() { progress = done / total; });
+        setState(() {
+          progress = done / total;
+        });
       }
-      results.add({'supervisor': s, 'Pointages': perSupervisor,'nbSite':nbSitesBySup});
+      results.add({
+        'supervisor': s,
+        'Pointages': perSupervisor,
+        'nbSite': nbSitesBySup
+      });
     }
 
     setState(() {
@@ -96,7 +104,10 @@ late HomeProvider _provider;
               const SizedBox(height: 12),
               Text(
                 'Pointages — mois sélectionné',
-                style: TextStyle(fontSize: 20, color: colors['text'], fontWeight: FontWeight.bold),
+                style: TextStyle(
+                    fontSize: 20,
+                    color: colors['text'],
+                    fontWeight: FontWeight.bold),
               ),
               const SizedBox(height: 18),
               if (isLoading)
@@ -104,7 +115,9 @@ late HomeProvider _provider;
                   children: [
                     LinearProgressIndicator(value: progress),
                     const SizedBox(height: 8),
-                    Text('Génération en cours : ${(progress*100).toStringAsFixed(0)}%', style: TextStyle(color: colors['text'])),
+                    Text(
+                        'Génération en cours : ${(progress * 100).toStringAsFixed(0)}%',
+                        style: TextStyle(color: colors['text'])),
                   ],
                 ),
               const SizedBox(height: 12),
@@ -114,7 +127,8 @@ late HomeProvider _provider;
                 label: const Text('Télécharger le rapport'),
                 style: ElevatedButton.styleFrom(
                   backgroundColor: colors['primary'],
-                  padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
                 ),
               ),
             ],

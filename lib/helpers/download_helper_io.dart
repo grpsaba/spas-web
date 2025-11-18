@@ -4,11 +4,11 @@ import 'dart:typed_data';
 import 'package:path_provider/path_provider.dart';
 import 'package:open_file/open_file.dart';
 
-Future<void> saveAndOpenFile(Uint8List bytes, String filename, String mime) async {
+Future<void> saveAndOpenFile(
+    Uint8List bytes, String filename, String mime) async {
   final dir = await getTemporaryDirectory();
   final file = File('${dir.path}/$filename');
   var res = await file.writeAsBytes(bytes);
-  print(res);
   // try opening (platform dependent). You can also integrate `share_plus` to share.
   var openResult = await OpenFile.open(file.path);
 }

@@ -25,9 +25,16 @@ class SiteService {
   Stream<QuerySnapshot> all() {
     return _collectionReference.snapshots();
   }
-    Stream<QuerySnapshot> allSos() {
-    return _collectionReference.where('sos', isEqualTo: true).snapshots();
+
+  Stream<QuerySnapshot> allSos() {
+    return _collectionReference
+        .where(Filter.and(
+            Filter('sos', isEqualTo: true), Filter('actif', isEqualTo: true)))
+        .snapshots();
   }
+  //  await _collectionReference.where('actif', isEqualTo: true,)
+  //       .where(Filter.(Filter('supervisor.UID', isEqualTo: supervisor.UID),
+  //        Filter('supervisor_2.UID', isEqualTo: supervisor.UID))).count().get();
 
   Stream<QuerySnapshot> allActifSite() {
     return _collectionReference.where("actif", isEqualTo: true).snapshots();
@@ -52,41 +59,49 @@ class SiteService {
 
     return collection;
   }
+
   Future<List<Site>> allSitesByZone(Zone zone) async {
     var s1 = await _collectionReference
         .where("zone.codeZone", isEqualTo: zone.codeZone)
         .where("actif", isEqualTo: true)
         .get();
-    
+
     var s1Future = s1.docs.map((snap) {
       return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
     });
-   
+
     return s1Future.toList();
   }
-    Future<int?> allSitesCountByZone(Zone zone) async {
+
+  Future<int?> allSitesCountByZone(Zone zone) async {
     var s1 = await _collectionReference
         .where("zone.codeZone", isEqualTo: zone.codeZone)
-        .where("actif", isEqualTo: true).count()
+        .where("actif", isEqualTo: true)
+        .count()
         .get();
-    
-   return s1.count;
+
+    return s1.count;
   }
 
-   Future<int?> allSitesCountBySupervisor(Supervisor supervisor) async {
-    if(supervisor.isSpecial && supervisor.zone!=null){
+  Future<int?> allSitesCountBySupervisor(Supervisor supervisor) async {
+    if (supervisor.isSpecial && supervisor.zone != null) {
       return await allSitesCountByZone(supervisor.zone!);
     }
-    var snapshot =
-        await _collectionReference.where('actif', isEqualTo: true,)
+    var snapshot = await _collectionReference
+        .where(
+          'actif',
+          isEqualTo: true,
+        )
         .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisor.UID),
-         Filter('supervisor_2.UID', isEqualTo: supervisor.UID))).count().get();
+            Filter('supervisor_2.UID', isEqualTo: supervisor.UID)))
+        .count()
+        .get();
 
     return snapshot.count;
   }
-  
+
   Future<List<Site>> allBySupervisor(Supervisor supervisor) async {
-    if(supervisor.isSpecial && supervisor.zone!=null){
+    if (supervisor.isSpecial && supervisor.zone != null) {
       return await allSitesByZone(supervisor.zone!);
     }
     var snapshot =
@@ -127,12 +142,16 @@ class SiteService {
     return Site.fromJson(jsonDecode(data));
   }
 
-  Future<void> update(Site site) {
-    return _collectionReference.doc(site.UID).update(site.toJson());
+  Future<void> update(Site site) async {
+    try {
+      await _collectionReference.doc(site.UID).update(site.toJson());
+    } catch (e) {
+      print("Erreur lors de la mise à jour du site : $e");
+    }
   }
 
-  Future<void> saveToken(String? token, String UID) {
-    return _collectionReference.doc(UID).update({'token': token});
+  Future<void> saveToken(String? token, String UID) async {
+    await _collectionReference.doc(UID).update({'token': token});
   }
 
   Future<void> sos(Site site) {

@@ -21,8 +21,8 @@ class PointingAgentService {
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
     return _collectionReference
-        .where("datetimestamp", isGreaterThanOrEqualTo: startOfDay)
-        .where("datetimestamp", isLessThan: endOfDay)
+        .where("date", isGreaterThanOrEqualTo: startOfDay)
+        .where("date", isLessThan: endOfDay)
         .snapshots();
   }
 

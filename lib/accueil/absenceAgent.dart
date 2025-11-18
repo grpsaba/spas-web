@@ -89,7 +89,7 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
             const Divider(),
             Expanded(
               child: StreamBuilder(
-                  stream: AgentService().all(),
+                  stream: AgentService().allOfficePersonnel(),
                   builder: (context, snapshot) {
                     if (snapshot.hasError) return const SizedBox.shrink();
                     if (snapshot.hasData) {
@@ -98,11 +98,7 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                           .map((e) => jsonDecode(jsonEncode(e.data())))
                           .toList();
                       //filter les données selon la plage
-                      _listAgent = docs!
-                          .map((e) => Agent.fromJson(e))
-                          .toList()
-                          .where((element) => element.site != null)
-                          .toList();
+                      _listAgent = docs!.map((e) => Agent.fromJson(e)).toList();
 
                       return StreamBuilder(
                           stream: PointingAgentService().allByDay(),
@@ -111,7 +107,6 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                               return const SizedBox.shrink();
                             }
                             if (snapshot.hasData) {
-                              DateTime.now().add(const Duration(days: 1));
                               //mettre les données collectée en forma json
                               var docs = snapshot.data?.docs
                                   .map((e) => jsonDecode(jsonEncode(e.data())))
@@ -120,9 +115,7 @@ class _ListAbsenceAgentState extends State<ListAbsenceAgent> {
                               var collection = docs
                                   ?.map((e) => PointingAgent.fromJson(e))
                                   .toList();
-                              collection = collection
-                                  ?.where((element) => element.isToday())
-                                  .toList();
+
                               //transformer les données sous forme maps site => liste pointage du site
 
                               List<Agent>? agents = collection

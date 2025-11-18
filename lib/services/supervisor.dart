@@ -35,7 +35,6 @@ class SupervisorService {
           .map((QueryDocumentSnapshot e) =>
               Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
           .toList();
-      debugPrint("Sup lenght : ${data.length}");
       return data.where((e) => e.firstName.contains(filter)).toList();
     } catch (e) {
       print("Catched");
@@ -52,7 +51,7 @@ class SupervisorService {
           .map((QueryDocumentSnapshot e) =>
               Supervisor.fromJson(e.data() as dynamic))
           .toList();
-      return data;//.sublist(1,2);
+      return data; //.sublist(1,2);
     } catch (e) {
       print("Catch");
       debugPrint("Err == $e");

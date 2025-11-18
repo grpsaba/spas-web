@@ -1,14 +1,11 @@
-import 'dart:convert';
 
 import 'package:flutter/material.dart';
-import 'package:spas_web/accueil/site_status.dart';
 import 'package:spas_web/search_textField.dart';
 
 import '../const.dart';
 import '../generated/assets.dart';
 import '../model.dart';
 import '../services/agent.dart';
-import '../services/loading.dart';
 import '../services/site.dart';
 import 'nombreAgentStatut.dart';
 
@@ -93,7 +90,7 @@ class _SupervisorListState extends State<SiteListWithStatus> {
                             style: const TextStyle(
                                 fontSize: 15, color: AppConstants.textColor),
                           ),
-                          subtitle: NbAgentStatus(site: site),
+                         // subtitle: NbAgentStatus(site: site),
                           /* leading: SizedBox(
                                     width: 20,
                                     height: 20,
@@ -229,7 +226,13 @@ class _SupervisorListState extends State<SiteListWithStatus> {
                                                               color: Colors
                                                                   .black54),
                                                         ),
-                                                        siteAgent(site)
+                                                          Text(
+                                                          site.nbAgent.toString(),
+                                                          style: const TextStyle(
+                                                              color: Colors
+                                                                  .black54),
+                                                        ),
+                                                      //  siteAgent(site)
                                                       ],
                                                     )
                                                   ],
@@ -598,23 +601,23 @@ class _SupervisorListState extends State<SiteListWithStatus> {
         ));
   }
 
-  Widget siteAgent(Site site) {
-    return FutureBuilder(
-        future: AgentService().allBySite(site.UID),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) {
-            return const Text(
-              "0",
-              style: TextStyle(color: Colors.black),
-            );
-          }
-          if (snapshot.hasData) {
-            var data = snapshot.data;
-            return Text("${data?.length}",
-                style: const TextStyle(color: Colors.black));
-          } else {
-            return const Text("0", style: TextStyle(color: Colors.black));
-          }
-        });
-  }
+  // Widget siteAgent(Site site) {
+  //   return FutureBuilder(
+  //       future: AgentService().allBySite(site.UID),
+  //       builder: (context, snapshot) {
+  //         if (snapshot.hasError) {
+  //           return const Text(
+  //             "0",
+  //             style: TextStyle(color: Colors.black),
+  //           );
+  //         }
+  //         if (snapshot.hasData) {
+  //           var data = snapshot.data;
+  //           return Text("${data?.length}",
+  //               style: const TextStyle(color: Colors.black));
+  //         } else {
+  //           return const Text("0", style: TextStyle(color: Colors.black));
+  //         }
+  //       });
+  // }
 }

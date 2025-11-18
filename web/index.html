@@ -33,7 +33,11 @@
   <!-- <script src="https://www.gstatic.com/firebasejs/7.5.0/firebase-storage.js"></script>-->
   <title>spas_web</title>
   <link rel="manifest" href="manifest.json">
-
+  <script>
+  window._flutter = {
+    buildConfig: {}
+  };
+</script>
   <script>
     // The value below is injected by flutter build, do not touch.
     const serviceWorkerVersion = '{{flutter_service_worker_version}}';
@@ -70,6 +74,7 @@
 
   <script>
     window.addEventListener('load', function(ev) {
+
       // Download main.dart.js
       _flutter.loader.loadEntrypoint({
         serviceWorker: {

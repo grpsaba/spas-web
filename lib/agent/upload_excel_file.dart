@@ -69,9 +69,6 @@ class UploadExcel {
           contacts: [],
           dateEmbauche: null,
           dateArret: null);
-      if (kDebugMode) {
-        print(agent.toJson());
-      }
       await AgentService().add(agent);
     }
   }

@@ -83,7 +83,7 @@ class NoteCard extends StatelessWidget {
                     return Row(
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
-                        const NoteStat(),
+                         NoteStat(notesLenght: data?.length?? 0),
                         Text(
                           "${data?.length}",
                           style: const TextStyle(
