@@ -1,6 +1,5 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
+import 'package:intl/intl.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/zone/pointage_statut.dart';
 import 'package:spas_web/zone/site_non_pointe_par_zone.dart';
@@ -21,9 +20,22 @@ class ZonePointageProgressionList extends StatefulWidget {
 class _ZonePointageProgressionListState
     extends State<ZonePointageProgressionList> {
   final ZoneMemberService _zoneService = ZoneMemberService();
-  DateTime _dateDebut = DateTime.now();
-  DateTime _dateFin = DateTime.now();
+  DateTime _selectedMonth = DateTime.now();
   String _keyword = "";
+
+  Future<void> _pickMonth() async {
+    final picked = await showDatePicker(
+        context: context,
+        initialDate: _selectedMonth,
+        firstDate: DateTime(2022),
+        lastDate: DateTime.now().add(const Duration(days: 365)),
+        helpText: "Choisir un mois");
+    if (picked != null) {
+      setState(() {
+        _selectedMonth = DateTime(picked.year, picked.month);
+      });
+    }
+  }
 
   /*Site _selectedSite = Site(
       nbAgent: 0,
@@ -70,6 +82,20 @@ class _ZonePointageProgressionListState
               ],
             ),*/
             const Divider(),
+            Row(
+              children: [
+                TextButton.icon(
+                    onPressed: _pickMonth,
+                    icon: const Icon(
+                      Icons.calendar_month,
+                      color: Colors.white,
+                    ),
+                    label: Text(
+                      DateFormat.yMMMM().format(_selectedMonth),
+                      style: const TextStyle(color: Colors.white),
+                    )),
+              ],
+            ),
             Expanded(
               child: FutureBuilder(
                   future: _zoneService.allActifAsModel(),
@@ -119,7 +145,8 @@ class _ZonePointageProgressionListState
                                   },
                                 ),
                                 subtitle: ZonePointageProgressBar(
-                                    zoneMember: zoneMember),
+                                    zoneMember: zoneMember,
+                                    month: _selectedMonth),
                                 /*leading: const SizedBox(
                                     width: 24,
                                     height: 24,

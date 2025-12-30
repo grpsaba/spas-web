@@ -140,6 +140,12 @@ class MenuItemModel {
       route: "/chefszone",
       index: 16,
     ),
+    MenuItemModel(
+      icon: Icons.warning_amber_rounded,
+      title: "Erreurs Pointage",
+      route: "/errorlogs",
+      index: 18,
+    ),
   ];
 
   // Méthode pour précharger tous les assets

@@ -8,7 +8,18 @@ Future<void> saveAndOpenFile(
     Uint8List bytes, String filename, String mime) async {
   final dir = await getTemporaryDirectory();
   final file = File('${dir.path}/$filename');
-  var res = await file.writeAsBytes(bytes);
+  await file.writeAsBytes(bytes);
   // try opening (platform dependent). You can also integrate `share_plus` to share.
-  var openResult = await OpenFile.open(file.path);
+  await OpenFile.open(file.path);
+}
+
+/// Helper class for download operations
+class DownloadHelper {
+  /// Download text content as a file
+  static void downloadText(String content, String filename) async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$filename');
+    await file.writeAsString(content);
+    await OpenFile.open(file.path);
+  }
 }

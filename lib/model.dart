@@ -1,5 +1,6 @@
 import 'dart:math';
 
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
 class LatLngModel {
@@ -477,8 +478,17 @@ class PointingZone {
       required this.zoneMember});
 
   factory PointingZone.fromJson(Map<String, dynamic> json) {
+    DateTime? parsedDate;
+    if (json["datetimestamp"] != null) {
+      if (json["datetimestamp"] is Timestamp) {
+        parsedDate = (json["datetimestamp"] as Timestamp).toDate();
+      } else if (json["datetimestamp"] is String) {
+        parsedDate = DateTime.tryParse(json["datetimestamp"]);
+      }
+    }
+    parsedDate ??= DateTime.parse(json["date"]);
     return PointingZone(
-        date: DateTime.parse(json["date"]),
+        date: parsedDate,
         latlng: LatLngModel.fromJson(json["latlng"]),
         site: Site.fromJson(json["site"]),
         zoneMember: ZoneMember.fromJson(json["zoneMember"]),
@@ -491,7 +501,8 @@ class PointingZone {
       "latlng": latlng.toJson(),
       "site": site.toJson(),
       "distance": distance,
-      "zoneMember": zoneMember?.toJson()
+      "zoneMember": zoneMember?.toJson(),
+      "datetimestamp": date,
     };
   }
 

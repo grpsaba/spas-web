@@ -343,4 +343,215 @@ class ZoneRapportPointage {
       ..setAttribute("download", "ZonePointageSiteParMois.xlsx")
       ..click();
   }
+
+  /// Génère un rapport résumé RH avec formatage conditionnel
+  /// 
+  /// Colonnes: Superviseur, Manager, Sites assignés, Visites effectuées, 
+  /// Attendu, Différence, Visites manquées, Commentaire
+  /// 
+  /// [pointages] - Liste des données de pointage par chef de zone
+  /// [startDate] - Date de début de la période
+  /// [endDate] - Date de fin de la période
+  static void printHRSummaryReportToExcel(
+      List<Map<String, dynamic>> pointages,
+      DateTime startDate,
+      DateTime endDate) {
+    
+    // Calculer le nombre de jours dans la période
+    final int nbDays = endDate.difference(startDate).inDays + 1;
+    
+    // Préparer les données avec calculs
+    List<Map<String, dynamic>> summaryData = [];
+    
+    for (var pointage in pointages) {
+      ZoneMember zoneMember = pointage['zoneMember'];
+      int nbSite = pointage['nbSite'];
+      List<Map<String, dynamic>> pointings = pointage['Pointages'];
+      
+      // Calculer le total des visites effectuées
+      int completedVisits = 0;
+      for (var p in pointings) {
+        completedVisits += (p['nbPointage'] as int);
+      }
+      
+      // Calculs selon les règles
+      int expected = nbSite * nbDays;
+      int difference = expected - completedVisits;
+      int missedVisits = difference > 0 ? difference : 0;
+      int daysBehind = nbSite > 0 ? (difference / nbSite).floor() : 0;
+      if (daysBehind < 0) daysBehind = 0;
+      
+      // Générer le commentaire
+      String comment;
+      if (difference <= 0) {
+        comment = "Objectif atteint";
+      } else if (daysBehind == 0) {
+        comment = "Objectif atteint";
+      } else if (daysBehind == 1) {
+        comment = "Moins de 1 jour de retard";
+      } else {
+        comment = "Moins de $daysBehind jours de retard";
+      }
+      
+      summaryData.add({
+        'zoneMember': zoneMember,
+        'manager': zoneMember.zone?.name ?? '-',
+        'assignedSites': nbSite,
+        'completedVisits': completedVisits,
+        'expected': expected,
+        'difference': difference,
+        'missedVisits': missedVisits,
+        'daysBehind': daysBehind,
+        'comment': comment,
+      });
+    }
+    
+    // Trier par différence décroissante (plus grand retard en premier)
+    summaryData.sort((a, b) {
+      int diffA = a['difference'] as int;
+      int diffB = b['difference'] as int;
+      return diffB.compareTo(diffA);
+    });
+    
+    // Créer le workbook Excel
+    var workbook = Workbook();
+    var sheet = workbook.worksheets[0];
+    sheet.name = 'Résumé RH';
+    sheet.showGridlines = true;
+    
+    // Style pour l'en-tête
+    final Style headerStyle = workbook.styles.add('headerStyle');
+    headerStyle.borders.all.lineStyle = LineStyle.thin;
+    headerStyle.borders.all.color = '#000000';
+    headerStyle.fontSize = 12;
+    headerStyle.bold = true;
+    headerStyle.backColor = "#4472C4";
+    headerStyle.fontColor = "#FFFFFF";
+    headerStyle.hAlign = HAlignType.center;
+    
+    // Styles pour le formatage conditionnel
+    final Style greenStyle = workbook.styles.add('greenStyle');
+    greenStyle.borders.all.lineStyle = LineStyle.thin;
+    greenStyle.borders.all.color = '#000000';
+    greenStyle.fontSize = 10;
+    greenStyle.backColor = "#C6EFCE";
+    greenStyle.fontColor = "#006100";
+    
+    final Style yellowStyle = workbook.styles.add('yellowStyle');
+    yellowStyle.borders.all.lineStyle = LineStyle.thin;
+    yellowStyle.borders.all.color = '#000000';
+    yellowStyle.fontSize = 10;
+    yellowStyle.backColor = "#FFEB9C";
+    yellowStyle.fontColor = "#9C5700";
+    
+    final Style orangeStyle = workbook.styles.add('orangeStyle');
+    orangeStyle.borders.all.lineStyle = LineStyle.thin;
+    orangeStyle.borders.all.color = '#000000';
+    orangeStyle.fontSize = 10;
+    orangeStyle.backColor = "#FFCC99";
+    orangeStyle.fontColor = "#974706";
+    
+    final Style redStyle = workbook.styles.add('redStyle');
+    redStyle.borders.all.lineStyle = LineStyle.thin;
+    redStyle.borders.all.color = '#000000';
+    redStyle.fontSize = 10;
+    redStyle.backColor = "#FFC7CE";
+    redStyle.fontColor = "#9C0006";
+    
+    // Titre du rapport
+    String dateRange = "${startDate.day.toString().padLeft(2, '0')}.${startDate.month.toString().padLeft(2, '0')}.${startDate.year.toString().substring(2)} au ${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year.toString().substring(2)}";
+    sheet.getRangeByIndex(1, 1, 1, 8).merge();
+    sheet.getRangeByIndex(1, 1).setText("Rapport des visites des Superviseurs du $dateRange");
+    sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 16;
+    sheet.getRangeByIndex(1, 1).cellStyle.bold = true;
+    sheet.getRangeByIndex(1, 1).cellStyle.hAlign = HAlignType.center;
+    
+    // En-têtes des colonnes
+    final headers = [
+      'Superviseur',
+      'Manager',
+      'Sites assignés',
+      'Visites effectuées',
+      'Attendu',
+      'Différence',
+      'Visites manquées',
+      'Commentaire'
+    ];
+    
+    for (int i = 0; i < headers.length; i++) {
+      sheet.getRangeByIndex(3, i + 1).setText(headers[i]);
+      sheet.getRangeByIndex(3, i + 1).cellStyle = headerStyle;
+      sheet.getRangeByIndex(3, i + 1).columnWidth = i == 0 || i == 7 ? 20 : 15;
+    }
+    
+    // Données
+    int rowIndex = 3;
+    for (var data in summaryData) {
+      rowIndex++;
+      
+      ZoneMember zoneMember = data['zoneMember'];
+      int daysBehind = data['daysBehind'];
+      int difference = data['difference'];
+      
+      // Déterminer le style selon le retard
+      Style rowStyle;
+      if (difference <= 0) {
+        rowStyle = greenStyle;
+      } else if (daysBehind <= 1) {
+        rowStyle = yellowStyle;
+      } else if (daysBehind <= 4) {
+        rowStyle = orangeStyle;
+      } else {
+        rowStyle = redStyle;
+      }
+      
+      // Superviseur
+      sheet.getRangeByIndex(rowIndex, 1).setText("${zoneMember.firstName} ${zoneMember.lastName}");
+      sheet.getRangeByIndex(rowIndex, 1).cellStyle = rowStyle;
+      
+      // Manager (Zone)
+      sheet.getRangeByIndex(rowIndex, 2).setText(data['manager']);
+      sheet.getRangeByIndex(rowIndex, 2).cellStyle = rowStyle;
+      
+      // Sites assignés
+      sheet.getRangeByIndex(rowIndex, 3).setNumber(data['assignedSites'].toDouble());
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
+      sheet.getRangeByIndex(rowIndex, 3).cellStyle.hAlign = HAlignType.center;
+      
+      // Visites effectuées
+      sheet.getRangeByIndex(rowIndex, 4).setNumber(data['completedVisits'].toDouble());
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle = rowStyle;
+      sheet.getRangeByIndex(rowIndex, 4).cellStyle.hAlign = HAlignType.center;
+      
+      // Attendu
+      sheet.getRangeByIndex(rowIndex, 5).setNumber(data['expected'].toDouble());
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle = rowStyle;
+      sheet.getRangeByIndex(rowIndex, 5).cellStyle.hAlign = HAlignType.center;
+      
+      // Différence
+      sheet.getRangeByIndex(rowIndex, 6).setNumber(data['difference'].toDouble());
+      sheet.getRangeByIndex(rowIndex, 6).cellStyle = rowStyle;
+      sheet.getRangeByIndex(rowIndex, 6).cellStyle.hAlign = HAlignType.center;
+      
+      // Visites manquées
+      sheet.getRangeByIndex(rowIndex, 7).setNumber(data['missedVisits'].toDouble());
+      sheet.getRangeByIndex(rowIndex, 7).cellStyle = rowStyle;
+      sheet.getRangeByIndex(rowIndex, 7).cellStyle.hAlign = HAlignType.center;
+      
+      // Commentaire
+      sheet.getRangeByIndex(rowIndex, 8).setText(data['comment']);
+      sheet.getRangeByIndex(rowIndex, 8).cellStyle = rowStyle;
+    }
+    
+    // Sauvegarder et télécharger
+    final List<int> bytes = workbook.saveAsStream();
+    workbook.dispose();
+    
+    final content = base64Encode(bytes);
+    final fileName = "Rapport_RH_Superviseurs_$dateRange.xlsx".replaceAll(' ', '_');
+    AnchorElement(
+        href: "data:application/octet-stream;charset=utf-16le;base64,$content")
+      ..setAttribute("download", fileName)
+      ..click();
+  }
 }

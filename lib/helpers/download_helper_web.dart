@@ -17,3 +17,20 @@ Future<void> saveAndOpenFile(Uint8List bytes, String filename, String mime) asyn
     html.Url.revokeObjectUrl(url);
   });
 }
+
+/// Helper class for download operations
+class DownloadHelper {
+  /// Download text content as a file
+  static void downloadText(String content, String filename) {
+    final bytes = Uint8List.fromList(content.codeUnits);
+    final blob = html.Blob([bytes], 'text/csv;charset=utf-8');
+    final url = html.Url.createObjectUrlFromBlob(blob);
+    final anchor = html.AnchorElement(href: url)
+      ..setAttribute('download', filename)
+      ..target = '_blank';
+    anchor.click();
+    Future.delayed(const Duration(seconds: 2), () {
+      html.Url.revokeObjectUrl(url);
+    });
+  }
+}

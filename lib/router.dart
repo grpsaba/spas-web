@@ -5,6 +5,9 @@ import 'package:spas_web/agent/add_file_agent.dart';
 import 'package:spas_web/agent/agent_form.dart';
 import 'package:spas_web/agent/agent_list.dart';
 import 'package:spas_web/agent/import_agent.dart';
+import 'package:spas_web/error_logs/models/error_log_model.dart';
+import 'package:spas_web/error_logs/pages/error_log_detail_page.dart';
+import 'package:spas_web/error_logs/pages/error_logs_list_page.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/notes/imprime_rapport.dart';
 import 'package:spas_web/notes/note_list.dart';
@@ -25,13 +28,14 @@ import 'package:spas_web/supervisor/supervisors_location.dart';
 import 'package:spas_web/tools/checklist.dart';
 import 'package:spas_web/tools/tool_form.dart';
 import 'package:spas_web/tools/tool_list.dart';
-import 'package:spas_web/zone/pointage_zone_list.dart';
+import 'package:spas_web/zone/pointage_zone_list_modern.dart';
 import 'package:spas_web/zone/zone_form.dart';
 import 'package:spas_web/zone/zone_list.dart';
 import 'package:spas_web/zone/zone_pointage_map.dart';
 import 'package:spas_web/zone/zone_site_monthly_pointage.dart';
-import 'package:spas_web/zone_member/zone_member_form.dart';
+import 'package:spas_web/zone_member/zone_member_form_modern.dart';
 import 'package:spas_web/zone_member/zone_member_list.dart';
+import 'package:spas_web/zone_member/manual_zone_pointing_page.dart';
 
 import 'accueil/home_page.dart';
 import 'administration/login.dart';
@@ -305,13 +309,13 @@ GoRouter routeConfig = GoRouter(
       GoRoute(
           name: "liste des pointages zone",
           path: "/pointagezones",
-          builder: (context, state) => const PointageZone(),
+          builder: (context, state) => const PointageZoneListModern(),
           routes: [
             GoRoute(
                 name: "Rapport nombre de pointage par chef de zone",
                 path: "npcz",
-                builder: (context, state) => SitePointageZoneMap(
-                      date: state.extra as DateTime,
+                builder: (context, state) => ZonePointageMap(
+                      date: state.extra as DateTime?,
                     )),
             GoRoute(
                 name: "Nombre de visite des sites par chef de zone",
@@ -329,8 +333,25 @@ GoRouter routeConfig = GoRouter(
             GoRoute(
                 name: "Ajoute un chef de zone",
                 path: "add",
-                builder: (context, state) => AddZoneMember(
+                builder: (context, state) => ZoneMemberFormModern(
                       zoneMember: state.extra as ZoneMember,
+                    )),
+            GoRoute(
+                name: "Pointage manuel chef de zone",
+                path: "pointing",
+                builder: (context, state) => const ManualZonePointingPage()),
+          ]),
+      //routes error logs
+      GoRoute(
+          name: "liste des erreurs de pointage",
+          path: "/errorlogs",
+          builder: (context, state) => const ErrorLogsListPage(),
+          routes: [
+            GoRoute(
+                name: "détail erreur de pointage",
+                path: "detail",
+                builder: (context, state) => ErrorLogDetailPage(
+                      errorLog: state.extra as ErrorLog,
                     )),
           ]),
     ]);

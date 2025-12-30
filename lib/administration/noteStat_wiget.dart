@@ -21,28 +21,25 @@ class _NoteStatState extends State<NoteStat> {
 
   @override
   Widget build(BuildContext context) {
-    return Consumer<SpeechProvider>(builder: (context, value, child) {
-       if (widget.notesLenght == 0) {
-
-              return const SizedBox.shrink();
-            } else {
-              if (value.canSpeak()) {
-                TTS().speetch(
-                    "Vous avez ${widget.notesLenght} nouvelle note${widget.notesLenght > 1 ? 's' : ''} non lue${widget.notesLenght > 1 ? 's' : ''}");
-            value.updateLastSpeechTime();
-             
-              }
-              return GestureDetector(
-                  onTap: () {
-                    /* Navigator.push(context,
+    return Consumer<SpeechProvider>(builder: (context, speechProvider, child) {
+      if (widget.notesLenght == 0) {
+        return const SizedBox.shrink();
+      } else {
+        // Déplacer la logique de speech hors du build
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (speechProvider.canSpeak()) {
+            TTS().speetch(
+                "Vous avez ${widget.notesLenght} nouvelle note${widget.notesLenght > 1 ? 's' : ''} non lue${widget.notesLenght > 1 ? 's' : ''}");
+            speechProvider.updateLastSpeechTime();
+          }
+        });
+        return GestureDetector(
+            onTap: () {
+              /* Navigator.push(context,
                         MaterialPageRoute(builder: (_) => const SiteSOSList()));*/
-                  },
-                  child: Loading(
-                      size: 18, inline: false, sos: true, status: true));
-            }
-    
+            },
+            child: Loading(size: 18, inline: false, sos: true, status: true));
+      }
     });
-  
-  
   }
 }

@@ -24,6 +24,7 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
   final _timeController = TextEditingController();
 
   Supervisor? _selectedSupervisor;
+  bool chooseSupervisorInSite = false;
   List<Supervisor> _supervisors = [];
   List<Site> _selectedSites = [];
   bool _isLoading = false;
@@ -89,7 +90,7 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
 
   Future<void> _saveBulkPointings() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSupervisor == null) {
+    if (_selectedSupervisor == null || chooseSupervisorInSite == false) {
       _showErrorSnackBar('Veuillez sélectionner un superviseur');
       return;
     }
@@ -369,6 +370,15 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
                   controlAffinity: ListTileControlAffinity.leading,
                 ),
                 const SizedBox(height: 16),
+                CheckboxListTile(
+                  title: const Text('Choisir le superviseur dans le site'),
+                  value: chooseSupervisorInSite,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      chooseSupervisorInSite = value ?? false;
+                    });
+                  },
+                ),
 
                 // Sélection des sites
                 Row(

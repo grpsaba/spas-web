@@ -3,6 +3,7 @@ import 'package:firebase_core/firebase_core.dart';
 import 'package:flutter/material.dart';
 import 'package:google_fonts/google_fonts.dart';
 import 'package:provider/provider.dart';
+import 'package:spas_web/error_logs/providers/error_log_provider.dart';
 import 'package:spas_web/providers/home_provider.dart';
 import 'package:spas_web/providers/speech_provider.dart';
 import 'package:spas_web/router.dart';
@@ -28,6 +29,7 @@ Future<void> main() async {
   runApp(MultiProvider(providers: [
     ChangeNotifierProvider<HomeProvider>(create: (_) => HomeProvider()),
     ChangeNotifierProvider<SpeechProvider>(create: (_) => SpeechProvider()),
+    ChangeNotifierProvider<ErrorLogProvider>(create: (_) => ErrorLogProvider()),
   ], child: const MyApp()));
   //runApp(const MyApp());
 }

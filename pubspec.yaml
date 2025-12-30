@@ -81,8 +81,12 @@ dependencies:
   skeletonizer: ^2.0.1
   provider: ^6.1.4
   open_file: ^3.5.4
-  
   path_provider: ^2.1.5
+  fl_chart: ^0.66.0
+  syncfusion_flutter_datepicker: ^25.1.41
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  shared_preferences: ^2.2.2
 
 dev_dependencies:
   flutter_test:

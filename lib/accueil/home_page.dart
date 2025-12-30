@@ -9,6 +9,8 @@ import 'package:spas_web/accueil/supervisor_card.dart';
 import 'package:spas_web/accueil/tool_status_card.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/const.dart';
+import 'package:spas_web/error_logs/providers/error_log_provider.dart';
+import 'package:spas_web/error_logs/widgets/error_stats_card.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/providers/home_provider.dart';
 import 'package:spas_web/services/agentType.dart';
@@ -45,6 +47,10 @@ class _HomePageState extends State<HomePage> {
       await homeProvider.loadData();
     }
     _fetchAgentTypes();
+    // Load error logs stats
+    if(mounted){
+      context.read<ErrorLogProvider>().loadStats();
+    }
   }
   Future<void> _fetchAgentTypes() async {
     try {
@@ -403,6 +409,13 @@ void hideStats(){
       NoteCard(),
       const SizedBox(width: 12),
       const ToolStatusCard(),
+      const SizedBox(width: 12),
+      Consumer<ErrorLogProvider>(
+        builder: (context, errorProvider, _) => ErrorStatsCard(
+          stats: errorProvider.stats,
+          isLoading: errorProvider.isLoading,
+        ),
+      ),
     ];
   }
 

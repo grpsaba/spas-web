@@ -5,22 +5,32 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import '../model.dart';
 
 class PointingZoneService {
-  final CollectionReference _collectionReference =
+  final CollectionReference<Map<String, dynamic>> _collectionReference =
       FirebaseFirestore.instance.collection("zonePointings");
   Future<void> add(PointingZone point) async {
     String child =
         "${point.site.UID} ${point.date.year}-${point.date.month}-${point.date.day}";
-    return _collectionReference.doc(child).set(point.toJson());
+    dynamic data = point.toJson();
+    print(data);
+    return _collectionReference.doc(child).set(data);
   }
 
-  Stream<QuerySnapshot> all() {
+  Stream<QuerySnapshot<Map<String, dynamic>>> all() {
     return _collectionReference.snapshots();
   }
 
-  Stream<QuerySnapshot> allByZoneMember(ZoneMember zoneMember) {
+  Stream<List<PointingZone>> allByZoneMember(
+      {required ZoneMember zoneMember, DateTime? month}) {
+    final range = _monthRange(month ?? DateTime.now());
     return _collectionReference
         .where('zoneMember.UID', isEqualTo: zoneMember.UID)
-        .snapshots();
+        .where('datetimestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(range.start))
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(range.end))
+        .snapshots()
+        .map((snapshot) => snapshot.docs
+            .map((e) => PointingZone.fromJson(e.data() as Map<String, dynamic>))
+            .toList());
   }
 
   Future<DocumentSnapshot<Object?>> one(child) {
@@ -36,7 +46,7 @@ class PointingZoneService {
   Future<List<PointingZone>> allFuture() async {
     var snpshot = await _collectionReference.get();
     List<PointingZone> data = snpshot.docs
-        .map((QueryDocumentSnapshot e) =>
+        .map((QueryDocumentSnapshot<Map<String, dynamic>> e) =>
             PointingZone.fromJson(jsonDecode(jsonEncode(e.data()))))
         .toList();
     return data;
@@ -51,10 +61,10 @@ class PointingZoneService {
     }).toList();
     collection = collection.where((element) => element.isToday()).toList();
     List<Map<String, dynamic>> pointages = [];
-    List<Site>? sites = collection.map((e) => e.site).toSet().toList();
+    List<Site> sites = collection.map((e) => e.site).toSet().toList();
     //elimination des doublons
     var temps = [];
-    for (Site site in sites ?? []) {
+    for (Site site in sites) {
       temps.add(site);
       sites.removeWhere((element) => element.UID == site.UID);
     }
@@ -62,7 +72,7 @@ class PointingZoneService {
       var Listpointage =
           collection.where((element) => element.site.UID == site.UID).toList();
 
-      pointages.add({"site": site, "pointages": Listpointage ?? []});
+      pointages.add({"site": site, "pointages": Listpointage});
     }
     pointages = pointages.where((element) {
       Site site = element["site"];
@@ -71,4 +81,18 @@ class PointingZoneService {
     }).toList();
     return pointages;
   }
+}
+
+class _MonthRange {
+  _MonthRange({required this.start, required this.end});
+  final DateTime start;
+  final DateTime end;
+}
+
+_MonthRange _monthRange(DateTime month) {
+  final start = DateTime(month.year, month.month, 1);
+  final end = month.month == 12
+      ? DateTime(month.year + 1, 1, 1)
+      : DateTime(month.year, month.month + 1, 1);
+  return _MonthRange(start: start, end: end);
 }

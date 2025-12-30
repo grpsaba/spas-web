@@ -29,6 +29,7 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
   List<Site> _filteredSites = [];
   bool _isLoading = false;
   bool _skipValidation = false;
+  bool chooseSupervisorInSite = false;
 
   @override
   void initState() {
@@ -113,7 +114,7 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
 
   Future<void> _saveBulkPointings() async {
     if (!_formKey.currentState!.validate()) return;
-    if (_selectedSupervisor == null) {
+    if (_selectedSupervisor == null && chooseSupervisorInSite == false) {
       _showErrorSnackBar('Veuillez sélectionner un superviseur');
       return;
     }
@@ -147,23 +148,34 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
 
       // Créer les pointages pour tous les sites sélectionnés
       for (final site in _selectedSites) {
-        try {
-          final pointingSite = PointingSite(
-            site: site,
-            supervisor: _selectedSupervisor,
-            latlng: LatLngModel(lat: lat, lng: lng),
-            date: date,
-            distance: _skipValidation
-                ? 0
-                : _calculateDistance(
-                    lat, lng, site.latLng.lat, site.latLng.lng),
-          );
+        if (chooseSupervisorInSite == true && _selectedSupervisor == null) {
+          List<Supervisor> supervisors = [];
 
-          await PointingSiteService().add(pointingSite);
-          successCount++;
-        } catch (e) {
-          errorCount++;
-          debugPrint('Erreur pour le site ${site.name}: $e');
+          if (site.supervisor != null) {
+            supervisors.add(site.supervisor!);
+          }
+          if (site.supervisor_2 != null) {
+            supervisors.add(site.supervisor_2!);
+          }
+          for (final supervisor in supervisors) {
+            try {
+              await _saveBulkPointingsForSupervisors(
+                  supervisor, site, lat, lng, date);
+              successCount++;
+            } catch (e) {
+              errorCount++;
+              debugPrint('Erreur pour le site ${site.name}: $e');
+            }
+          }
+        } else {
+          try {
+            await _saveBulkPointingsForSupervisors(
+                _selectedSupervisor!, site, lat, lng, date);
+            successCount++;
+          } catch (e) {
+            errorCount++;
+            debugPrint('Erreur pour le site ${site.name}: $e');
+          }
         }
       }
 
@@ -178,6 +190,25 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
       setState(() {
         _isLoading = false;
       });
+    }
+  }
+
+  Future<void> _saveBulkPointingsForSupervisors(Supervisor supervisor,
+      Site site, double lat, double lng, DateTime date) async {
+    try {
+      final pointingSite = PointingSite(
+        site: site,
+        supervisor: supervisor,
+        latlng: LatLngModel(lat: lat, lng: lng),
+        date: date,
+        distance: _skipValidation
+            ? 0
+            : _calculateDistance(lat, lng, site.latLng.lat, site.latLng.lng),
+      );
+
+      await PointingSiteService().add(pointingSite);
+    } catch (e) {
+      debugPrint('Erreur pour le site ${site.name}: $e');
     }
   }
 
@@ -281,9 +312,10 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
                           });
                           _filterSitesBySupervisor(value);
                         },
-                        validator: (value) => value == null
-                            ? 'Sélectionnez un superviseur'
-                            : null,
+                        validator: (value) =>
+                            value == null && chooseSupervisorInSite == false
+                                ? 'Sélectionnez un superviseur'
+                                : null,
                       ),
                     ),
                     const SizedBox(width: 16),
@@ -395,6 +427,15 @@ class _BulkPointingDialogState extends State<BulkPointingDialog> {
                 ),
                 const SizedBox(height: 16),
 
+                CheckboxListTile(
+                  title: const Text('Choisir le superviseur dans le site'),
+                  value: chooseSupervisorInSite,
+                  onChanged: (bool? value) {
+                    setState(() {
+                      chooseSupervisorInSite = value ?? false;
+                    });
+                  },
+                ),
                 // Sélection des sites
                 if (_selectedSupervisor != null && _filteredSites.isNotEmpty)
                   Row(
