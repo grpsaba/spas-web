@@ -163,6 +163,12 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
           if (_currentLog.distance != null)
             _buildDetailRow(
                 'Distance', '${_currentLog.distance!.toStringAsFixed(2)} m'),
+          if (_currentLog.gpsAccuracy != null)
+            _buildGpsAccuracyRow(_currentLog.gpsAccuracy!),
+          if (_currentLog.gpsSource != null ||
+              _currentLog.gpsAgeSeconds != null ||
+              _currentLog.gpsTimestamp != null)
+            _buildGpsContextSection(),
           _buildDetailRow(
               'En ligne', _currentLog.isOnline == true ? 'Oui' : 'Non'),
           _buildDetailRow('Plateforme', _currentLog.devicePlatform ?? 'N/A'),
@@ -244,6 +250,257 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
             child: Text(
               value,
               style: PointageTextStyles.body2,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build GPS accuracy row with visual quality indicator
+  Widget _buildGpsAccuracyRow(double accuracy) {
+    // Determine quality level based on accuracy
+    // < 10m = Excellent, 10-25m = Good, 25-50m = Fair, > 50m = Poor
+    final String qualityLabel;
+    final Color qualityColor;
+    final IconData qualityIcon;
+    
+    if (accuracy < 10) {
+      qualityLabel = 'Excellente';
+      qualityColor = PointageColors.success;
+      qualityIcon = Icons.gps_fixed;
+    } else if (accuracy < 25) {
+      qualityLabel = 'Bonne';
+      qualityColor = const Color(0xFF4CAF50);
+      qualityIcon = Icons.gps_fixed;
+    } else if (accuracy < 50) {
+      qualityLabel = 'Moyenne';
+      qualityColor = PointageColors.warning;
+      qualityIcon = Icons.gps_not_fixed;
+    } else {
+      qualityLabel = 'Faible';
+      qualityColor = PointageColors.error;
+      qualityIcon = Icons.gps_off;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: PointageSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              'Précision GPS',
+              style: PointageTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(qualityIcon, size: 16, color: qualityColor),
+                const SizedBox(width: 6),
+                Text(
+                  '${accuracy.toStringAsFixed(1)} m',
+                  style: PointageTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 2,
+                  ),
+                  decoration: BoxDecoration(
+                    color: qualityColor.withValues(alpha: 0.15),
+                    borderRadius: BorderRadius.circular(4),
+                    border: Border.all(
+                      color: qualityColor.withValues(alpha: 0.4),
+                    ),
+                  ),
+                  child: Text(
+                    qualityLabel,
+                    style: TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w500,
+                      color: qualityColor,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build GPS context section with source, age, and timestamp
+  Widget _buildGpsContextSection() {
+    return Container(
+      margin: const EdgeInsets.symmetric(vertical: PointageSpacing.sm),
+      padding: const EdgeInsets.all(PointageSpacing.md),
+      decoration: BoxDecoration(
+        color: PointageColors.chartBlue.withValues(alpha: 0.05),
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(color: PointageColors.chartBlue.withValues(alpha: 0.2)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(
+                Icons.satellite_alt,
+                size: 16,
+                color: PointageColors.chartBlue,
+              ),
+              const SizedBox(width: PointageSpacing.xs),
+              Text(
+                'Contexte GPS',
+                style: PointageTextStyles.label.copyWith(
+                  color: PointageColors.chartBlue,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: PointageSpacing.sm),
+          if (_currentLog.gpsSource != null)
+            _buildGpsSourceRow(_currentLog.gpsSource!),
+          if (_currentLog.gpsAgeSeconds != null)
+            _buildGpsAgeRow(_currentLog.gpsAgeSeconds!),
+          if (_currentLog.gpsTimestamp != null)
+            _buildDetailRow(
+              'Timestamp GPS',
+              _formatDateTime(_currentLog.gpsTimestamp!),
+            ),
+        ],
+      ),
+    );
+  }
+
+  /// Build GPS source row with descriptive label
+  Widget _buildGpsSourceRow(String source) {
+    final String displayLabel;
+    final IconData icon;
+    final Color color;
+
+    if (source.toLowerCase() == 'cache') {
+      displayLabel = 'Cache (background tracking)';
+      icon = Icons.cached;
+      color = PointageColors.chartBlue;
+    } else if (source.toLowerCase() == 'fresh') {
+      displayLabel = 'Frais (demande directe)';
+      icon = Icons.refresh;
+      color = PointageColors.success;
+    } else {
+      displayLabel = source;
+      icon = Icons.help_outline;
+      color = PointageColors.textSecondary;
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: PointageSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              'Source GPS',
+              style: PointageTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  displayLabel,
+                  style: PointageTextStyles.body2,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  /// Build GPS age row with warning indicator for old positions
+  Widget _buildGpsAgeRow(int ageSeconds) {
+    final bool isOld = ageSeconds > 60;
+    final Color color = isOld ? PointageColors.warning : PointageColors.textPrimary;
+    
+    String ageDisplay;
+    if (ageSeconds < 60) {
+      ageDisplay = '$ageSeconds secondes';
+    } else if (ageSeconds < 3600) {
+      final minutes = ageSeconds ~/ 60;
+      final seconds = ageSeconds % 60;
+      ageDisplay = '$minutes min ${seconds > 0 ? '$seconds sec' : ''}';
+    } else {
+      final hours = ageSeconds ~/ 3600;
+      final minutes = (ageSeconds % 3600) ~/ 60;
+      ageDisplay = '$hours h ${minutes > 0 ? '$minutes min' : ''}';
+    }
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: PointageSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              'Âge position',
+              style: PointageTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                if (isOld)
+                  Icon(Icons.warning_amber, size: 16, color: color),
+                if (isOld) const SizedBox(width: 6),
+                Text(
+                  ageDisplay,
+                  style: PointageTextStyles.body2.copyWith(
+                    color: color,
+                    fontWeight: isOld ? FontWeight.w500 : FontWeight.normal,
+                  ),
+                ),
+                if (isOld) ...[
+                  const SizedBox(width: 8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 6,
+                      vertical: 2,
+                    ),
+                    decoration: BoxDecoration(
+                      color: PointageColors.warning.withValues(alpha: 0.15),
+                      borderRadius: BorderRadius.circular(4),
+                    ),
+                    child: Text(
+                      'Position ancienne',
+                      style: TextStyle(
+                        fontSize: 10,
+                        fontWeight: FontWeight.w500,
+                        color: PointageColors.warning,
+                      ),
+                    ),
+                  ),
+                ],
+              ],
             ),
           ),
         ],

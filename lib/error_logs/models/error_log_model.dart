@@ -21,6 +21,10 @@ class ErrorLog {
   
   final bool? agentFound;
   final double? distance;
+  final double? gpsAccuracy; // GPS accuracy in meters
+  final String? gpsSource; // "cache" (background tracking) or "fresh" (direct request)
+  final int? gpsAgeSeconds; // Age of GPS position in seconds
+  final DateTime? gpsTimestamp; // Exact timestamp of GPS reading
   final bool? isOnline;
   final String? devicePlatform;
   final bool isResolved;
@@ -42,6 +46,10 @@ class ErrorLog {
     this.agent,
     this.agentFound,
     this.distance,
+    this.gpsAccuracy,
+    this.gpsSource,
+    this.gpsAgeSeconds,
+    this.gpsTimestamp,
     this.isOnline,
     this.devicePlatform,
     this.isResolved = false,
@@ -79,6 +87,12 @@ class ErrorLog {
           : null,
       agentFound: data['agentFound'],
       distance: data['distance']?.toDouble(),
+      gpsAccuracy: data['gpsAccuracy']?.toDouble(),
+      gpsSource: data['gpsSource'],
+      gpsAgeSeconds: data['gpsAgeSeconds']?.toInt(),
+      gpsTimestamp: data['gpsTimestamp'] != null
+          ? (data['gpsTimestamp'] as Timestamp).toDate()
+          : null,
       isOnline: data['isOnline'],
       devicePlatform: data['devicePlatform'],
       isResolved: data['isResolved'] ?? false,
@@ -105,6 +119,10 @@ class ErrorLog {
       'agent': agent,
       'agentFound': agentFound,
       'distance': distance,
+      'gpsAccuracy': gpsAccuracy,
+      'gpsSource': gpsSource,
+      'gpsAgeSeconds': gpsAgeSeconds,
+      'gpsTimestamp': gpsTimestamp != null ? Timestamp.fromDate(gpsTimestamp!) : null,
       'isOnline': isOnline,
       'devicePlatform': devicePlatform,
       'isResolved': isResolved,
@@ -207,6 +225,10 @@ class ErrorLog {
       agent: agent,
       agentFound: agentFound,
       distance: distance,
+      gpsAccuracy: gpsAccuracy,
+      gpsSource: gpsSource,
+      gpsAgeSeconds: gpsAgeSeconds,
+      gpsTimestamp: gpsTimestamp,
       isOnline: isOnline,
       devicePlatform: devicePlatform,
       isResolved: true,
