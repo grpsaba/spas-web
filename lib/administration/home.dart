@@ -84,6 +84,7 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
         ),
       ),
       actions: [
+        const Text("V14/01/2026"),
          Sos(),
         const SizedBox(width: 16),
         _buildUserInfo(),

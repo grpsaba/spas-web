@@ -1,16 +1,11 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
+import 'package:spas_web/accueil/widgets/site_status_dialog.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/notes/imprime_rapport.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/models/date_filter.dart';
 
 import '../model.dart';
-import '../services/loading.dart';
-import '../services/supervisor.dart';
-import 'Site_non_visite_par_sup.dart';
 import 'nombrePointageStatut.dart';
 
 class SitePointingListWithStatus extends StatefulWidget {
@@ -22,12 +17,19 @@ class SitePointingListWithStatus extends StatefulWidget {
 }
 
 class _SupervisorListState extends State<SitePointingListWithStatus> {
-  final SupervisorService _supervisorService = SupervisorService();
-  final TextEditingController _texController = TextEditingController();
   String _keyword = "";
   DateFilter _selectedDateFilter = DateFilter.today;
   DateTime? _customStartDate;
   DateTime? _customEndDate;
+
+  List<Supervisor> get _filteredSupervisors {
+    if (_keyword.isEmpty) return widget.supList;
+    final keyword = _keyword.toLowerCase();
+    return widget.supList.where((sup) {
+      final fullName = '${sup.firstName} ${sup.lastName}'.toLowerCase();
+      return fullName.contains(keyword);
+    }).toList();
+  }
   @override
   Widget build(BuildContext context) {
     return Container(
@@ -65,120 +67,88 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
             ),
             const Divider(),
             Expanded(
-              child: sipervisorList(data: widget.supList),
-
-              // FutureBuilder(
-              //     future: _supervisorService.allActifFuture(_keyword),
-              //     builder: (context, snapshot) {
-              //       switch (snapshot.connectionState) {
-              //         case ConnectionState.none:
-              //           // TODO: Handle this case.
-              //           return const SizedBox.shrink();
-              //         case ConnectionState.waiting:
-              //           // TODO: Handle this case.
-              //           return Loading(size: 64, inline: false);
-
-              //         case ConnectionState.active:
-              //           // TODO: Handle this case.
-
-              //           var data = snapshot.data ?? [];
-
-              //           return sipervisorList(data: data);
-              //         case ConnectionState.done:
-              //           var data = snapshot.data ?? [];
-              //           return sipervisorList(data: data);
-              //       }
-              //     }),
+              child: _buildSupervisorList(),
             ),
           ],
         ));
   }
 
-  Widget sipervisorList({required List<Supervisor> data}) {
+  Widget _buildSupervisorList() {
+    final data = _filteredSupervisors;
+    
+    if (data.isEmpty) {
+      return const Center(
+        child: Text(
+          'Aucun superviseur trouvé',
+          style: TextStyle(color: Colors.white70),
+        ),
+      );
+    }
+
     return ListView.builder(
-        itemCount: data.length,
-        itemBuilder: (context, index) {
-          Supervisor supervisor = data[index];
-          return Card(
-            elevation: 0.2,
-            color: AppConstants.secondaryColor.withOpacity(0.3),
-            child: ListTile(
-              //selected: site.UID == _selectedSite.UID,
-              selectedTileColor: AppConstants.secondaryColor,
-              title: Text(
-                '${supervisor.firstName} ${supervisor.lastName}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 15,
-                ),
+      itemCount: data.length,
+      itemBuilder: (context, index) {
+        final supervisor = data[index];
+        return Card(
+          elevation: 0.2,
+          color: AppConstants.secondaryColor.withValues(alpha: 0.3),
+          margin: const EdgeInsets.symmetric(vertical: 4),
+          child: ListTile(
+            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+            title: Text(
+              '${supervisor.firstName} ${supervisor.lastName}',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 14,
+                fontWeight: FontWeight.w500,
               ),
-              subtitle: NbPointageStatus(
-                supervisor: supervisor,
-                dateFilter: _selectedDateFilter,
-                customStartDate: _customStartDate,
-                customEndDate: _customEndDate,
-              ),
-              trailing: IconButton(
-                tooltip: "Rapport",
-                icon: const Icon(
-                  Icons.description,
-                  color: Colors.white,
-                ),
-                onPressed: () {
-                  Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                          builder: (_) => ImprimeRapport(
-                              source:
-                                  "${supervisor.firstName} ${supervisor.lastName}")));
-                },
-              ),
-              /* leading: const SizedBox(
-                                    width: 24,
-                                    height: 24,
-                                    child: CircleAvatar(
-                                      radius: 24,
-                                      backgroundImage:
-                                          AssetImage(Assets.assetsAgent),
-                                    )),*/
-              onTap: () {
-                showDialog(
-                    context: context,
-                    builder: (_) {
-                      return AlertDialog(
-                        contentPadding: const EdgeInsets.all(0.0),
-                        alignment: Alignment.center,
-                        content: Builder(
-                          builder: (context) {
-                            // Get available height and width of the build area of this widget. Make a choice depending on the size.
-
-                            var width = MediaQuery.of(context).size.width;
-
-                            return Container(
-                              width: width - (width - 500),
-                              child:
-                                  // Container()
-                                  SiteNonVisite(
-                                supervisor: supervisor,
-                              ),
-                            );
-                          },
-                        ),
-                      );
-                    });
+            ),
+            subtitle: NbPointageStatus(
+              supervisor: supervisor,
+              dateFilter: _selectedDateFilter,
+              customStartDate: _customStartDate,
+              customEndDate: _customEndDate,
+            ),
+            trailing: IconButton(
+              tooltip: "Rapport",
+              icon: const Icon(Icons.description, color: Colors.white, size: 20),
+              onPressed: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (_) => ImprimeRapport(
+                      source: "${supervisor.firstName} ${supervisor.lastName}",
+                    ),
+                  ),
+                );
               },
             ),
-          );
-        });
+            onTap: () => _showSiteStatusDialog(supervisor),
+          ),
+        );
+      },
+    );
+  }
+
+  void _showSiteStatusDialog(Supervisor supervisor) {
+    showDialog(
+      context: context,
+      builder: (_) => SiteStatusDialog.forSupervisor(
+        supervisor: supervisor,
+        dateFilter: _selectedDateFilter,
+        customStartDate: _customStartDate,
+        customEndDate: _customEndDate,
+      ),
+    );
   }
 
   Widget _buildDateFilterDropdown() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
       decoration: BoxDecoration(
-        color: AppConstants.bgColor.withOpacity(0.3),
+        color: AppConstants.bgColor.withValues(alpha: 0.3),
         borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withOpacity(0.2)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
       ),
       child: DropdownButtonHideUnderline(
         child: DropdownButton<DateFilter>(
