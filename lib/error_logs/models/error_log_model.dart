@@ -196,6 +196,7 @@ class ErrorLog {
         return 3;
       case 'validationError':
       case 'geolocationError':
+      case 'gpsTimeoutError':
         return 2;
       case 'siteNotFound':
       case 'agentNotFound':
@@ -256,6 +257,8 @@ class ErrorTypeConfig {
         return 'Erreur validation';
       case 'geolocationError':
         return 'Erreur GPS';
+      case 'gpsTimeoutError':
+        return 'Timeout GPS';
       case 'firebaseError':
         return 'Erreur serveur';
       case 'technicalError':
@@ -279,6 +282,8 @@ class ErrorTypeConfig {
         return const Color(0xFF9C27B0); // Purple
       case 'geolocationError':
         return const Color(0xFF2196F3); // Blue
+      case 'gpsTimeoutError':
+        return const Color(0xFFFF5722); // Deep Orange
       case 'siteNotFound':
       case 'agentNotFound':
         return const Color(0xFF607D8B); // Blue Grey
@@ -303,6 +308,8 @@ class ErrorTypeConfig {
         return Icons.warning_amber;
       case 'geolocationError':
         return Icons.gps_off;
+      case 'gpsTimeoutError':
+        return Icons.timer_off;
       case 'firebaseError':
         return Icons.cloud_off;
       case 'technicalError':
@@ -320,6 +327,7 @@ class ErrorTypeConfig {
     'agentInactive',
     'validationError',
     'geolocationError',
+    'gpsTimeoutError',
     'firebaseError',
     'technicalError',
   ];
