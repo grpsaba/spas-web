@@ -154,27 +154,7 @@ class ZonePointageListProvider extends ChangeNotifier {
   }
 
   /// Compte les sites visités par un membre de zone (requête optimisée)
-  Future<int> _getVisitedSitesCount(
-    ZoneMember zoneMember,
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-    final collection = FirebaseFirestore.instance.collection('zonePointings');
-    
-    final snapshot = await collection
-        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
-        .get();
-    
-    // Compter les sites uniques
-    final uniqueSiteIds = snapshot.docs
-        .map((doc) => doc.data()['site']?['UID'] as String?)
-        .where((id) => id != null)
-        .toSet();
-    
-    return uniqueSiteIds.length;
-  }
+
 
   void _setLoading(bool value) {
     _isLoading = value;
@@ -193,4 +173,28 @@ class ZonePointageListProvider extends ChangeNotifier {
     _lastFetch = null;
     notifyListeners();
   }
+    Future<int> _getVisitedSitesCount(
+    ZoneMember zoneMember,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+try{
+      final collection = FirebaseFirestore.instance.collection('zonePointings');
+    final snapshot = await collection
+        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
+        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
+        .get();
+    // Compter les sites uniques
+    final uniqueSiteIds = snapshot.docs
+        .map((doc) => doc.data()['site']?['UID'] as String?)
+        .where((id) => id != null)
+        .toSet();
+    
+        return uniqueSiteIds.length;
+       }catch(e){      
+      debugPrint('Erreur lors du comptage des sites visités: $e');
+      return 0;
+          }
+      }
 }

@@ -2,8 +2,8 @@ import 'dart:convert';
 
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:spas_web/model.dart';
 
-import '../model.dart';
 import 'authentication.dart';
 
 class SiteService {
@@ -41,20 +41,24 @@ class SiteService {
   }
 
   Future<List<Site>> allAsModel() async {
-    var snapshot =
+  try{
+      var snapshot =
         await _collectionReference.where("actif", isEqualTo: true).get();
     var collection = snapshot.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
 
     return collection;
-  }
+  }catch(e){
+    print("Erreur lors de la récupération des sites : $e");
+    return [];
+  }}
 
   Future<List<Site>> allActifAsModel() async {
     var snapshot =
         await _collectionReference.where("actif", isEqualTo: true).get();
     var collection = snapshot.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
 
     return collection;
@@ -108,7 +112,7 @@ class SiteService {
         await _collectionReference.where('actif', isEqualTo: true).get();
     var collection = snapshot.docs
         .map((snap) {
-          return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+          return Site.fromJson(snap.data() as Map<String, dynamic>);
         })
         .toList()
         .where((element) {

@@ -93,18 +93,22 @@ class Supervisor {
       required this.department});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
+    if(json["UID"] == null || json["code"] == null || json["firstName"] == null || json["lastName"] == null || json["phone"] == null || json["email"] == null || json['token'] == null || json["tracking"] == null){
+        
+        print("object");   
+         }
     return Supervisor(
       UID: json["UID"],
-      code: json["code"],
+      code: json["code"] ?? "",
       firstName: json["firstName"],
       lastName: json["lastName"],
       phone: json["phone"],
-      email: json["email"],
-      token: json['token'],
+      email: json["email"] ?? "",
+      token: json['token'] ?? "",
       zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
       actif: json['actif'] ?? true,
       isSpecial: json['isSpecial'] ?? false,
-      tracking: json["tracking"],
+      tracking: json["tracking"] ?? true,
       department: json['department'] == null
           ? null
           : Department.fromJson(json['department']),
@@ -317,13 +321,15 @@ class Site extends Equatable {
       required this.nbRonde});
 
   factory Site.fromJson(Map<String, dynamic> json) {
+  //verifier si une valeuir est null avant de la parser
+
     return Site(
-        UID: json["UID"],
-        codeSite: json["codeSite"],
-        name: json["name"],
-        adresse: json["adresse"],
-        email: json["email"],
-        token: json['token'],
+        UID: json["UID"] ?? "",
+        codeSite: json["codeSite"] ?? "",
+        name: json["name"] ?? "",
+        adresse: json["adresse"] ?? "",
+        email: json["email"] ?? "",
+        token: json['token'] ?? "",
         actif: json['actif'] ?? true,
         nbRonde: json['nbRonde'] ?? 1,
         nbAgent: json['nbAgent'] ?? 0,
@@ -332,7 +338,8 @@ class Site extends Equatable {
             : DateTime.now(),
         zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
-        supervisor_2: json["supervisor_2"] == null
+        supervisor_2:
+         json["supervisor_2"] == null
             ? null
             : Supervisor.fromJson(json["supervisor_2"]),
         latLng: LatLngModel.fromJson(json["latLng"]),
@@ -382,6 +389,9 @@ class Zone extends Equatable {
   });
 
   factory Zone.fromJson(Map<String, dynamic> json) {
+    if(json["codeZone"] == null || json["name"] == null){
+        print("object");   
+         }
     return Zone(
       codeZone: json["codeZone"],
       name: json["name"],

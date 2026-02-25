@@ -66,10 +66,10 @@ class _SupervisorListState extends State<SiteList> {
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
                   var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
+                      .map((e) => e.data())
                       .toList();
                   var data = docs
-                      ?.map((e) => Site.fromJson(e))
+                      ?.map((e) => Site.fromJson(e as Map<String, dynamic>))
                       .toList()
                       .where((element) => element.actif == _actif)
                       .toList();
