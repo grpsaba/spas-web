@@ -3,16 +3,24 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'pointage_weighted_engine.dart';
 
 class PointingZoneService {
   final CollectionReference<Map<String, dynamic>> _collectionReference =
       FirebaseFirestore.instance.collection("zonePointings");
   Future<void> add(PointingZone point) async {
-    String child =
-        "${point.site.UID} ${point.date.year}-${point.date.month}-${point.date.day}";
-    dynamic data = point.toJson();
-    print(data);
-    return _collectionReference.doc(child).set(data);
+    final period = PointageWeightedEngine.classifyPeriod(point.date);
+    final operationalDay = PointageWeightedEngine.operationalDay(point.date);
+    final siteType =
+        PointageWeightedEngine.normalizePointingType(point.site.pointingType);
+
+    final data = Map<String, dynamic>.from(point.toJson());
+    data['period'] =
+        period == PointagePeriod.jour ? SitePointingType.jour : SitePointingType.nuit;
+    data['operationalDay'] = operationalDay;
+    data['pointingTypeSnapshot'] = siteType;
+
+    return _collectionReference.doc().set(data);
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> all() {
@@ -29,7 +37,7 @@ class PointingZoneService {
         .where('datetimestamp', isLessThan: Timestamp.fromDate(range.end))
         .snapshots()
         .map((snapshot) => snapshot.docs
-            .map((e) => PointingZone.fromJson(e.data() as Map<String, dynamic>))
+            .map((e) => PointingZone.fromJson(e.data()))
             .toList());
   }
 
@@ -38,9 +46,20 @@ class PointingZoneService {
   }
 
   Future<void> update(PointingZone point) {
-    String child =
+    final period = PointageWeightedEngine.classifyPeriod(point.date);
+    final operationalDay = PointageWeightedEngine.operationalDay(point.date);
+    final siteType =
+        PointageWeightedEngine.normalizePointingType(point.site.pointingType);
+
+    final data = Map<String, dynamic>.from(point.toJson());
+    data['period'] =
+        period == PointagePeriod.jour ? SitePointingType.jour : SitePointingType.nuit;
+    data['operationalDay'] = operationalDay;
+    data['pointingTypeSnapshot'] = siteType;
+
+    final child =
         "${point.site.UID}${point.date.year}${point.date.month}${point.date.day}";
-    return _collectionReference.doc(child).update(point.toJson());
+    return _collectionReference.doc(child).update(data);
   }
 
   Future<List<PointingZone>> allFuture() async {

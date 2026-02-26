@@ -152,18 +152,26 @@ class ZoneRapportPointage {
       int colIndex = 6;
       ZoneMember zoneMember = pointage['zoneMember'];
       int nbSite = pointage['nbSite'];
-      int maxPointage = nbSite * nbJours;
-
-      int nbPointages = 0;
       List<Map<String, dynamic>> pointings = pointage['Pointages'];
 
+      int nbPointages = 0;
       for (var element in pointings) {
         int nbPointage = element["nbPointage"];
         nbPointages += nbPointage;
       }
-      //calcul du pourcentage du nombre de pointage
-      double performance =
-          maxPointage == 0 ? 0 : nbPointages * 100 / maxPointage;
+
+      final dynamic weightedRaw = pointage['weightedMetrics'];
+      final double realizedWeight = weightedRaw is Map<String, dynamic>
+          ? ((weightedRaw['realizedWeight'] as num?)?.toDouble() ??
+              nbPointages.toDouble())
+          : nbPointages.toDouble();
+      final double expectedWeight = weightedRaw is Map<String, dynamic>
+          ? ((weightedRaw['expectedWeight'] as num?)?.toDouble() ??
+              (nbSite * nbJours).toDouble())
+          : (nbSite * nbJours).toDouble();
+      final double performance = expectedWeight == 0
+          ? 0
+          : realizedWeight * 100 / expectedWeight;
 
       sheet
           .getRangeByIndex(rowIndex, 1)
@@ -175,7 +183,7 @@ class ZoneRapportPointage {
           LineStyle.thin;
       sheet.getRangeByIndex(rowIndex, 1).cellStyle.borders.all.color =
           '#000000';
-      sheet.getRangeByIndex(rowIndex, 2).setValue(maxPointage);
+      sheet.getRangeByIndex(rowIndex, 2).setValue(expectedWeight);
       sheet.getRangeByIndex(rowIndex, 2).columnWidth = 12;
 
       sheet.getRangeByIndex(rowIndex, 2).cellStyle.fontSize = 10;
@@ -184,7 +192,7 @@ class ZoneRapportPointage {
           LineStyle.thin;
       sheet.getRangeByIndex(rowIndex, 2).cellStyle.borders.all.color =
           '#000000';
-      sheet.getRangeByIndex(rowIndex, 3).setValue(nbPointages);
+      sheet.getRangeByIndex(rowIndex, 3).setValue(realizedWeight);
       sheet.getRangeByIndex(rowIndex, 3).columnWidth = 12;
 
       sheet.getRangeByIndex(rowIndex, 3).cellStyle.fontSize = 10;

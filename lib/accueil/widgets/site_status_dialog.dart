@@ -194,8 +194,8 @@ class _SiteStatusDialogState extends State<SiteStatusDialog>
             mainAxisAlignment: MainAxisAlignment.spaceAround,
             children: [
               _buildStatItem(
-                'Total',
-                provider.totalSites.toString(),
+                'Poids',
+                '${provider.realizedWeight.toStringAsFixed(1)}/${provider.expectedWeight.toStringAsFixed(1)}',
                 Colors.blue,
               ),
               _buildStatItem(

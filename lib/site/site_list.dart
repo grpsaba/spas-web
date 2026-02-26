@@ -261,7 +261,8 @@ class _SupervisorListState extends State<SiteList> {
                                                   actif: false,
                                                   zone: null,
                                                   dateContrat: null,
-                                                  nbRonde: null);
+                                                  nbRonde: null,
+                                                  pointingType: 'jour');
                                               context.go('/sites/add',
                                                   extra: site);
                                             },

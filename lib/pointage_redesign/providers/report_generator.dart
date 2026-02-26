@@ -1,4 +1,5 @@
 import 'dart:async';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import 'package:pdf/pdf.dart';
@@ -7,6 +8,7 @@ import '../data/aggregation_service.dart';
 import '../models/report_models.dart';
 import '../models/pointage_exception.dart';
 import '../../model.dart';
+import '../../services/pointage_weighted_engine.dart';
 import '../../services/supervisor.dart';
 import '../../services/site.dart';
 import '../../services/zoneMember.dart';
@@ -20,7 +22,8 @@ class ReportGenerator {
   final AggregationService _aggregationService;
   final SupervisorService _supervisorService;
   final SiteService _siteService;
-  
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+
   // Cancellation support
   bool _isCancelled = false;
   
@@ -95,40 +98,49 @@ class ReportGenerator {
       final days = _generateDaysList(startDate, endDate);
       final supervisorUids = supervisors.map((s) => s.UID).toList();
 
-      // Step 3: Fetch site counts for each supervisor (25% progress)
+      // Step 3: Fetch assigned sites for each supervisor (25% progress)
       onProgress?.call(0.25, 'Chargement des sites...');
       _checkCancellation();
-      
-      final Map<String, int> siteCounts = {};
+
+      final Map<String, List<Site>> assignedSitesBySupervisor = {};
       for (var supervisor in supervisors) {
-        final count = await _siteService.allSitesCountBySupervisor(supervisor);
-        siteCounts[supervisor.UID] = count ?? 0;
+        assignedSitesBySupervisor[supervisor.UID] =
+            await _siteService.allBySupervisor(supervisor);
       }
 
-      // Step 4: Aggregate pointages by supervisor and day (60% progress)
+      // Step 4: Aggregate daily counts + load raw pointings (60% progress)
       onProgress?.call(0.4, 'Agrégation des pointages...');
       _checkCancellation();
-      
-      final aggregatedData = await _aggregationService.aggregateBySupervisorAndDay(
-        supervisorIds: supervisorUids,
-        days: days,
-      );
+
+      final results = await Future.wait([
+        _aggregationService.aggregateBySupervisorAndDay(
+          supervisorIds: supervisorUids,
+          days: days,
+        ),
+        _getSitePointingDocsForPeriod(startDate: startDate, endDate: endDate),
+      ]);
+
+      final aggregatedData = results[0] as Map<String, Map<DateTime, int>>;
+      final sitePointingDocs = results[1] as List<Map<String, dynamic>>;
+      final int periodDays = days.length;
 
       // Step 5: Build report data structure (75% progress)
       onProgress?.call(0.75, 'Construction du rapport...');
       _checkCancellation();
-      
+
       final List<Map<String, dynamic>> reportData = [];
       int totalPointages = 0;
 
       for (var supervisor in supervisors) {
         final supervisorData = aggregatedData[supervisor.UID] ?? {};
-        final nbSite = siteCounts[supervisor.UID] ?? 0;
-        
+        final assignedSites =
+            assignedSitesBySupervisor[supervisor.UID] ?? const <Site>[];
+        final nbSite = assignedSites.length;
+
         // Build daily pointages list
         final List<Map<String, dynamic>> dailyPointages = [];
         int supervisorTotal = 0;
-        
+
         for (var day in days) {
           final count = supervisorData[day] ?? 0;
           dailyPointages.add({
@@ -139,6 +151,13 @@ class ReportGenerator {
           supervisorTotal += count;
         }
 
+        final weighted = PointageWeightedEngine.computeForSitePointings(
+          allSites: assignedSites,
+          pointingDocs: sitePointingDocs,
+          supervisorUid: supervisor.UID,
+          periodDays: periodDays,
+        );
+
         totalPointages += supervisorTotal;
 
         reportData.add({
@@ -146,6 +165,11 @@ class ReportGenerator {
           'nbSite': nbSite,
           'Pointages': dailyPointages,
           'totalPointages': supervisorTotal,
+          'weightedMetrics': {
+            'realizedWeight': weighted.realizedWeight,
+            'expectedWeight': weighted.expectedWeight,
+            'performance': weighted.performancePercent,
+          },
         });
       }
 
@@ -432,6 +456,60 @@ class ReportGenerator {
     return days;
   }
 
+  Future<List<Map<String, dynamic>>> _getSitePointingDocsForPeriod({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final endExclusive =
+        DateTime(endDate.year, endDate.month, endDate.day).add(const Duration(days: 1));
+
+    final snapshot = await _firestore
+        .collection('sitePointings')
+        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(endExclusive))
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Map<String, dynamic>.from(doc.data()))
+        .toList();
+  }
+
+  Future<List<Map<String, dynamic>>> _getZonePointingDocsForPeriod({
+    required DateTime startDate,
+    required DateTime endDate,
+  }) async {
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final endExclusive =
+        DateTime(endDate.year, endDate.month, endDate.day).add(const Duration(days: 1));
+
+    final snapshot = await _firestore
+        .collection('zonePointings')
+        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(start))
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(endExclusive))
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Map<String, dynamic>.from(doc.data()))
+        .toList();
+  }
+
+  double _toDouble(dynamic value) {
+    if (value is int) return value.toDouble();
+    if (value is double) return value;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value) ?? 0.0;
+    return 0.0;
+  }
+
+  String _formatWeight(double value) {
+    final rounded = value.roundToDouble();
+    if ((value - rounded).abs() < 0.0001) {
+      return rounded.toInt().toString();
+    }
+    return value.toStringAsFixed(2).replaceFirst(RegExp(r'\.?0+$'), '');
+  }
+
   /// Generate Excel file for supervisor report
   /// Based on existing RapportPointage.printReportToExcelWeb implementation
   Future<Uint8List> _generateSupervisorExcel(
@@ -444,11 +522,10 @@ class ReportGenerator {
         );
       }
 
-      // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+      // Get first row pointings (for dynamic day headers)
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
-      final int nbJours = firstPointings.length;
-      
+
       final Workbook workbook = Workbook();
       final Worksheet sheet = workbook.worksheets[0];
       sheet.showGridlines = true;
@@ -485,10 +562,10 @@ class ReportGenerator {
       sheet.getRangeByIndex(2, 1).setText("Superviseurs");
       sheet.getRangeByIndex(2, 1).cellStyle = headerStyle;
 
-      sheet.getRangeByIndex(2, 2).setText("Pointage Max");
+      sheet.getRangeByIndex(2, 2).setText("Poids attendu");
       sheet.getRangeByIndex(2, 2).cellStyle = headerStyle;
 
-      sheet.getRangeByIndex(2, 3).setText("Pointage effectué");
+      sheet.getRangeByIndex(2, 3).setText("Poids réalisé");
       sheet.getRangeByIndex(2, 3).cellStyle = headerStyle;
 
       sheet.getRangeByIndex(2, 4).setText("Performance");
@@ -517,14 +594,15 @@ class ReportGenerator {
         final List<Map<String, dynamic>> pointings = 
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
 
-        // Calculate totals
-        int nbPointages = 0;
-        for (var p in pointings) {
-          nbPointages += (p['nbPointage'] ?? 0) as int;
-        }
-        
-        final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final weightedMetrics =
+            pointage['weightedMetrics'] as Map<String, dynamic>?;
+        final double expectedWeight =
+            _toDouble(weightedMetrics?['expectedWeight']);
+        final double realizedWeight =
+            _toDouble(weightedMetrics?['realizedWeight']);
+        final double performance = weightedMetrics != null
+            ? _toDouble(weightedMetrics['performance'])
+            : (expectedWeight <= 0 ? 0.0 : (realizedWeight * 100.0 / expectedWeight));
 
         // Supervisor name
         sheet.getRangeByIndex(rowIndex, 1).setText(
@@ -533,12 +611,12 @@ class ReportGenerator {
         sheet.getRangeByIndex(rowIndex, 1).columnWidth = 20;
         sheet.getRangeByIndex(rowIndex, 1).cellStyle = rowStyle;
 
-        // Max pointage
-        sheet.getRangeByIndex(rowIndex, 2).setValue(maxPointage);
+        // Expected weight
+        sheet.getRangeByIndex(rowIndex, 2).setText(_formatWeight(expectedWeight));
         sheet.getRangeByIndex(rowIndex, 2).cellStyle = rowStyle;
 
-        // Actual pointage
-        sheet.getRangeByIndex(rowIndex, 3).setValue(nbPointages);
+        // Realized weight
+        sheet.getRangeByIndex(rowIndex, 3).setText(_formatWeight(realizedWeight));
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
 
         // Performance
@@ -691,26 +769,24 @@ class ReportGenerator {
       }
 
       final pdf = pw.Document();
-      
-      // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
-      final int nbJours = firstPointings.length;
-      
+
       // Get title date
       DateTime? titreDate;
       if (firstPointings.isNotEmpty) {
         titreDate = firstPointings.first['date'] as DateTime?;
       }
-      final titre = titreDate != null 
-          ? "Pointages du ${titreDate.month}/${titreDate.year}" 
+      final titre = titreDate != null
+          ? "Pointages du ${titreDate.month}/${titreDate.year}"
           : "Pointages";
 
       // Build table data
       final List<List<String>> tableData = [];
       
       // Header row
-      final headerRow = ['Superviseurs', 'Max', 'Effectué', 'Perf.', 'Sites'];
+      final headerRow = ['Superviseurs', 'Poids attendu', 'Poids réalisé', 'Perf.', 'Sites'];
       for (var p in firstPointings) {
         DateTime date = p['date'] as DateTime;
         headerRow.add('${date.day}');
@@ -721,22 +797,22 @@ class ReportGenerator {
       for (Map<String, dynamic> pointage in reportData) {
         final Supervisor superviseur = pointage['supervisor'] as Supervisor;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
-
-        // Calculate totals
-        int nbPointages = 0;
-        for (var p in pointings) {
-          nbPointages += (p['nbPointage'] ?? 0) as int;
-        }
-        
-        final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final weightedMetrics =
+            pointage['weightedMetrics'] as Map<String, dynamic>?;
+        final double expectedWeight =
+            _toDouble(weightedMetrics?['expectedWeight']);
+        final double realizedWeight =
+            _toDouble(weightedMetrics?['realizedWeight']);
+        final double performance = weightedMetrics != null
+            ? _toDouble(weightedMetrics['performance'])
+            : (expectedWeight <= 0 ? 0.0 : (realizedWeight * 100.0 / expectedWeight));
 
         final row = [
           "${superviseur.firstName} ${superviseur.lastName}",
-          maxPointage.toString(),
-          nbPointages.toString(),
+          _formatWeight(expectedWeight),
+          _formatWeight(realizedWeight),
           "${performance.toStringAsFixed(1)}%",
           nbSite.toString(),
         ];
@@ -958,45 +1034,52 @@ class ReportGenerator {
       final days = _generateDaysList(startDate, endDate);
       final zoneMemberUids = zoneMembers.map((zm) => zm.UID).toList();
 
-      // Step 3: Fetch site counts for each zone member's zone (25% progress)
+      // Step 3: Fetch zone sites for each zone member (25% progress)
       onProgress?.call(0.25, 'Chargement des sites par zone...');
       _checkCancellation();
-      
-      final Map<String, int> siteCounts = {};
+
+      final Map<String, List<Site>> zoneSitesByMember = {};
       for (var zoneMember in zoneMembers) {
         if (zoneMember.zone != null) {
-          // Count sites in this zone
-          final count = await _siteService.allSitesCountByZone(zoneMember.zone!);
-          siteCounts[zoneMember.UID] = count ?? 0;
+          zoneSitesByMember[zoneMember.UID] =
+              await _siteService.allByZone(zoneMember.zone!);
         } else {
-          siteCounts[zoneMember.UID] = 0;
+          zoneSitesByMember[zoneMember.UID] = <Site>[];
         }
       }
 
-      // Step 4: Aggregate pointages by zone member and day (60% progress)
+      // Step 4: Aggregate daily counts + load raw pointings (60% progress)
       onProgress?.call(0.4, 'Agrégation des pointages...');
       _checkCancellation();
-      
-      final aggregatedData = await _aggregationService.aggregateByZoneMemberAndDay(
-        zoneMemberIds: zoneMemberUids,
-        days: days,
-      );
+
+      final results = await Future.wait([
+        _aggregationService.aggregateByZoneMemberAndDay(
+          zoneMemberIds: zoneMemberUids,
+          days: days,
+        ),
+        _getZonePointingDocsForPeriod(startDate: startDate, endDate: endDate),
+      ]);
+
+      final aggregatedData = results[0] as Map<String, Map<DateTime, int>>;
+      final zonePointingDocs = results[1] as List<Map<String, dynamic>>;
+      final int periodDays = days.length;
 
       // Step 5: Build report data structure (75% progress)
       onProgress?.call(0.75, 'Construction du rapport...');
       _checkCancellation();
-      
+
       final List<Map<String, dynamic>> reportData = [];
       int totalPointages = 0;
 
       for (var zoneMember in zoneMembers) {
         final zoneMemberData = aggregatedData[zoneMember.UID] ?? {};
-        final nbSite = siteCounts[zoneMember.UID] ?? 0;
-        
+        final zoneSites = zoneSitesByMember[zoneMember.UID] ?? const <Site>[];
+        final nbSite = zoneSites.length;
+
         // Build daily pointages list
         final List<Map<String, dynamic>> dailyPointages = [];
         int zoneMemberTotal = 0;
-        
+
         for (var day in days) {
           final count = zoneMemberData[day] ?? 0;
           dailyPointages.add({
@@ -1007,6 +1090,13 @@ class ReportGenerator {
           zoneMemberTotal += count;
         }
 
+        final weighted = await PointageWeightedEngine.computeForZonePointings(
+          allSites: zoneSites,
+          pointingDocs: zonePointingDocs,
+          zoneMemberUid: zoneMember.UID,
+          periodDays: periodDays,
+        );
+
         totalPointages += zoneMemberTotal;
 
         reportData.add({
@@ -1014,6 +1104,11 @@ class ReportGenerator {
           'nbSite': nbSite,
           'Pointages': dailyPointages,
           'totalPointages': zoneMemberTotal,
+          'weightedMetrics': {
+            'realizedWeight': weighted.realizedWeight,
+            'expectedWeight': weighted.expectedWeight,
+            'performance': weighted.performancePercent,
+          },
         });
       }
 
@@ -1143,11 +1238,10 @@ class ReportGenerator {
         );
       }
 
-      // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+      // Get first row pointings (for dynamic day headers)
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
-      final int nbJours = firstPointings.length;
-      
+
       final Workbook workbook = Workbook();
       final Worksheet sheet = workbook.worksheets[0];
       sheet.showGridlines = true;
@@ -1184,10 +1278,10 @@ class ReportGenerator {
       sheet.getRangeByIndex(2, 1).setText("Chefs de zone");
       sheet.getRangeByIndex(2, 1).cellStyle = headerStyle;
 
-      sheet.getRangeByIndex(2, 2).setText("Pointage Max");
+      sheet.getRangeByIndex(2, 2).setText("Poids attendu");
       sheet.getRangeByIndex(2, 2).cellStyle = headerStyle;
 
-      sheet.getRangeByIndex(2, 3).setText("Pointage effectué");
+      sheet.getRangeByIndex(2, 3).setText("Poids réalisé");
       sheet.getRangeByIndex(2, 3).cellStyle = headerStyle;
 
       sheet.getRangeByIndex(2, 4).setText("Performance");
@@ -1213,18 +1307,17 @@ class ReportGenerator {
         
         final ZoneMember zoneMember = pointage['zoneMember'] as ZoneMember;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
-
-        // Calculate totals
-        int nbPointages = 0;
-        for (var p in pointings) {
-          nbPointages += (p['nbPointage'] ?? 0) as int;
-        }
-        
-        // Max pointage = number of sites in zone × number of days
-        final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final weightedMetrics =
+            pointage['weightedMetrics'] as Map<String, dynamic>?;
+        final double expectedWeight =
+            _toDouble(weightedMetrics?['expectedWeight']);
+        final double realizedWeight =
+            _toDouble(weightedMetrics?['realizedWeight']);
+        final double performance = weightedMetrics != null
+            ? _toDouble(weightedMetrics['performance'])
+            : (expectedWeight <= 0 ? 0.0 : (realizedWeight * 100.0 / expectedWeight));
 
         // Zone member name
         sheet.getRangeByIndex(rowIndex, 1).setText(
@@ -1233,12 +1326,12 @@ class ReportGenerator {
         sheet.getRangeByIndex(rowIndex, 1).columnWidth = 20;
         sheet.getRangeByIndex(rowIndex, 1).cellStyle = rowStyle;
 
-        // Max pointage
-        sheet.getRangeByIndex(rowIndex, 2).setValue(maxPointage);
+        // Expected weight
+        sheet.getRangeByIndex(rowIndex, 2).setText(_formatWeight(expectedWeight));
         sheet.getRangeByIndex(rowIndex, 2).cellStyle = rowStyle;
 
-        // Actual pointage
-        sheet.getRangeByIndex(rowIndex, 3).setValue(nbPointages);
+        // Realized weight
+        sheet.getRangeByIndex(rowIndex, 3).setText(_formatWeight(realizedWeight));
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
 
         // Performance
@@ -1283,12 +1376,11 @@ class ReportGenerator {
       }
 
       final pdf = pw.Document();
-      
-      // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+
+      // Get first row pointings (for dynamic day headers)
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
-      final int nbJours = firstPointings.length;
-      
+
       // Get title date
       DateTime? titreDate;
       if (firstPointings.isNotEmpty) {
@@ -1302,7 +1394,7 @@ class ReportGenerator {
       final List<List<String>> tableData = [];
       
       // Header row
-      final headerRow = ['Chefs de zone', 'Max', 'Effectué', 'Perf.', 'Zone'];
+      final headerRow = ['Chefs de zone', 'Poids attendu', 'Poids réalisé', 'Perf.', 'Zone'];
       for (var p in firstPointings) {
         DateTime date = p['date'] as DateTime;
         headerRow.add('${date.day}');
@@ -1313,23 +1405,22 @@ class ReportGenerator {
       for (Map<String, dynamic> pointage in reportData) {
         final ZoneMember zoneMember = pointage['zoneMember'] as ZoneMember;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
-
-        // Calculate totals
-        int nbPointages = 0;
-        for (var p in pointings) {
-          nbPointages += (p['nbPointage'] ?? 0) as int;
-        }
-        
-        // Max pointage = number of sites in zone × number of days
-        final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final weightedMetrics =
+            pointage['weightedMetrics'] as Map<String, dynamic>?;
+        final double expectedWeight =
+            _toDouble(weightedMetrics?['expectedWeight']);
+        final double realizedWeight =
+            _toDouble(weightedMetrics?['realizedWeight']);
+        final double performance = weightedMetrics != null
+            ? _toDouble(weightedMetrics['performance'])
+            : (expectedWeight <= 0 ? 0.0 : (realizedWeight * 100.0 / expectedWeight));
 
         final row = [
           "${zoneMember.firstName} ${zoneMember.lastName}",
-          maxPointage.toString(),
-          nbPointages.toString(),
+          _formatWeight(expectedWeight),
+          _formatWeight(realizedWeight),
           "${performance.toStringAsFixed(1)}%",
           "${zoneMember.zone?.name ?? 'N/A'} ($nbSite sites)",
         ];

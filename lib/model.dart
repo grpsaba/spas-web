@@ -302,6 +302,7 @@ class Site extends Equatable {
   Zone? zone;
   int? nbRonde;
   DateTime? dateContrat;
+  String pointingType;
   Site(
       {required this.UID,
       required this.codeSite,
@@ -318,7 +319,15 @@ class Site extends Equatable {
       required this.actif,
       required this.zone,
       required this.dateContrat,
-      required this.nbRonde});
+      required this.nbRonde,
+      this.pointingType = 'jour'});
+
+  static String _normalizePointingType(String? raw) {
+    final normalized = (raw ?? '').trim().toLowerCase();
+    if (normalized == 'nuit') return 'nuit';
+    if (normalized == 'jour_nuit') return 'jour_nuit';
+    return 'jour';
+  }
 
   factory Site.fromJson(Map<String, dynamic> json) {
   //verifier si une valeuir est null avant de la parser
@@ -336,6 +345,7 @@ class Site extends Equatable {
         dateContrat: json['dateContrat'] != null
             ? DateTime.tryParse(json['dateContrat'])
             : DateTime.now(),
+        pointingType: _normalizePointingType(json['pointingType'] as String?),
         zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
         supervisor_2:
@@ -364,6 +374,7 @@ class Site extends Equatable {
       'nbAgent': nbAgent,
       'actif': actif,
       'nbRonde': nbRonde ?? 1,
+      'pointingType': _normalizePointingType(pointingType),
       'dateContrat': dateContrat != null
           ? dateContrat?.toIso8601String()
           : DateTime.now().toIso8601String()

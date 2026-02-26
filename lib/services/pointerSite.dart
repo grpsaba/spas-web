@@ -4,17 +4,25 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../model.dart';
+import 'pointage_weighted_engine.dart';
 
 class PointingSiteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("sitePointings");
   Future<void> add(PointingSite point) async {
     try {
-      // Utiliser un ID unique basé sur le superviseur, site et date
-      String child =
-          "${point.supervisor?.UID}_${point.site.UID}_${point.date.year}-${point.date.month}-${point.date.day}";
-      await _collectionReference.doc(child).set(point.toJson());
-      print("Pointage enregistré avec succès");
+      final period = PointageWeightedEngine.classifyPeriod(point.date);
+      final operationalDay = PointageWeightedEngine.operationalDay(point.date);
+      final siteType =
+          PointageWeightedEngine.normalizePointingType(point.site.pointingType);
+
+      final data = Map<String, dynamic>.from(point.toJson());
+      data['period'] =
+          period == PointagePeriod.jour ? SitePointingType.jour : SitePointingType.nuit;
+      data['operationalDay'] = operationalDay;
+      data['pointingTypeSnapshot'] = siteType;
+
+      await _collectionReference.doc().set(data);
     } catch (e) {
       print(e);
     }
@@ -88,9 +96,20 @@ class PointingSiteService {
   }
 
   Future<void> update(PointingSite point) {
-    String child =
+    final period = PointageWeightedEngine.classifyPeriod(point.date);
+    final operationalDay = PointageWeightedEngine.operationalDay(point.date);
+    final siteType =
+        PointageWeightedEngine.normalizePointingType(point.site.pointingType);
+
+    final data = Map<String, dynamic>.from(point.toJson());
+    data['period'] =
+        period == PointagePeriod.jour ? SitePointingType.jour : SitePointingType.nuit;
+    data['operationalDay'] = operationalDay;
+    data['pointingTypeSnapshot'] = siteType;
+
+    final child =
         "${point.site.UID}${point.date.year}${point.date.month}${point.date.day}";
-    return _collectionReference.doc(child).update(point.toJson());
+    return _collectionReference.doc(child).update(data);
   }
 
   Future<List<PointingSite>> allFuture() async {

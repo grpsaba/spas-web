@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spas_web/model.dart';
+import 'package:spas_web/services/pointage_weighted_engine.dart';
 
 import 'authentication.dart';
 
@@ -11,6 +12,9 @@ class SiteService {
       FirebaseFirestore.instance.collection("Sites");
 
   Future<User?> add(Site site, password) async {
+    site.pointingType =
+        PointageWeightedEngine.normalizePointingType(site.pointingType);
+
     var user = await AuthService().createUserWithEmail(site.email, password);
     if (user != null) {
       site.UID = user.uid;
@@ -71,7 +75,7 @@ class SiteService {
         .get();
 
     var s1Future = s1.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     });
 
     return s1Future.toList();
@@ -130,7 +134,7 @@ class SiteService {
         .where('actif', isEqualTo: true)
         .get();
     var collection = snapshot.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
 
     return collection;
@@ -147,6 +151,9 @@ class SiteService {
   }
 
   Future<void> update(Site site) async {
+    site.pointingType =
+        PointageWeightedEngine.normalizePointingType(site.pointingType);
+
     try {
       await _collectionReference.doc(site.UID).update(site.toJson());
     } catch (e) {

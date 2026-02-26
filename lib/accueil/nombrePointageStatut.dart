@@ -3,8 +3,9 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_animation_progress_bar/flutter_animation_progress_bar.dart';
 import 'package:spas_web/const.dart';
-import 'package:spas_web/services/pointerSite.dart';
 import 'package:spas_web/models/date_filter.dart';
+import 'package:spas_web/services/pointage_weighted_engine.dart';
+import 'package:spas_web/services/pointerSite.dart';
 
 import '../model.dart';
 import '../services/site.dart';
@@ -60,6 +61,23 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
     return widget.dateFilter.endDate;
   }
 
+  int _countRequestedDays(DateTime startDate, DateTime endDate) {
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+
+    final isExclusiveEnd = endDate.hour == 0 &&
+        endDate.minute == 0 &&
+        endDate.second == 0 &&
+        endDate.millisecond == 0 &&
+        endDate.microsecond == 0;
+
+    final days = isExclusiveEnd
+        ? end.difference(start).inDays
+        : end.difference(start).inDays + 1;
+
+    return days <= 0 ? 1 : days;
+  }
+
   @override
   Widget build(BuildContext context) {
     return StreamBuilder(
@@ -73,26 +91,26 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
             return const SizedBox.shrink();
           }
           if (snapshot.hasData) {
-            // Traitement optimisé côté Firebase - plus de filtrage frontend
-            var docs = snapshot.data?.docs.map((e) => e.data()).toList();
-            var collection = docs
-                ?.map((e) => PointingSite.fromJson(e as Map<String, dynamic>))
-                .toList();
+            final docs = snapshot.data?.docs
+                    .map((e) => Map<String, dynamic>.from(e.data() as Map<String, dynamic>))
+                    .toList() ??
+                [];
 
-            // Utiliser Set pour éviter les doublons de sites
-            Set<String> uniqueSiteIds =
-                collection?.map((e) => e.site.UID).toSet() ?? {};
-            int visitedSitesCount = uniqueSiteIds.length;
+            return FutureBuilder<List<Site>>(
+                future: SiteService().allBySupervisor(widget.supervisor),
+                builder: (context, sitesSnapshot) {
+                  if (sitesSnapshot.hasData) {
+                    final sites = sitesSnapshot.data ?? [];
+                    final periodDays = _countRequestedDays(_startDate, _endDate);
 
-            return FutureBuilder(
-                future:
-                    SiteService().allSitesCountBySupervisor(widget.supervisor),
-                builder: (context, snapshot) {
-                  if (snapshot.hasData) {
-                    int nbTotalSites = snapshot.data ?? 0;
-                    int diviseur = nbTotalSites <= 0 ? 1 : nbTotalSites;
-                    double percentage = (visitedSitesCount * 100.0 / diviseur)
-                        .clamp(0.0, 100.0);
+                    final weighted = PointageWeightedEngine.computeForSitePointings(
+                      allSites: sites,
+                      pointingDocs: docs,
+                      supervisorUid: widget.supervisor.UID,
+                      periodDays: periodDays,
+                    );
+
+                    final percentage = weighted.performancePercent.clamp(0.0, 100.0);
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
@@ -111,10 +129,17 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
                         ),
                         const SizedBox(height: 4),
                         Text(
-                          "Sites: $visitedSitesCount/$nbTotalSites",
+                          "Poids: ${weighted.realizedWeight.toStringAsFixed(1)}/${weighted.expectedWeight.toStringAsFixed(1)}",
                           style: TextStyle(
                             color: Colors.white.withOpacity(0.6),
                             fontSize: 12,
+                          ),
+                        ),
+                        Text(
+                          "Sites: ${weighted.visitedSites}/${weighted.totalSites}",
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.45),
+                            fontSize: 10,
                           ),
                         ),
                         if (widget.dateFilter != DateFilter.today)

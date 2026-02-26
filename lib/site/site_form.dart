@@ -7,6 +7,7 @@ import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/liste_selection_pages/supervisor_search_dialog.dart';
 import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/zone.dart';
+import 'package:spas_web/services/pointage_weighted_engine.dart';
 
 import '../model.dart';
 import '../services/loading.dart';
@@ -45,6 +46,8 @@ class _AddSupervisorState extends State<AddSite> {
   void initState() {
     // TODO: implement initState
     _isTwoSupervisor = widget.site.supervisor_2 == null ? false : true;
+    widget.site.pointingType =
+        PointageWeightedEngine.normalizePointingType(widget.site.pointingType);
     super.initState();
     _email_ctrl.text = widget.site.email;
     _code_ctrl.text = widget.site.codeSite;
@@ -420,6 +423,46 @@ class _AddSupervisorState extends State<AddSite> {
                       ),
                     )
                   ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                DropdownButtonFormField<String>(
+                  initialValue: PointageWeightedEngine.normalizePointingType(
+                      widget.site.pointingType),
+                  decoration: const InputDecoration(
+                    hintText: "Type de pointage",
+                    border: OutlineInputBorder(),
+                    prefixIcon: Icon(Icons.schedule),
+                  ),
+                  validator: (value) {
+                    return value != null &&
+                            SitePointingType.allowed.contains(value)
+                        ? null
+                        : "Type de pointage obligatoir";
+                  },
+                  items: const [
+                    DropdownMenuItem(
+                      value: SitePointingType.jour,
+                      child: Text('JOUR'),
+                    ),
+                    DropdownMenuItem(
+                      value: SitePointingType.nuit,
+                      child: Text('NUIT'),
+                    ),
+                    DropdownMenuItem(
+                      value: SitePointingType.jourNuit,
+                      child: Text('JOUR / NUIT'),
+                    ),
+                  ],
+                  onChanged: (value) {
+                    widget.site.pointingType =
+                        PointageWeightedEngine.normalizePointingType(value);
+                  },
+                  onSaved: (value) {
+                    widget.site.pointingType =
+                        PointageWeightedEngine.normalizePointingType(value);
+                  },
                 ),
                 const SizedBox(
                   height: 10,

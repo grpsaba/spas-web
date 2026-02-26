@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:spas_web/model.dart';
+import 'package:spas_web/services/pointage_weighted_engine.dart';
 import 'package:spas_web/services/site.dart';
 import 'package:spas_web/services/zoneMember.dart';
 
@@ -9,14 +10,19 @@ class ZoneMemberPointageStats {
   final ZoneMember zoneMember;
   final int totalSites;
   final int visitedSites;
-  
+  final double realizedWeight;
+  final double expectedWeight;
+
   ZoneMemberPointageStats({
     required this.zoneMember,
     required this.totalSites,
     required this.visitedSites,
+    required this.realizedWeight,
+    required this.expectedWeight,
   });
-  
-  double get progressPercent => totalSites > 0 ? (visitedSites / totalSites) * 100 : 0;
+
+  double get progressPercent =>
+      expectedWeight <= 0 ? 0 : (realizedWeight * 100 / expectedWeight);
 }
 
 /// Provider optimisé pour la liste des pointages par zone
@@ -126,22 +132,36 @@ class ZonePointageListProvider extends ChangeNotifier {
           zoneMember: zoneMember,
           totalSites: 0,
           visitedSites: 0,
+          realizedWeight: 0,
+          expectedWeight: 0,
         );
       }
-      
+
       // Requêtes en parallèle
       final results = await Future.wait([
-        _siteService.allSitesCountByZone(zoneMember.zone!),
-        _getVisitedSitesCount(zoneMember, startDate, endDate),
+        _siteService.allByZone(zoneMember.zone!),
+        _getPointingDocsByZoneMember(zoneMember, startDate, endDate),
       ]);
-      
-      final totalSites = results[0] as int? ?? 0;
-      final visitedSites = results[1] as int;
-      
+
+      final zoneSites = results[0] as List<Site>;
+      final pointingDocs = results[1] as List<Map<String, dynamic>>;
+      final periodDays = _countRequestedDays(startDate, endDate);
+
+      final weighted = await PointageWeightedEngine.computeForZonePointings(
+        allSites: zoneSites,
+        pointingDocs: pointingDocs,
+        zoneMemberUid: zoneMember.UID,
+        periodDays: periodDays,
+      );
+
+      final visitedSites = _extractVisitedSiteIds(pointingDocs).length;
+
       return ZoneMemberPointageStats(
         zoneMember: zoneMember,
-        totalSites: totalSites,
+        totalSites: zoneSites.length,
         visitedSites: visitedSites,
+        realizedWeight: weighted.realizedWeight,
+        expectedWeight: weighted.expectedWeight,
       );
     } catch (e) {
       debugPrint('Erreur pour ${zoneMember.firstName}: $e');
@@ -149,12 +169,61 @@ class ZonePointageListProvider extends ChangeNotifier {
         zoneMember: zoneMember,
         totalSites: 0,
         visitedSites: 0,
+        realizedWeight: 0,
+        expectedWeight: 0,
       );
     }
   }
 
-  /// Compte les sites visités par un membre de zone (requête optimisée)
+  Future<List<Map<String, dynamic>>> _getPointingDocsByZoneMember(
+    ZoneMember zoneMember,
+    DateTime startDate,
+    DateTime endDate,
+  ) async {
+    final CollectionReference<Map<String, dynamic>> collection =
+        FirebaseFirestore.instance.collection('zonePointings');
 
+    final snapshot = await collection
+        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
+        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
+        .get();
+
+    return snapshot.docs
+        .map((doc) => Map<String, dynamic>.from(doc.data()))
+        .toList();
+  }
+
+  Set<String> _extractVisitedSiteIds(List<Map<String, dynamic>> pointingDocs) {
+    return pointingDocs
+        .map((doc) {
+          final site = doc['site'];
+          if (site is Map<String, dynamic>) {
+            final uid = site['UID'];
+            if (uid is String && uid.isNotEmpty) return uid;
+          }
+          return null;
+        })
+        .whereType<String>()
+        .toSet();
+  }
+
+  int _countRequestedDays(DateTime startDate, DateTime endDate) {
+    final start = DateTime(startDate.year, startDate.month, startDate.day);
+    final end = DateTime(endDate.year, endDate.month, endDate.day);
+
+    final isExclusiveEnd = endDate.hour == 0 &&
+        endDate.minute == 0 &&
+        endDate.second == 0 &&
+        endDate.millisecond == 0 &&
+        endDate.microsecond == 0;
+
+    final days = isExclusiveEnd
+        ? end.difference(start).inDays
+        : end.difference(start).inDays + 1;
+
+    return days <= 0 ? 1 : days;
+  }
 
   void _setLoading(bool value) {
     _isLoading = value;
@@ -173,28 +242,5 @@ class ZonePointageListProvider extends ChangeNotifier {
     _lastFetch = null;
     notifyListeners();
   }
-    Future<int> _getVisitedSitesCount(
-    ZoneMember zoneMember,
-    DateTime startDate,
-    DateTime endDate,
-  ) async {
-try{
-      final collection = FirebaseFirestore.instance.collection('zonePointings');
-    final snapshot = await collection
-        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
-        .get();
-    // Compter les sites uniques
-    final uniqueSiteIds = snapshot.docs
-        .map((doc) => doc.data()['site']?['UID'] as String?)
-        .where((id) => id != null)
-        .toSet();
-    
-        return uniqueSiteIds.length;
-       }catch(e){      
-      debugPrint('Erreur lors du comptage des sites visités: $e');
-      return 0;
-          }
-      }
 }
+

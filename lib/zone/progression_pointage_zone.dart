@@ -292,10 +292,17 @@ class _ZonePointageProgressionListState extends State<ZonePointageProgressionLis
             ),
             const SizedBox(height: 4),
             Text(
-              "Sites: ${stat.visitedSites}/${stat.totalSites}",
+              "Poids: ${stat.realizedWeight.toStringAsFixed(1)}/${stat.expectedWeight.toStringAsFixed(1)}",
               style: TextStyle(
                 color: Colors.white.withValues(alpha: 0.6),
                 fontSize: 11,
+              ),
+            ),
+            Text(
+              "Sites: ${stat.visitedSites}/${stat.totalSites}",
+              style: TextStyle(
+                color: Colors.white.withValues(alpha: 0.45),
+                fontSize: 10,
               ),
             ),
           ],
