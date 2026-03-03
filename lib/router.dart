@@ -22,6 +22,7 @@ import 'package:spas_web/site/site_form.dart';
 import 'package:spas_web/site/site_list.dart';
 import 'package:spas_web/supervisor/supervisor_form.dart';
 import 'package:spas_web/supervisor/supervisor_list.dart';
+import 'package:spas_web/supervisor/supervisor_detail_page.dart';
 import 'package:spas_web/supervisor/supervisor_maps.dart';
 import 'package:spas_web/supervisor/supervisor_tracker.dart';
 import 'package:spas_web/supervisor/supervisors_location.dart';
@@ -191,6 +192,12 @@ GoRouter routeConfig = GoRouter(
                 name: "Ajoute un superviseur",
                 path: "add",
                 builder: (context, state) => AddSupervisor(
+                      supervisor: state.extra as Supervisor,
+                    )),
+            GoRoute(
+                name: "détail superviseur",
+                path: "detail",
+                builder: (context, state) => SupervisorDetailPage(
                       supervisor: state.extra as Supervisor,
                     )),
             GoRoute(

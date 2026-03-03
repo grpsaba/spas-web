@@ -1,11 +1,10 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/pdf/api/pdf_api.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/services/authentication.dart';
+import 'package:spas_web/services/pointage_weighted_engine.dart';
 import 'package:spas_web/services/site.dart';
 
 import '../model.dart';
@@ -51,8 +50,60 @@ class _SupervisorListState extends State<SiteList> {
     _texController.dispose();
   }
 
-  stopSos(Site site) async {
-    _service.stopSos(site);
+  Future<void> stopSos(Site site) async {
+    await _service.stopSos(site);
+  }
+
+  Future<void> _toggleSiteStatus(Site site) async {
+    final bool wasInactive = !(site.actif ?? false);
+    site.actif = !(site.actif ?? false);
+
+    try {
+      await SiteService().update(site);
+      if (wasInactive && site.actif == true) {
+        await _generateMonthlyPointingsForSite(site);
+      }
+    } catch (_) {
+      site.actif = !(site.actif ?? false);
+    }
+  }
+
+  Future<void> _deleteSite(Site site) async {
+    await SiteService().delete(site);
+  }
+
+  Future<void> _generateMonthlyPointingsForSite(Site site) async {
+    final now = DateTime.now();
+    final startOfMonth = DateTime(now.year, now.month, 1);
+    final today = DateTime(now.year, now.month, now.day);
+
+    final supervisors = <Supervisor>[];
+    if (site.supervisor != null) {
+      supervisors.add(site.supervisor!);
+    }
+    if (site.supervisor_2 != null) {
+      supervisors.add(site.supervisor_2!);
+    }
+
+    if (supervisors.isEmpty) {
+      return;
+    }
+
+    for (final sup in supervisors) {
+      for (DateTime date = startOfMonth;
+          !date.isAfter(today);
+          date = date.add(const Duration(days: 1))) {
+        final pointingSite = PointingSite(
+          site: site,
+          supervisor: sup,
+          latlng: LatLngModel(lat: site.latLng.lat, lng: site.latLng.lng),
+          date: DateTime(date.year, date.month, date.day, 8, 0),
+          distance: 0,
+        );
+
+        await PointingSiteService().add(pointingSite);
+      }
+    }
   }
 
   @override
@@ -61,33 +112,37 @@ class _SupervisorListState extends State<SiteList> {
       pageIndex: 2,
       title: "Gestion des sites",
       child: SingleChildScrollView(
+          padding: const EdgeInsets.all(20),
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs
-                      .map((e) => e.data())
+                  final docs =
+                      snapshot.data?.docs.map((e) => e.data()).toList() ?? [];
+
+                  final allSites = docs
+                      .map((e) => Site.fromJson(e as Map<String, dynamic>))
                       .toList();
-                  var data = docs
-                      ?.map((e) => Site.fromJson(e as Map<String, dynamic>))
-                      .toList()
-                      .where((element) => element.actif == _actif)
-                      .toList();
-                  data!.sort((site1, site2) {
+
+                  allSites.sort((site1, site2) {
                     return site1.name.compareTo(site2.name);
                   });
 
-                  // Statistiques pour le header
-                  final totalSites = data.length;
+                  final filteredSites = allSites
+                      .where((element) => element.actif == _actif)
+                      .toList();
+
+                  // Statistiques globales (indépendantes du filtre actif/inactif)
+                  final totalSites = allSites.length;
                   final activeSites =
-                      data.where((site) => site.actif == true).length;
+                      allSites.where((site) => site.actif == true).length;
                   final inactiveSites =
-                      data.where((site) => site.actif == false).length;
+                      allSites.where((site) => site.actif != true).length;
                   final totalAgents =
-                      data.fold<int>(0, (sum, site) => sum + site.nbAgent);
+                      allSites.fold<int>(0, (sum, site) => sum + site.nbAgent);
 
                   return Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
                       // Header avec statistiques
                       _buildHeaderSection(context, totalSites, activeSites,
@@ -95,20 +150,35 @@ class _SupervisorListState extends State<SiteList> {
                       const SizedBox(height: 20),
 
                       // Tableau des sites
-                      Container(
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          borderRadius: BorderRadius.circular(12),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.grey.withOpacity(0.1),
-                              spreadRadius: 1,
-                              blurRadius: 10,
-                              offset: const Offset(0, 2),
+                      LayoutBuilder(
+                        builder: (context, constraints) {
+                          return Container(
+                            width: double.infinity,
+                            decoration: BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.circular(12),
+                              boxShadow: [
+                                BoxShadow(
+                                  color: Colors.grey.withOpacity(0.1),
+                                  spreadRadius: 1,
+                                  blurRadius: 10,
+                                  offset: const Offset(0, 2),
+                                ),
+                              ],
                             ),
-                          ],
-                        ),
-                        child: PaginatedDataTable(
+                            child: Theme(
+                              data: Theme.of(context).copyWith(
+                                cardTheme: Theme.of(context).cardTheme.copyWith(
+                                      margin: EdgeInsets.zero,
+                                      color: Colors.white,
+                                    ),
+                              ),
+                              child: PaginatedDataTable(
+                                headingRowHeight: 56,
+                                dataRowMinHeight: 72,
+                                dataRowMaxHeight: 88,
+                                horizontalMargin: 16,
+                                columnSpacing: constraints.maxWidth > 1400 ? 32 : 16,
                           sortColumnIndex: _sortColumnIndex,
                           sortAscending: _sortAscending,
                           header: Container(
@@ -352,22 +422,13 @@ class _SupervisorListState extends State<SiteList> {
                           showFirstLastButtons: true,
                           columns: [
                             DataColumn(
-                              label: Text(
-                                "Code",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                            DataColumn(
                               onSort: (columnIndex, _) {
                                 setState(() {
-                                  sortSite(columnIndex, data);
+                                  sortSite(columnIndex, filteredSites);
                                 });
                               },
                               label: Text(
-                                "Nom",
+                                "Site",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).primaryColor,
@@ -376,7 +437,7 @@ class _SupervisorListState extends State<SiteList> {
                             ),
                             DataColumn(
                               label: Text(
-                                "Zone",
+                                "Infos",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).primaryColor,
@@ -385,44 +446,7 @@ class _SupervisorListState extends State<SiteList> {
                             ),
                             DataColumn(
                               label: Text(
-                                "Contact",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                "NB Agent",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                              numeric: true,
-                            ),
-                            DataColumn(
-                              label: Text(
-                                "Position GPS",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                "Superviseur 1",
-                                style: TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  color: Theme.of(context).primaryColor,
-                                ),
-                              ),
-                            ),
-                            DataColumn(
-                              label: Text(
-                                "Superviseur 2",
+                                "Superviseurs",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).primaryColor,
@@ -440,7 +464,7 @@ class _SupervisorListState extends State<SiteList> {
                             ),
                             DataColumn(
                               label: Text(
-                                "Action",
+                                "Actions",
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Theme.of(context).primaryColor,
@@ -451,14 +475,23 @@ class _SupervisorListState extends State<SiteList> {
                           source: _DataSource(
                             context: context,
                             keyword: _keyword,
-                            data: data,
+                            data: filteredSites,
                             onManualPointing: _showManualPointingDialog,
-                            onDeactivateSos: (site) {
-                              stopSos(site);
+                            onDeactivateSos: (site) async {
+                              await stopSos(site);
+                            },
+                            onToggleStatus: (site) async {
+                              await _toggleSiteStatus(site);
+                            },
+                            onDeleteSite: (site) async {
+                              await _deleteSite(site);
                             },
                           ),
                         ),
                       ),
+                    );
+                  },
+                ),
                     ],
                   );
                 } else {
@@ -720,12 +753,14 @@ class _SupervisorListState extends State<SiteList> {
 
 class _DataSource extends DataTableSource {
   static List<Site> dataToprint = [];
-  List<Site> data;
 
-  String keyword;
-  BuildContext context;
-  final Function(BuildContext, Site) onManualPointing;
-  void Function(Site site) onDeactivateSos;
+  final List<Site> data;
+  final String keyword;
+  final BuildContext context;
+  final void Function(BuildContext, Site) onManualPointing;
+  final Future<void> Function(Site site) onDeactivateSos;
+  final Future<void> Function(Site site) onToggleStatus;
+  final Future<void> Function(Site site) onDeleteSite;
 
   _DataSource({
     required this.context,
@@ -733,356 +768,250 @@ class _DataSource extends DataTableSource {
     required this.keyword,
     required this.onManualPointing,
     required this.onDeactivateSos,
+    required this.onToggleStatus,
+    required this.onDeleteSite,
   });
+
+  List<Site> get _visibleData {
+    final query = keyword.trim().toLowerCase();
+    final filtered = data.where((site) {
+      if (query.isEmpty) return true;
+
+      final supervisor1Name =
+          "${site.supervisor?.firstName ?? ''} ${site.supervisor?.lastName ?? ''}"
+              .trim();
+      final supervisor2Name =
+          "${site.supervisor_2?.firstName ?? ''} ${site.supervisor_2?.lastName ?? ''}"
+              .trim();
+
+      final fields = <String>[
+        site.name,
+        site.codeSite,
+        site.phone,
+        site.zone?.name ?? '',
+        supervisor1Name,
+        site.supervisor?.phone ?? '',
+        supervisor2Name,
+        site.supervisor_2?.phone ?? '',
+      ];
+
+      return fields.any((field) => field.toLowerCase().contains(query));
+    }).toList();
+
+    dataToprint = filtered;
+    return filtered;
+  }
+
   @override
   DataRow? getRow(int index) {
-    // TODO: implement getRow
-    data = data.where((element) {
-      if (element.supervisor_2 != null) {
-        return element.name.toLowerCase().startsWith(keyword.toLowerCase()) ||
-            element.codeSite.toLowerCase() == (keyword.toLowerCase()) ||
-            "${element.supervisor!.firstName} ${element.supervisor!.lastName}"
-                .toLowerCase()
-                .contains(keyword.toLowerCase()) ||
-            element.supervisor!.phone
-                .toLowerCase()
-                .contains(keyword.toLowerCase()) ||
-            "${element.supervisor_2!.firstName} ${element.supervisor_2!.lastName}"
-                .toLowerCase()
-                .contains(keyword.toLowerCase()) ||
-            element.supervisor_2!.phone
-                .toLowerCase()
-                .contains(keyword.toLowerCase());
-      } else {
-        return element.name.toLowerCase().contains(keyword.toLowerCase()) ||
-            element.codeSite.toLowerCase() == (keyword.toLowerCase()) ||
-            "${element.supervisor!.firstName} ${element.supervisor!.lastName}"
-                .toLowerCase()
-                .contains(keyword.toLowerCase()) ||
-            element.supervisor!.phone
-                .toLowerCase()
-                .contains(keyword.toLowerCase());
-      }
-    }).toList();
-    dataToprint = data;
-    if (index >= data.length) {
+    final visibleData = _visibleData;
+
+    if (index >= visibleData.length) {
       return const DataRow(cells: [
-        //DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
+        DataCell(SizedBox.shrink()),
+        DataCell(SizedBox.shrink()),
+        DataCell(SizedBox.shrink()),
+        DataCell(SizedBox.shrink()),
+        DataCell(SizedBox.shrink()),
       ]);
     }
-    Site site = data[index];
 
-    return DataRow(cells: [
-      DataCell(Text(site.codeSite)),
-      DataCell(Text(site.name)),
-      DataCell(Text(site.zone?.name ?? '')),
-      DataCell(Text(site.phone)),
-      // DataCell(Text(site.adresse)),
-      DataCell(Text(site.nbAgent.toString())),
-      DataCell(Text("${site.latLng.lat} , ${site.latLng.lng}")),
-      DataCell(
-          Text("${site.supervisor?.firstName} ${site.supervisor?.lastName}")),
-      DataCell(site.supervisor_2 == null
-          ? const Text("")
-          : Text(
-              "${site.supervisor_2?.firstName} ${site.supervisor_2?.lastName}")),
-      DataCell(SiteStatut(
-        site: site,
-      )),
-      DataCell(Row(
-        mainAxisSize: MainAxisSize.min,
+    final site = visibleData[index];
+    final isActive = site.actif ?? false;
+
+    final supervisor1 =
+        "${site.supervisor?.firstName ?? ''} ${site.supervisor?.lastName ?? ''}"
+            .trim();
+    final supervisor2 =
+        "${site.supervisor_2?.firstName ?? ''} ${site.supervisor_2?.lastName ?? ''}"
+            .trim();
+
+    return DataRow(
+      //white color by defaut
+      color: WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.selected)) {
+          return Theme.of(context).primaryColor.withAlpha(10);
+        }
+        return Colors.white;
+      }),
+      cells: [
+      DataCell(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          site.actif!
-              ? _buildRowActionButton(
-                  context,
-                  Icons.edit,
-                  Colors.blue,
-                  "Modifier",
-                  () {
-                    context.go('/sites/add', extra: site);
-                  },
-                )
-              : const SizedBox.shrink(),
-          site.actif!
-              ? _buildRowActionButton(
-                  context,
-                  Icons.qr_code,
-                  Colors.green,
-                  "QR Code",
-                  () {
-                    CarteGenerator.generateQrSite(site);
-                  },
-                )
-              : const SizedBox.shrink(),
-          site.actif!
-              ? _buildRowActionButton(
-                  context,
-                  Icons.location_on,
-                  Colors.purple,
-                  "Pointage manuel",
-                  () {
-                    onManualPointing(context, site);
-                  },
-                )
-              : const SizedBox.shrink(),
-          site.actif!
-              ? const SizedBox.shrink()
-              : AuthService.currentManager!.profil!
-                      .getModule(ModuleName.SITE)!
-                      .delete
-                  ? DeleteSite(site: site)
-                  : const SizedBox.shrink(),
-          site.sos
-              ? _buildRowActionButton(
-                  context, Icons.sos, Colors.red, "Sos en cours", () {
-                  onDeactivateSos(site);
-                })
-              : const SizedBox.shrink(),
+          Text(
+            site.name,
+            style: const TextStyle(fontWeight: FontWeight.w700),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            'Code: ${site.codeSite}',
+            style: TextStyle(fontSize: 12, color: Colors.grey[600]),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+         Container(
+          padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 2),
+          decoration: BoxDecoration(
+            color: site.pointingType == SitePointingType.jour ? Colors.blue[100] : site.pointingType == SitePointingType.nuit ? Colors.orange[100] : Colors.grey[100],
+            borderRadius: BorderRadius.circular(12),
+          ),
+          child: Text(
+            site.pointingType == SitePointingType.jour ? 'Pointage Jour' : 
+            site.pointingType == SitePointingType.nuit ? 
+            'Pointage Nuit' : 'Pointage Jour/Nuit',
+            style: TextStyle(
+              color: site.pointingType == SitePointingType.jour ? Colors.blue[800] : 
+              site.pointingType == SitePointingType.nuit ? Colors.orange[800] :
+               Colors.grey[800],
+              fontSize: 10,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+         )
         ],
       )),
+      DataCell(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text('Zone: ${site.zone?.name ?? '-'}', overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text('Tel: ${site.phone}', overflow: TextOverflow.ellipsis),
+          const SizedBox(height: 2),
+          Text('Agents: ${site.nbAgent}'),
+        ],
+      )),
+      DataCell(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            supervisor1.isEmpty ? 'Sup. 1: -' : 'Sup. 1: $supervisor1',
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(height: 2),
+          Text(
+            supervisor2.isEmpty ? 'Sup. 2: -' : 'Sup. 2: $supervisor2',
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      )),
+      DataCell(Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: isActive ? Colors.green : Colors.redAccent,
+              borderRadius: BorderRadius.circular(14),
+            ),
+            child: Text(
+              isActive ? 'Actif' : 'Inactif',
+              style: const TextStyle(
+                color: Colors.white,
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          if (site.sos) ...[
+            const SizedBox(height: 4),
+            Text(
+              'SOS en cours',
+              style: TextStyle(
+                color: Colors.red[700],
+                fontSize: 12,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ]
+        ],
+      )),
+      DataCell(
+        PopupMenuButton<String>(
+          tooltip: 'Actions',
+          icon: const Icon(Icons.more_vert),
+          onSelected: (value) async {
+            switch (value) {
+              case 'edit':
+                context.go('/sites/add', extra: site);
+                break;
+              case 'qr':
+                CarteGenerator.generateQrSite(site);
+                break;
+              case 'manual':
+                onManualPointing(context, site);
+                break;
+              case 'toggle':
+                await onToggleStatus(site);
+                break;
+              case 'sos':
+                await onDeactivateSos(site);
+                break;
+              case 'delete':
+                await onDeleteSite(site);
+                break;
+            }
+          },
+          itemBuilder: (_) {
+            final siteModule =
+                AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!;
+            final canEdit = siteModule.view;
+            final canDelete = siteModule.delete;
+            final canValidation = siteModule.validation;
+
+            final entries = <PopupMenuEntry<String>>[];
+
+            if (isActive && canEdit) {
+              entries.add(
+                const PopupMenuItem(value: 'edit', child: Text('Modifier')),
+              );
+              entries.add(
+                const PopupMenuItem(value: 'qr', child: Text('Générer QR code')),
+              );
+              entries.add(
+                const PopupMenuItem(value: 'manual', child: Text('Pointage manuel')),
+              );
+            }
+
+            if (canValidation) {
+              entries.add(
+                PopupMenuItem(
+                  value: 'toggle',
+                  child: Text(isActive ? 'Désactiver' : 'Activer'),
+                ),
+              );
+            }
+
+            if (site.sos) {
+              entries.add(
+                const PopupMenuItem(value: 'sos', child: Text('Désactiver SOS')),
+              );
+            }
+
+            if (!isActive && canDelete) {
+              entries.add(
+                const PopupMenuItem(value: 'delete', child: Text('Supprimer')),
+              );
+            }
+
+            return entries;
+          },
+        ),
+      ),
     ]);
   }
 
-  Widget _buildRowActionButton(BuildContext context, IconData icon, Color color,
-      String tooltip, VoidCallback onPressed) {
-    return Padding(
-      padding: const EdgeInsets.only(right: 4),
-      child: Tooltip(
-        message: tooltip,
-        child: Container(
-          decoration: BoxDecoration(
-            color: color.withOpacity(0.1),
-            borderRadius: BorderRadius.circular(6),
-            border: Border.all(color: color.withOpacity(0.3)),
-          ),
-          child: Material(
-            color: Colors.transparent,
-            child: InkWell(
-              borderRadius: BorderRadius.circular(6),
-              onTap: onPressed,
-              child: Container(
-                padding: const EdgeInsets.all(8),
-                child: Icon(
-                  icon,
-                  color: color,
-                  size: 16,
-                ),
-              ),
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
   @override
-  // TODO: implement isRowCountApproximate
   bool get isRowCountApproximate => false;
 
   @override
-  // TODO: implement rowCount
-  int get rowCount => data.length;
+  int get rowCount => _visibleData.length;
 
   @override
-  // TODO: implement selectedRowCount
   int get selectedRowCount => 0;
 }
 
-//widget d'état du site
-
-class SiteStatut extends StatefulWidget {
-  const SiteStatut({super.key, required this.site});
-  final Site site;
-
-  @override
-  _SiteStatutState createState() => _SiteStatutState();
-}
-
-class _SiteStatutState extends State<SiteStatut> {
-  bool _updating = false;
-  @override
-  Widget build(BuildContext context) {
-    return _updating
-        ? Loading(size: 28, inline: false)
-        : GestureDetector(
-            onTap: () {
-              if (AuthService.currentManager!.profil!
-                  .getModule(ModuleName.SITE)!
-                  .validation) {
-                actifInactifSite();
-              }
-            },
-            child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-              decoration: BoxDecoration(
-                color: widget.site.actif! ? Colors.green : Colors.redAccent,
-                borderRadius: BorderRadius.circular(20),
-                boxShadow: [
-                  BoxShadow(
-                    color:
-                        (widget.site.actif! ? Colors.green : Colors.redAccent)
-                            .withOpacity(0.3),
-                    spreadRadius: 1,
-                    blurRadius: 4,
-                    offset: const Offset(0, 2),
-                  ),
-                ],
-              ),
-              child: Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(
-                    widget.site.actif! ? Icons.check_circle : Icons.cancel,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                  const SizedBox(width: 6),
-                  Text(
-                    widget.site.actif! ? "Actif" : "Inactif",
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.w600,
-                      fontSize: 12,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          );
-  }
-
-  void actifInactifSite() {
-    setState(() {
-      _updating = true;
-    });
-
-    final bool wasInactive = !widget.site.actif!;
-    widget.site.actif = widget.site.actif! ? false : true;
-
-    SiteService().update(widget.site).then((value) {
-      if (mounted) {
-        setState(() {
-          _updating = false;
-        });
-      }
-      print("Site ${widget.site.name} activé : ${widget.site.actif}");
-      // Si le site vient d'être activé (était inactif), générer les pointages
-      if (wasInactive && widget.site.actif!) {
-        _generateMonthlyPointingsForSite(widget.site);
-      }
-    }).onError((error, stackTrace) {
-      setState(() {
-        _updating = false;
-      });
-    });
-  }
-
-  /// Génère les pointages mensuels pour un site spécifique
-  /// Cette méthode est appelée en arrière-plan après l'activation
-  Future<void> _generateMonthlyPointingsForSite(Site site) async {
-    try {
-      // Obtenir le début du mois et aujourd'hui
-      print("Génération des pointages pour le site ${site.name}");
-      final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final today = DateTime(now.year, now.month, now.day);
-
-      // Obtenir les superviseurs du site
-      final List<Supervisor> supervisors = [];
-      if (site.supervisor != null) {
-        supervisors.add(site.supervisor!);
-      }
-      if (site.supervisor_2 != null) {
-        supervisors.add(site.supervisor_2!);
-      }
-
-      if (supervisors.isEmpty) {
-        print('Aucun superviseur assigné au site ${site.name}');
-        return;
-      }
-
-      for (final sup in supervisors) {
-        // Générer les pointages pour chaque jour du mois jusqu'à aujourd'hui
-        for (DateTime date = startOfMonth;
-            date.isBefore(today.add(const Duration(days: 1)));
-            date = date.add(const Duration(days: 1))) {
-          // Créer le pointage avec la position du site (pas de validation GPS nécessaire)
-          final pointingSite = PointingSite(
-            site: site,
-            supervisor: sup,
-            latlng: LatLngModel(
-                lat: site.latLng.lat,
-                lng: site.latLng.lng), // Position exacte du site
-            date: DateTime(
-              date.year,
-              date.month,
-              date.day,
-              8, // 8h du matin par défaut
-              0, // 0 minutes
-            ),
-            distance: 0, // Distance 0 car c'est la position exacte du site
-          );
-
-          // Enregistrer le pointage (Firebase gérera les doublons avec l'ID unique)
-          await PointingSiteService().add(pointingSite);
-        }
-      }
-
-      print(
-          'Pointages générés pour le site ${site.name} du ${startOfMonth.day}/${startOfMonth.month} au ${today.day}/${today.month}');
-    } catch (e) {
-      print('Erreur lors de la génération des pointages pour ${site.name}: $e');
-    }
-  }
-}
-
-//widget btn delete du site
-
-class DeleteSite extends StatefulWidget {
-  const DeleteSite({super.key, required this.site});
-  final Site site;
-  @override
-  _DeleteSiteState createState() => _DeleteSiteState();
-}
-
-class _DeleteSiteState extends State<DeleteSite> {
-  bool _deleting = false;
-  @override
-  Widget build(BuildContext context) {
-    return _deleting
-        ? Loading(size: 28, inline: false)
-        : IconButton(
-            onPressed: () {
-              deleteSite();
-            },
-            icon: const Icon(
-              Icons.delete,
-              color: Colors.red,
-            ));
-  }
-
-  void deleteSite() {
-    setState(() {
-      _deleting = true;
-    });
-    SiteService().delete(widget.site).then((value) {
-      setState(() {
-        _deleting = false;
-      });
-    }).onError((error, stackTrace) {
-      setState(() {
-        _deleting = false;
-      });
-    });
-  }
-}
