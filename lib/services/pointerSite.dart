@@ -12,7 +12,7 @@ class PointingSiteService {
     try {
       // Utiliser un ID unique basé sur le superviseur, site et date
       String child =
-          "${point.supervisor?.UID}_${point.site.UID}_${point.date.year}-${point.date.month}-${point.date.day}";
+          "${point.supervisor?.UID}_${point.site.UID}_${point.date.year}-${point.date.month}-${point.date.day}-${point.date.hour}";
       await _collectionReference.doc(child).set(point.toJson());
       print("Pointage enregistré avec succès");
     } catch (e) {

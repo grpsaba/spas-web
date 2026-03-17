@@ -41,11 +41,27 @@ class _AddSupervisorState extends State<AddSite> {
   bool _obscurePass = true;
   bool _adding = false;
   bool _isTwoSupervisor = false;
+
+  String _normalizePointageType(String? value) {
+    switch (value) {
+      case 'jour':
+      case 'nuit':
+      case 'jour_nuit':
+        return value!;
+      case 'jour-nuit':
+      case 'jour/nuit':
+        return 'jour_nuit';
+      default:
+        return 'jour';
+    }
+  }
+
   @override
   void initState() {
     // TODO: implement initState
     _isTwoSupervisor = widget.site.supervisor_2 == null ? false : true;
     super.initState();
+    widget.site.pointageType = _normalizePointageType(widget.site.pointageType);
     _email_ctrl.text = widget.site.email;
     _code_ctrl.text = widget.site.codeSite;
     _name_ctrl.text = widget.site.name;
@@ -279,6 +295,42 @@ class _AddSupervisorState extends State<AddSite> {
                           border: OutlineInputBorder(),
                           prefixIcon: Icon(Icons.build_circle)),
                     ))
+                  ],
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                Row(
+                  children: [
+                    Expanded(
+                      child: DropdownButtonFormField<String>(
+                        initialValue:
+                            _normalizePointageType(widget.site.pointageType),
+                        decoration: const InputDecoration(
+                          hintText: "Type de pointage",
+                          border: OutlineInputBorder(),
+                          prefixIcon: Icon(Icons.badge_outlined),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: 'jour',
+                            child: Text('Jour'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'nuit',
+                            child: Text('Nuit'),
+                          ),
+                          DropdownMenuItem(
+                            value: 'jour_nuit',
+                            child: Text('Jour / Nuit'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          widget.site.pointageType =
+                              _normalizePointageType(value);
+                        },
+                      ),
+                    ),
                   ],
                 ),
                 const SizedBox(

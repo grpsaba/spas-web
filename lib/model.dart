@@ -93,10 +93,16 @@ class Supervisor {
       required this.department});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
-    if(json["UID"] == null || json["code"] == null || json["firstName"] == null || json["lastName"] == null || json["phone"] == null || json["email"] == null || json['token'] == null || json["tracking"] == null){
-        
-        print("object");   
-         }
+    if (json["UID"] == null ||
+        json["code"] == null ||
+        json["firstName"] == null ||
+        json["lastName"] == null ||
+        json["phone"] == null ||
+        json["email"] == null ||
+        json['token'] == null ||
+        json["tracking"] == null) {
+      print("object");
+    }
     return Supervisor(
       UID: json["UID"],
       code: json["code"] ?? "",
@@ -302,6 +308,7 @@ class Site extends Equatable {
   Zone? zone;
   int? nbRonde;
   DateTime? dateContrat;
+  String pointageType;
   Site(
       {required this.UID,
       required this.codeSite,
@@ -318,10 +325,11 @@ class Site extends Equatable {
       required this.actif,
       required this.zone,
       required this.dateContrat,
-      required this.nbRonde});
+      required this.nbRonde,
+      this.pointageType = 'jour'});
 
   factory Site.fromJson(Map<String, dynamic> json) {
-  //verifier si une valeuir est null avant de la parser
+    //verifier si une valeuir est null avant de la parser
 
     return Site(
         UID: json["UID"] ?? "",
@@ -338,13 +346,13 @@ class Site extends Equatable {
             : DateTime.now(),
         zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
-        supervisor_2:
-         json["supervisor_2"] == null
+        supervisor_2: json["supervisor_2"] == null
             ? null
             : Supervisor.fromJson(json["supervisor_2"]),
         latLng: LatLngModel.fromJson(json["latLng"]),
         sos: json["sos"],
-        phone: json["phone"]);
+        phone: json["phone"],
+        pointageType: json['pointageType'] ?? 'jour');
   }
 
   Map<String, dynamic> toJson() {
@@ -364,6 +372,7 @@ class Site extends Equatable {
       'nbAgent': nbAgent,
       'actif': actif,
       'nbRonde': nbRonde ?? 1,
+      'pointageType': pointageType,
       'dateContrat': dateContrat != null
           ? dateContrat?.toIso8601String()
           : DateTime.now().toIso8601String()
@@ -389,9 +398,9 @@ class Zone extends Equatable {
   });
 
   factory Zone.fromJson(Map<String, dynamic> json) {
-    if(json["codeZone"] == null || json["name"] == null){
-        print("object");   
-         }
+    if (json["codeZone"] == null || json["name"] == null) {
+      print("object");
+    }
     return Zone(
       codeZone: json["codeZone"],
       name: json["name"],

@@ -7,6 +7,7 @@ import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
+import '../pointage_redesign/presentation/design_system.dart';
 import '../rowperPageWidget.dart';
 import '../services/agent.dart';
 import '../services/loading.dart';
@@ -19,19 +20,19 @@ class SupervisorList extends StatefulWidget {
   });
 
   @override
-  _SupervisorListState createState() => _SupervisorListState();
+  State<SupervisorList> createState() => _SupervisorListState();
 }
 
 class _SupervisorListState extends State<SupervisorList> {
   final SupervisorService _service = SupervisorService();
   final TextEditingController _texController = TextEditingController();
-  String _keyword = "";
+
+  String _keyword = '';
   int rowParPage = 0;
   int defauldRowParPage = 10;
-  List<Supervisor> _dataToexport = [];
+
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
     rowParPage = defauldRowParPage;
     _texController.text = defauldRowParPage.toString();
@@ -39,83 +40,123 @@ class _SupervisorListState extends State<SupervisorList> {
 
   @override
   void dispose() {
-    // TODO: implement dispose
-    super.dispose();
     _texController.dispose();
+    super.dispose();
+  }
+
+  Supervisor _emptySupervisor() {
+    return Supervisor(
+      code: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      tracking: false,
+      UID: '',
+      token: '',
+      latlng: null,
+      actif: false,
+      department: null,
+    );
   }
 
   @override
   Widget build(BuildContext context) {
     return PageModel(
       pageIndex: 4,
-      title: "Gestion des superviseurs",
+      title: 'Gestion des superviseurs',
       child: SingleChildScrollView(
-          child: StreamBuilder(
-              stream: _service.all(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
-                      .toList();
-                  var data = docs?.map((e) => Supervisor.fromJson(e)).toList();
+        child: StreamBuilder(
+          stream: _service.all(),
+          builder: (context, snapshot) {
+            if (!snapshot.hasData) {
+              return Center(
+                child: Loading(size: 64, inline: true),
+              );
+            }
 
-                  //copy to _dataToexport
-                  _dataToexport = data!;
-                  return PaginatedDataTable(
+            final docs = snapshot.data?.docs
+                    .map((e) => jsonDecode(jsonEncode(e.data())))
+                    .toList() ??
+                [];
+            final data = docs.map((e) => Supervisor.fromJson(e)).toList();
+
+            final activeCount =
+                data.where((element) => element.actif == true).length;
+            final inactiveCount = data.length - activeCount;
+
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Wrap(
+                  spacing: PointageSpacing.md,
+                  runSpacing: PointageSpacing.md,
+                  children: [
+                    _StatCard(
+                      label: 'Total',
+                      value: data.length.toString(),
+                      color: PointageColors.primary,
+                    ),
+                    _StatCard(
+                      label: 'Actifs',
+                      value: activeCount.toString(),
+                      color: PointageColors.success,
+                    ),
+                    _StatCard(
+                      label: 'Inactifs',
+                      value: inactiveCount.toString(),
+                      color: PointageColors.error,
+                    ),
+                  ],
+                ),
+                const SizedBox(height: PointageSpacing.md),
+                Container(
+                  decoration: PointageCardDecorations.standard,
+                  child: PaginatedDataTable(
+                    showCheckboxColumn: false,
+                    headingRowColor: WidgetStateProperty.all(
+                      PointageColors.primary.withValues(alpha: 0.08),
+                    ),
                     header: Row(
                       children: [
-                        const Text("Superviseurs"),
-                        const SizedBox(
-                          width: 10,
-                        ),
+                        const Text('Superviseurs'),
+                        const SizedBox(width: 10),
                         SearchTextField(
-                            onSearch: (value) {
-                              setState(() {
-                                _keyword = value;
-                              });
-                            },
-                            onPress: () {}),
-                        const SizedBox(
-                          width: 10,
+                          onSearch: (value) {
+                            setState(() {
+                              _keyword = value;
+                            });
+                          },
+                          onPress: () {},
                         ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.SUPERVISEUR)!
-                                .add
-                            ? Tooltip(
-                                message: "Ajouter un superviseur",
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Supervisor supervisor = Supervisor(
-                                        code: '',
-                                        firstName: '',
-                                        lastName: '',
-                                        phone: '',
-                                        email: '',
-                                        tracking: false,
-                                        UID: '',
-                                        token: '',
-                                        latlng: null,
-                                        actif: false,
-                                        department: null);
-                                    context.go("/superviseurs/add",
-                                        extra: supervisor);
-                                  },
-                                  child: const Icon(Icons.add),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                       Tooltip(
-                          message: "Position des superviseurs",
-                          child: ElevatedButton(
-                            onPressed: () {
-                              context.go("/superviseurs/locationtracker");
-                            },
-                            child: const Icon(Icons.location_on),
+                        const SizedBox(width: 10),
+                        if (AuthService.currentManager!.profil!
+                            .getModule(ModuleName.SUPERVISEUR)!
+                            .add)
+                          Tooltip(
+                            message: 'Ajouter un superviseur',
+                            child: ElevatedButton.icon(
+                              style: PointageButtonStyles.primary,
+                              onPressed: () {
+                                context.go('/superviseurs/add',
+                                    extra: _emptySupervisor());
+                              },
+                              icon: const Icon(Icons.add),
+                              label: const Text('Ajouter'),
+                            ),
                           ),
-                        )
+                        const SizedBox(width: 10),
+                        Tooltip(
+                          message: 'Position des superviseurs',
+                          child: OutlinedButton.icon(
+                            style: PointageButtonStyles.outlined,
+                            onPressed: () {
+                              context.go('/superviseurs/locationtracker');
+                            },
+                            icon: const Icon(Icons.location_on),
+                            label: const Text('Positions'),
+                          ),
+                        ),
                       ],
                     ),
                     actions: [
@@ -132,59 +173,92 @@ class _SupervisorListState extends State<SupervisorList> {
                             rowParPage = rowParPage <= defauldRowParPage
                                 ? defauldRowParPage
                                 : rowParPage - 1;
-
                             _texController.text = rowParPage.toString();
                           });
                         },
-                      )
+                      ),
                     ],
                     rowsPerPage: rowParPage,
                     showFirstLastButtons: true,
                     columns: const [
-                      //DataColumn(label: Text("Code")),
-                      DataColumn(label: Text("Prénom")),
-                      DataColumn(label: Text("Nom")),
-                      DataColumn(label: Text("Contact")),
-                      DataColumn(label: Text("email")),
-                      DataColumn(label: Text("Sites"), numeric: true),
-                      DataColumn(label: Text("Agents"), numeric: true),
-                      DataColumn(label: Text("Position")),
-                      DataColumn(label: Text("Statut")),
-                      DataColumn(label: Text("Action")),
+                      DataColumn(label: Text('Prénom')),
+                      DataColumn(label: Text('Nom')),
+                      DataColumn(label: Text('Contact')),
+                      DataColumn(label: Text('email')),
+                      DataColumn(label: Text('Sites'), numeric: true),
+                      DataColumn(label: Text('Agents'), numeric: true),
+                      DataColumn(label: Text('Position')),
+                      DataColumn(label: Text('Statut')),
+                      DataColumn(label: Text('Action')),
                     ],
                     source: _DataSource(
                       context: context,
                       keyword: _keyword,
                       data: data,
                     ),
-                  );
-                } else {
-                  return Center(
-                    child: Loading(
-                      size: 64,
-                      inline: true,
-                    ),
-                  );
-                }
-              })),
+                  ),
+                ),
+              ],
+            );
+          },
+        ),
+      ),
+    );
+  }
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 180,
+      padding: const EdgeInsets.all(PointageSpacing.md),
+      decoration: PointageCardDecorations.standard,
+      child: Row(
+        children: [
+          CircleAvatar(
+            backgroundColor: color.withValues(alpha: 0.15),
+            child: Icon(Icons.analytics_outlined, color: color),
+          ),
+          const SizedBox(width: PointageSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(label, style: PointageTextStyles.caption),
+                Text(value, style: PointageTextStyles.headline4),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
 class _DataSource extends DataTableSource {
-  List<Supervisor> data;
-  String keyword;
-  BuildContext context;
-
   _DataSource({
     required this.context,
-    required this.data,
+    required List<Supervisor> data,
     required this.keyword,
-  });
-  @override
-  DataRow? getRow(int index) {
-    // TODO: implement getRow
-    data = data.where((supervisor) {
+  }) : _baseData = data;
+
+  final List<Supervisor> _baseData;
+  final String keyword;
+  final BuildContext context;
+
+  List<Supervisor> get _filteredData {
+    return _baseData.where((supervisor) {
       return supervisor.firstName
               .toLowerCase()
               .contains(keyword.toLowerCase()) ||
@@ -192,120 +266,130 @@ class _DataSource extends DataTableSource {
           supervisor.code.toLowerCase().contains(keyword.toLowerCase()) ||
           supervisor.phone.toLowerCase().contains(keyword.toLowerCase());
     }).toList();
+  }
+
+  @override
+  DataRow? getRow(int index) {
+    final data = _filteredData;
     if (index >= data.length) {
       return const DataRow(cells: [
-        //DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
+        DataCell(Text('')),
       ]);
     }
-    Supervisor supervisor = data[index];
 
-    return DataRow(cells: [
-      //DataCell(Text(supervisor.code)),
-      DataCell(Text(supervisor.firstName)),
-      DataCell(Text(supervisor.lastName)),
-      DataCell(Text(supervisor.phone)),
-      DataCell(Text(supervisor.email)),
-      DataCell(nbSite(supervisor)),
-      DataCell(nbAgent(supervisor)),
-      DataCell(Text(
-          "${supervisor.latlng?.lat ?? ""} ; ${supervisor.latlng?.lng ?? ""}")),
-      DataCell(SuperviseurStatut(
-        superviseur: supervisor,
-      )),
-      DataCell(Row(
-        children: [
-          supervisor.actif!
-              ? IconButton(
+    final supervisor = data[index];
+
+    return DataRow.byIndex(
+      index: index,
+      onSelectChanged: (_) {
+        context.go('/superviseurs/detail', extra: supervisor);
+      },
+      cells: [
+        DataCell(Text(supervisor.firstName)),
+        DataCell(Text(supervisor.lastName)),
+        DataCell(Text(supervisor.phone)),
+        DataCell(Text(supervisor.email)),
+        DataCell(_nbSite(supervisor)),
+        DataCell(_nbAgent(supervisor)),
+        DataCell(
+          Text(
+              '${supervisor.latlng?.lat ?? ''} ; ${supervisor.latlng?.lng ?? ''}'),
+        ),
+        DataCell(
+          SuperviseurStatut(
+            superviseur: supervisor,
+          ),
+        ),
+        DataCell(
+          Row(
+            children: [
+              if (supervisor.actif == true)
+                IconButton(
                   icon: Icon(
                     Icons.edit,
                     color: Theme.of(context).primaryColor,
                   ),
                   onPressed: () {
-                    // ignore: use_build_context_synchronously
-                    context.go("/superviseurs/add", extra: supervisor);
+                    context.go('/superviseurs/add', extra: supervisor);
                   },
-                )
-              : const SizedBox.shrink(),
-          IconButton(
-            icon: const Icon(
-              Icons.location_history,
-              color: Colors.red,
-            ),
-            onPressed: () {
-              // ignore: use_build_context_synchronously
-              context.go("/superviseurs/location", extra: supervisor);
-            },
-          )
-        ],
-      )),
-    ]);
+                ),
+              IconButton(
+                icon: const Icon(
+                  Icons.location_history,
+                  color: Colors.red,
+                ),
+                onPressed: () {
+                  context.go('/superviseurs/location', extra: supervisor);
+                },
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
-  // TODO: implement isRowCountApproximate
   bool get isRowCountApproximate => false;
 
   @override
-  // TODO: implement rowCount
-  int get rowCount => data.length;
+  int get rowCount => _filteredData.length;
 
   @override
-  // TODO: implement selectedRowCount
   int get selectedRowCount => 0;
 
-  Widget nbAgent(Supervisor supervisor) {
+  Widget _nbAgent(Supervisor supervisor) {
     return FutureBuilder(
-        future: AgentService().allBySupervisor(supervisor.UID),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return const SizedBox.shrink();
-          if (snapshot.hasData) {
-            var data = snapshot.data;
-            return Text("${data?.length}");
-          } else {
-            return const SizedBox.shrink();
-          }
-        });
+      future: AgentService().allBySupervisor(supervisor.UID),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const SizedBox.shrink();
+        if (snapshot.hasData) {
+          final data = snapshot.data;
+          return Text('${data?.length}');
+        }
+        return const SizedBox.shrink();
+      },
+    );
   }
 
-  Widget nbSite(Supervisor supervisor) {
+  Widget _nbSite(Supervisor supervisor) {
     return FutureBuilder(
-        future: SiteService().allBySupervisor(supervisor),
-        builder: (context, snapshot) {
-          if (snapshot.hasError) return const SizedBox.shrink();
-          if (snapshot.hasData) {
-            var data = snapshot.data;
-            return Text("${data?.length}");
-          } else {
-            return const SizedBox.shrink();
-          }
-        });
+      future: SiteService().allBySupervisor(supervisor),
+      builder: (context, snapshot) {
+        if (snapshot.hasError) return const SizedBox.shrink();
+        if (snapshot.hasData) {
+          final data = snapshot.data;
+          return Text('${data?.length}');
+        }
+        return const SizedBox.shrink();
+      },
+    );
   }
 }
 
-//widget d'état du superviseur
-
 class SuperviseurStatut extends StatefulWidget {
-  SuperviseurStatut({
+  const SuperviseurStatut({
     super.key,
     required this.superviseur,
   });
-  Supervisor superviseur;
+
+  final Supervisor superviseur;
 
   @override
-  _SuperviseurStatutState createState() => _SuperviseurStatutState();
+  State<SuperviseurStatut> createState() => _SuperviseurStatutState();
 }
 
 class _SuperviseurStatutState extends State<SuperviseurStatut> {
   bool _updating = false;
+
   @override
   Widget build(BuildContext context) {
     return _updating
@@ -319,28 +403,27 @@ class _SuperviseurStatutState extends State<SuperviseurStatut> {
               }
             },
             child: Chip(
-                backgroundColor:
-                    widget.superviseur.actif! ? Colors.green : Colors.redAccent,
-                label: Row(
-                  children: [
-                    AuthService.currentManager!.profil!
-                            .getModule(ModuleName.SUPERVISEUR)!
-                            .validation
-                        ? Checkbox(
-                            value: widget.superviseur.actif!,
-                            onChanged: ((value) {
-                              actifInactifAgent();
-                            }))
-                        : const SizedBox.shrink(),
-                    widget.superviseur.actif!
-                        ? const Text(
-                            "Actif",
-                            style: TextStyle(color: Colors.white),
-                          )
-                        : const Text("Inactif",
-                            style: TextStyle(color: Colors.white)),
-                  ],
-                )),
+              backgroundColor:
+                  widget.superviseur.actif! ? Colors.green : Colors.redAccent,
+              label: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (AuthService.currentManager!.profil!
+                      .getModule(ModuleName.SUPERVISEUR)!
+                      .validation)
+                    Checkbox(
+                      value: widget.superviseur.actif!,
+                      onChanged: (_) {
+                        actifInactifAgent();
+                      },
+                    ),
+                  Text(
+                    widget.superviseur.actif! ? 'Actif' : 'Inactif',
+                    style: const TextStyle(color: Colors.white),
+                  ),
+                ],
+              ),
+            ),
           );
   }
 

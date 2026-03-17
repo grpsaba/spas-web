@@ -7,362 +7,433 @@ import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
+import '../pointage_redesign/presentation/design_system.dart';
 import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/supervisor.dart';
 
 class AddSupervisor extends StatefulWidget {
-  AddSupervisor({
+  const AddSupervisor({
     super.key,
     required this.supervisor,
+    this.embedded = false,
+    this.closeAfterSubmit = true,
+    this.onChanged,
   });
-  Supervisor supervisor;
+
+  final Supervisor supervisor;
+  final bool embedded;
+  final bool closeAfterSubmit;
+  final VoidCallback? onChanged;
 
   @override
-  _AddSupervisorState createState() => _AddSupervisorState();
+  State<AddSupervisor> createState() => _AddSupervisorState();
 }
 
 class _AddSupervisorState extends State<AddSupervisor> {
-  final TextEditingController _code_ctrl = TextEditingController();
-  final TextEditingController _firstName_ctrl = TextEditingController();
-  final TextEditingController _lastName_ctrl = TextEditingController();
-  final TextEditingController _phone_ctrl = TextEditingController();
-  final TextEditingController _email_ctrl = TextEditingController();
-  final TextEditingController _pass_ctrl = TextEditingController();
+  final TextEditingController _codeCtrl = TextEditingController();
+  final TextEditingController _firstNameCtrl = TextEditingController();
+  final TextEditingController _lastNameCtrl = TextEditingController();
+  final TextEditingController _phoneCtrl = TextEditingController();
+  final TextEditingController _emailCtrl = TextEditingController();
+  final TextEditingController _passCtrl = TextEditingController();
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
+
   bool _obscurePass = true;
   bool _adding = false;
 
   @override
   void initState() {
-    // TODO: implement initState
     super.initState();
-    _email_ctrl.text = widget.supervisor.email;
-    _code_ctrl.text = widget.supervisor.code;
-    _firstName_ctrl.text = widget.supervisor.firstName;
-    _lastName_ctrl.text = widget.supervisor.lastName;
-    _phone_ctrl.text = widget.supervisor.phone;
-    _pass_ctrl.text = widget.supervisor.code;
+    _emailCtrl.text = widget.supervisor.email;
+    _codeCtrl.text = widget.supervisor.code;
+    _firstNameCtrl.text = widget.supervisor.firstName;
+    _lastNameCtrl.text = widget.supervisor.lastName;
+    _phoneCtrl.text = widget.supervisor.phone;
+    _passCtrl.text = widget.supervisor.code;
   }
 
   @override
   void dispose() {
-    // TODO: implement dispose
+    _phoneCtrl.dispose();
+    _lastNameCtrl.dispose();
+    _firstNameCtrl.dispose();
+    _codeCtrl.dispose();
+    _emailCtrl.dispose();
+    _passCtrl.dispose();
     super.dispose();
-    _phone_ctrl.dispose();
-    _lastName_ctrl.dispose();
-    _firstName_ctrl.dispose();
-    _code_ctrl.dispose();
-    _email_ctrl.dispose();
-    _pass_ctrl.dispose();
+  }
+
+  InputDecoration _decoration({
+    required String hintText,
+    required IconData icon,
+    Widget? suffixIcon,
+  }) {
+    return PointageInputDecorations.standard(
+      hintText: hintText,
+      prefixIcon: Icon(icon),
+      suffixIcon: suffixIcon,
+    );
+  }
+
+  void _copyControllersToModel() {
+    widget.supervisor.code = _codeCtrl.text;
+    widget.supervisor.firstName = _firstNameCtrl.text;
+    widget.supervisor.lastName = _lastNameCtrl.text;
+    widget.supervisor.email = _emailCtrl.text;
+    widget.supervisor.phone = _phoneCtrl.text;
+  }
+
+  Future<void> _submit() async {
+    _copyControllersToModel();
+
+    if (!_key.currentState!.validate()) {
+      return;
+    }
+
+    setState(() {
+      _adding = true;
+    });
+
+    try {
+      if (widget.supervisor.UID.isEmpty) {
+        final created =
+            await SupervisorService().add(widget.supervisor, _passCtrl.text);
+        if (created == null) {
+          throw Exception('Impossible de créer le superviseur');
+        }
+      } else {
+        await SupervisorService().update(widget.supervisor);
+      }
+
+      if (!mounted) {
+        return;
+      }
+
+      widget.onChanged?.call();
+
+      if (widget.closeAfterSubmit) {
+        context.pop();
+      } else {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Superviseur enregistré avec succès')),
+        );
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _adding = false;
+        });
+      }
+    }
+  }
+
+  Future<bool> _confirmDelete() async {
+    return await showDialog<bool>(
+          context: context,
+          builder: (context) {
+            return AlertDialog(
+              title: const Text('Confirmer la suppression'),
+              content: Text(
+                'Supprimer ${widget.supervisor.firstName} ${widget.supervisor.lastName} ?',
+              ),
+              actions: [
+                TextButton(
+                  onPressed: () => Navigator.of(context).pop(false),
+                  child: const Text('Annuler'),
+                ),
+                ElevatedButton(
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: PointageColors.error,
+                    foregroundColor: Colors.white,
+                  ),
+                  onPressed: () => Navigator.of(context).pop(true),
+                  child: const Text('Supprimer'),
+                ),
+              ],
+            );
+          },
+        ) ??
+        false;
+  }
+
+  Future<void> _delete() async {
+    final confirmed = await _confirmDelete();
+    if (!confirmed) {
+      return;
+    }
+
+    setState(() {
+      _adding = true;
+    });
+
+    try {
+      await SupervisorService().delete(widget.supervisor);
+
+      if (!mounted) {
+        return;
+      }
+
+      widget.onChanged?.call();
+
+      if (widget.closeAfterSubmit) {
+        context.pop();
+      }
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(error.toString())),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _adding = false;
+        });
+      }
+    }
+  }
+
+  Widget _buildDepartmentField() {
+    return StreamBuilder(
+      stream: DepartmentService().all(),
+      builder: (context, snapshot) {
+        if (!snapshot.hasData) {
+          return Loading(size: 28, inline: true);
+        }
+
+        final docs = snapshot.data?.docs
+                .map((e) => jsonDecode(jsonEncode(e.data())))
+                .toList() ??
+            [];
+        final departments = docs.map((e) => Department.fromJson(e)).toList();
+
+        Department? initialDepartment;
+        if (widget.supervisor.department != null) {
+          for (final department in departments) {
+            if (department.label == widget.supervisor.department!.label) {
+              initialDepartment = department;
+              break;
+            }
+          }
+        }
+
+        return DropdownButtonFormField<Department>(
+          initialValue: initialDepartment,
+          hint: const Text('Département'),
+          decoration:
+              _decoration(hintText: 'Département', icon: Icons.apartment),
+          validator: (value) {
+            return value != null ? null : 'Département obligatoir';
+          },
+          isExpanded: true,
+          items: departments
+              .map(
+                (Department department) => DropdownMenuItem<Department>(
+                  value: department,
+                  child: Text(department.label),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            widget.supervisor.department = value;
+          },
+          onSaved: (value) {
+            widget.supervisor.department = value;
+          },
+        );
+      },
+    );
+  }
+
+  Widget _buildActionButtons() {
+    final canDelete = widget.supervisor.UID.isNotEmpty &&
+        AuthService.currentManager!.profil!
+            .getModule(ModuleName.SUPERVISEUR)!
+            .delete;
+
+    return Row(
+      mainAxisAlignment: MainAxisAlignment.end,
+      children: [
+        if (!widget.embedded) ...[
+          OutlinedButton.icon(
+            onPressed: _adding ? null : () => context.pop(),
+            icon: const Icon(Icons.close),
+            label: const Text('Annuler'),
+            style: PointageButtonStyles.outlined,
+          ),
+          const SizedBox(width: PointageSpacing.md),
+        ],
+        if (canDelete) ...[
+          ElevatedButton.icon(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: PointageColors.error,
+              foregroundColor: Colors.white,
+              padding: const EdgeInsets.symmetric(
+                horizontal: PointageSpacing.lg,
+                vertical: PointageSpacing.md,
+              ),
+              shape: RoundedRectangleBorder(
+                borderRadius: PointageBorderRadius.medium,
+              ),
+            ),
+            onPressed: _adding ? null : _delete,
+            icon: const Icon(Icons.delete_outline),
+            label: const Text('Supprimer'),
+          ),
+          const SizedBox(width: PointageSpacing.md),
+        ],
+        ElevatedButton.icon(
+          style: PointageButtonStyles.primary,
+          onPressed: _adding ? null : _submit,
+          icon: _adding
+              ? const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    color: Colors.white,
+                  ),
+                )
+              : const Icon(Icons.check_circle),
+          label: Text(_adding ? 'Enregistrement...' : 'Valider'),
+        ),
+      ],
+    );
   }
 
   @override
   Widget build(BuildContext context) {
-    double _padding = MediaQuery.of(context).size.width * 0.1;
-    return PageModel(
-      pageIndex: 4,
-      title: "Gestion superviseurs -> Edition superviseur",
-      child: SingleChildScrollView(
-        child: Padding(
-          padding: EdgeInsets.only(
-              left: _padding, right: _padding, top: 8.0, bottom: 8.0),
+    final horizontalPadding =
+        widget.embedded ? 0.0 : MediaQuery.of(context).size.width * 0.1;
+
+    final content = SingleChildScrollView(
+      child: Padding(
+        padding: EdgeInsets.only(
+          left: horizontalPadding,
+          right: horizontalPadding,
+          top: 8.0,
+          bottom: 8.0,
+        ),
+        child: Container(
+          width: double.infinity,
+          padding: const EdgeInsets.all(PointageSpacing.lg),
+          decoration: PointageCardDecorations.standard,
           child: Form(
             key: _key,
             child: Column(
               children: [
-                StreamBuilder(
-                    stream: DepartmentService().all(),
-                    builder: (context, snapshot) {
-                      if (snapshot.hasData) {
-                        var docs = snapshot.data?.docs
-                            .map((e) => jsonDecode(jsonEncode(e.data())))
-                            .toList();
-                        List<Department>? data =
-                            docs?.map((e) => Department.fromJson(e)).toList();
-
-                        return DropdownButtonFormField<Department>(
-                          hint: const Text("Département"),
-                          decoration: const InputDecoration(
-                              hintText: "Département",
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.apartment)),
-                          validator: (value) {
-                            return value != null
-                                ? null
-                                : "Département obligatoir";
-                          },
-                          isExpanded: true,
-                          value: data
-                              ?.where((element) => element.label.contains(
-                                  widget.supervisor.department?.label ?? ""))
-                              .toList()
-                              .first,
-                          items: data
-                              ?.map((Department department) =>
-                                  DropdownMenuItem<Department>(
-                                      value: department,
-                                      child: Text(department.label)))
-                              .toList(),
-                          onChanged: (value) {
-                            widget.supervisor.department = value!;
-                          },
-                          onSaved: (value) {
-                            widget.supervisor.department = value!;
-                          },
-                        );
-                      } else {
-                        return const Text(
-                            "Chargements des départements en cours...");
-                      }
-                    }),
-                const SizedBox(
-                  height: 20,
-                ),
+                _buildDepartmentField(),
+                const SizedBox(height: PointageSpacing.md),
                 TextFormField(
                   readOnly: widget.supervisor.code.isNotEmpty,
-                  controller: _code_ctrl,
-                  onChanged: (value) {
-                    widget.supervisor.code = value;
-                  },
+                  controller: _codeCtrl,
+                  onChanged: (value) => widget.supervisor.code = value,
                   validator: (value) {
-                    return value!.isNotEmpty ? null : "Code obligatoir";
+                    return value!.isNotEmpty ? null : 'Code obligatoir';
                   },
-                  decoration: const InputDecoration(
-                      //filled: true,
-                      hintText: "Code",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.build_circle)),
+                  decoration: _decoration(hintText: 'Code', icon: Icons.badge),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: PointageSpacing.md),
                 TextFormField(
-                  controller: _firstName_ctrl,
-                  onChanged: (value) {
-                    widget.supervisor.firstName = value;
-                  },
+                  controller: _firstNameCtrl,
+                  onChanged: (value) => widget.supervisor.firstName = value,
                   validator: (value) {
-                    return value!.isNotEmpty ? null : "Prénom obligatoir";
+                    return value!.isNotEmpty ? null : 'Prénom obligatoir';
                   },
-                  decoration: const InputDecoration(
-                      hintText: "Prénom",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person)),
+                  decoration:
+                      _decoration(hintText: 'Prénom', icon: Icons.person),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: PointageSpacing.md),
                 TextFormField(
-                  controller: _lastName_ctrl,
-                  onChanged: (value) {
-                    widget.supervisor.lastName = value;
-                  },
+                  controller: _lastNameCtrl,
+                  onChanged: (value) => widget.supervisor.lastName = value,
                   validator: (value) {
-                    return value!.isNotEmpty ? null : "Nom obligatoir";
+                    return value!.isNotEmpty ? null : 'Nom obligatoir';
                   },
-                  decoration: const InputDecoration(
-                      hintText: "Nom",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person)),
+                  decoration:
+                      _decoration(hintText: 'Nom', icon: Icons.person_outline),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: PointageSpacing.md),
                 TextFormField(
-                  keyboardType: TextInputType.number,
-                  controller: _phone_ctrl,
-                  onChanged: (value) {
-                    widget.supervisor.phone = value;
-                  },
+                  keyboardType: TextInputType.phone,
+                  controller: _phoneCtrl,
+                  onChanged: (value) => widget.supervisor.phone = value,
                   validator: (value) {
-                    return value!.isNotEmpty ? null : "Téléphone obligatoir";
+                    return value!.isNotEmpty ? null : 'Téléphone obligatoir';
                   },
-                  decoration: const InputDecoration(
-                      hintText: "Téléphone",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone)),
+                  decoration: _decoration(
+                    hintText: 'Téléphone',
+                    icon: Icons.phone_outlined,
+                  ),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
+                const SizedBox(height: PointageSpacing.md),
                 TextFormField(
                   readOnly: widget.supervisor.email.isNotEmpty,
-                  controller: _email_ctrl,
-                  onChanged: (value) {
-                    widget.supervisor.email = value;
-                  },
+                  controller: _emailCtrl,
+                  onChanged: (value) => widget.supervisor.email = value,
                   validator: (value) {
                     return EmailValidator.validate(value!)
                         ? null
-                        : "email obligatoir";
+                        : 'email obligatoir';
                   },
-                  decoration: const InputDecoration(
-                      hintText: "Email",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email)),
+                  decoration: _decoration(
+                    hintText: 'Email',
+                    icon: Icons.email_outlined,
+                  ),
                 ),
-                const SizedBox(
-                  height: 20,
-                ),
-                widget.supervisor.UID.isNotEmpty
-                    ? const SizedBox.shrink()
-                    : TextFormField(
-                        obscureText: _obscurePass,
-                        controller: _pass_ctrl,
-                        validator: (value) {
-                          return value!.isNotEmpty
-                              ? null
-                              : "mot de passe obligatoir";
+                const SizedBox(height: PointageSpacing.md),
+                if (widget.supervisor.UID.isEmpty)
+                  TextFormField(
+                    obscureText: _obscurePass,
+                    controller: _passCtrl,
+                    validator: (value) {
+                      return value!.isNotEmpty
+                          ? null
+                          : 'mot de passe obligatoir';
+                    },
+                    decoration: _decoration(
+                      hintText: 'Mot de passe',
+                      icon: Icons.lock_outline,
+                      suffixIcon: IconButton(
+                        onPressed: () {
+                          setState(() {
+                            _obscurePass = !_obscurePass;
+                          });
                         },
-                        decoration: InputDecoration(
-                            hintText: "Mot de passe",
-                            border: const OutlineInputBorder(),
-                            suffixIcon: IconButton(
-                                onPressed: () {
-                                  setState(() {
-                                    _obscurePass = _obscurePass ? false : true;
-                                  });
-                                },
-                                icon: _obscurePass
-                                    ? const Icon(Icons.remove_red_eye)
-                                    : const Icon(
-                                        Icons.remove_red_eye_outlined)),
-                            prefixIcon: const Icon(Icons.password)),
+                        icon: Icon(
+                          _obscurePass
+                              ? Icons.remove_red_eye
+                              : Icons.remove_red_eye_outlined,
+                        ),
                       ),
-                const SizedBox(
-                  height: 20,
-                ),
-                _adding
-                    ? Loading(size: 48, inline: false)
-                    : Row(
-                        //mainAxisAlignment: MainAxisAlignment.center,
-                        children: [
-                          ElevatedButton(
-                              style: ElevatedButton.styleFrom(
-                                  fixedSize: const Size(150, 50),
-                                  shape: RoundedRectangleBorder(
-                                      borderRadius: BorderRadius.circular(20))),
-                              onPressed: () async {
-                                widget.supervisor.code = _code_ctrl.text;
-                                widget.supervisor.firstName =
-                                    _firstName_ctrl.text;
-                                widget.supervisor.lastName =
-                                    _lastName_ctrl.text;
-                                widget.supervisor.email = _email_ctrl.text;
-                                widget.supervisor.phone = _phone_ctrl.text;
-
-                                if (_key.currentState!.validate()) {
-                                  setState(() {
-                                    _adding = true;
-                                  });
-                                  if (widget.supervisor.UID.isEmpty) {
-                                    await SupervisorService()
-                                        .add(widget.supervisor, _pass_ctrl.text)
-                                        .then((value) {
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                      context.pop();
-                                    }).onError((error, stackTrace) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                              content: Text(error.toString())));
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                    });
-                                  } else {
-                                    await SupervisorService()
-                                        .update(widget.supervisor)
-                                        .then((value) {
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                      context.pop();
-                                    }).onError((error, stackTrace) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                              content: Text(error.toString())));
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                    });
-                                  }
-                                }
-                              },
-                              child: const Row(
-                                mainAxisAlignment: MainAxisAlignment.center,
-                                children: [
-                                  Icon(Icons.check_circle),
-                                  SizedBox(
-                                    width: 5,
-                                  ),
-                                  Text('Valider')
-                                ],
-                              )),
-                          const SizedBox(
-                            width: 20,
-                          ),
-                          widget.supervisor.UID.isEmpty
-                              ? const SizedBox.shrink()
-                              : AuthService.currentManager!.profil!
-                                      .getModule(ModuleName.SUPERVISEUR)!
-                                      .delete
-                                  ? ElevatedButton(
-                                      style: ElevatedButton.styleFrom(
-                                          backgroundColor: Colors.red,
-                                          fixedSize: const Size(150, 50),
-                                          shape: RoundedRectangleBorder(
-                                              borderRadius:
-                                                  BorderRadius.circular(20))),
-                                      onPressed: () async {
-                                        if (_key.currentState!.validate()) {
-                                          setState(() {
-                                            _adding = true;
-                                          });
-
-                                          await SupervisorService()
-                                              .delete(widget.supervisor)
-                                              .then((value) {
-                                            setState(() {
-                                              _adding = false;
-                                            });
-                                            context.pop();
-                                          }).onError((error, stackTrace) {
-                                            ScaffoldMessenger.of(context)
-                                                .showSnackBar(SnackBar(
-                                                    content: Text(
-                                                        error.toString())));
-                                            setState(() {
-                                              _adding = false;
-                                            });
-                                          });
-                                        }
-                                      },
-                                      child: const Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.center,
-                                        children: [
-                                          Icon(Icons.delete),
-                                          SizedBox(
-                                            width: 5,
-                                          ),
-                                          Text(
-                                            'Supprimer',
-                                            style:
-                                                TextStyle(color: Colors.white),
-                                          )
-                                        ],
-                                      ))
-                                  : const SizedBox.shrink(),
-                        ],
-                      )
+                    ),
+                  ),
+                const SizedBox(height: PointageSpacing.lg),
+                _buildActionButtons(),
               ],
             ),
           ),
         ),
       ),
+    );
+
+    if (widget.embedded) {
+      return content;
+    }
+
+    return PageModel(
+      pageIndex: 4,
+      title: 'Gestion superviseurs -> Edition superviseur',
+      child: content,
     );
   }
 }

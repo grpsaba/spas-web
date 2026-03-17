@@ -12,7 +12,7 @@ import '../../services/site.dart';
 import '../../services/zoneMember.dart';
 
 /// Service for generating reports with progress tracking
-/// 
+///
 /// Integrates with AggregationService for optimized data fetching
 /// Uses existing RapportPointage class for Excel generation
 /// Requirements: 4.1, 4.2, 4.3, 4.5
@@ -20,10 +20,10 @@ class ReportGenerator {
   final AggregationService _aggregationService;
   final SupervisorService _supervisorService;
   final SiteService _siteService;
-  
+
   // Cancellation support
   bool _isCancelled = false;
-  
+
   ReportGenerator({
     AggregationService? aggregationService,
     SupervisorService? supervisorService,
@@ -52,7 +52,7 @@ class ReportGenerator {
   }
 
   /// Generate supervisor report with progress tracking
-  /// 
+  ///
   /// Requirements: 4.1, 4.2, 4.3, 4.5
   Future<ReportResult> generateSupervisorReport({
     required DateTime startDate,
@@ -63,12 +63,12 @@ class ReportGenerator {
   }) async {
     _resetCancellation();
     final startTime = DateTime.now();
-    
+
     try {
       // Step 1: Fetch supervisors (10% progress)
       onProgress?.call(0.1, 'Chargement des superviseurs...');
       _checkCancellation();
-      
+
       List<Supervisor> supervisors;
       if (supervisorIds != null && supervisorIds.isNotEmpty) {
         supervisors = [];
@@ -91,14 +91,14 @@ class ReportGenerator {
       // Step 2: Generate list of days in the period (15% progress)
       onProgress?.call(0.15, 'Calcul de la période...');
       _checkCancellation();
-      
+
       final days = _generateDaysList(startDate, endDate);
       final supervisorUids = supervisors.map((s) => s.UID).toList();
 
       // Step 3: Fetch site counts for each supervisor (25% progress)
       onProgress?.call(0.25, 'Chargement des sites...');
       _checkCancellation();
-      
+
       final Map<String, int> siteCounts = {};
       for (var supervisor in supervisors) {
         final count = await _siteService.allSitesCountBySupervisor(supervisor);
@@ -108,8 +108,9 @@ class ReportGenerator {
       // Step 4: Aggregate pointages by supervisor and day (60% progress)
       onProgress?.call(0.4, 'Agrégation des pointages...');
       _checkCancellation();
-      
-      final aggregatedData = await _aggregationService.aggregateBySupervisorAndDay(
+
+      final aggregatedData =
+          await _aggregationService.aggregateUniqueSitesBySupervisorAndDay(
         supervisorIds: supervisorUids,
         days: days,
       );
@@ -117,18 +118,18 @@ class ReportGenerator {
       // Step 5: Build report data structure (75% progress)
       onProgress?.call(0.75, 'Construction du rapport...');
       _checkCancellation();
-      
+
       final List<Map<String, dynamic>> reportData = [];
       int totalPointages = 0;
 
       for (var supervisor in supervisors) {
         final supervisorData = aggregatedData[supervisor.UID] ?? {};
         final nbSite = siteCounts[supervisor.UID] ?? 0;
-        
+
         // Build daily pointages list
         final List<Map<String, dynamic>> dailyPointages = [];
         int supervisorTotal = 0;
-        
+
         for (var day in days) {
           final count = supervisorData[day] ?? 0;
           dailyPointages.add({
@@ -153,7 +154,7 @@ class ReportGenerator {
       final formatName = format == ReportFormat.excel ? 'Excel' : 'PDF';
       onProgress?.call(0.9, 'Génération du fichier $formatName...');
       _checkCancellation();
-      
+
       final Uint8List bytes;
       if (format == ReportFormat.pdf) {
         bytes = await _generateSupervisorPdf(reportData);
@@ -163,7 +164,7 @@ class ReportGenerator {
 
       // Step 7: Complete (100% progress)
       onProgress?.call(1.0, 'Terminé');
-      
+
       final generationTime = DateTime.now().difference(startTime);
       final filename = _buildSupervisorFilename(startDate, endDate, format);
 
@@ -195,7 +196,7 @@ class ReportGenerator {
   }
 
   /// Generate site report with progress tracking
-  /// 
+  ///
   /// Requirements: 4.1, 4.2, 4.3, 4.5
   Future<ReportResult> generateSiteReport({
     required DateTime startDate,
@@ -206,12 +207,12 @@ class ReportGenerator {
   }) async {
     _resetCancellation();
     final startTime = DateTime.now();
-    
+
     try {
       // Step 1: Aggregate pointages by site (40% progress)
       onProgress?.call(0.2, 'Agrégation des pointages par site...');
       _checkCancellation();
-      
+
       final aggregatedData = await _aggregationService.aggregateBySiteAndPeriod(
         startDate: startDate,
         endDate: endDate,
@@ -221,7 +222,7 @@ class ReportGenerator {
       // Step 2: Fetch site details (60% progress)
       onProgress?.call(0.5, 'Chargement des détails des sites...');
       _checkCancellation();
-      
+
       final List<Site> sites = [];
       if (siteIds != null && siteIds.isNotEmpty) {
         for (var siteId in siteIds) {
@@ -237,18 +238,19 @@ class ReportGenerator {
       // Step 3: Build report data structure (80% progress)
       onProgress?.call(0.8, 'Construction du rapport...');
       _checkCancellation();
-      
+
       final List<Map<String, dynamic>> reportData = [];
       int totalPointages = 0;
 
       for (var site in sites) {
         final nbPointage = aggregatedData[site.UID] ?? 0;
         totalPointages += nbPointage;
-        
+
         reportData.add({
           'site': site,
           'nbPointage': nbPointage,
-          'date': '${startDate.day}/${startDate.month}/${startDate.year} - ${endDate.day}/${endDate.month}/${endDate.year}',
+          'date':
+              '${startDate.day}/${startDate.month}/${startDate.year} - ${endDate.day}/${endDate.month}/${endDate.year}',
         });
       }
 
@@ -256,7 +258,7 @@ class ReportGenerator {
       final formatName = format == ReportFormat.excel ? 'Excel' : 'PDF';
       onProgress?.call(0.95, 'Génération du fichier $formatName...');
       _checkCancellation();
-      
+
       final Uint8List bytes;
       if (format == ReportFormat.pdf) {
         bytes = await _generateSitePdf(reportData);
@@ -266,7 +268,7 @@ class ReportGenerator {
 
       // Step 5: Complete (100% progress)
       onProgress?.call(1.0, 'Terminé');
-      
+
       final generationTime = DateTime.now().difference(startTime);
       final filename = _buildSiteFilename(startDate, endDate, format);
 
@@ -298,7 +300,7 @@ class ReportGenerator {
   }
 
   /// Preview supervisor report data before generation
-  /// 
+  ///
   /// Requirements: 4.1
   Future<ReportPreview> previewSupervisorReport({
     required DateTime startDate,
@@ -326,10 +328,10 @@ class ReportGenerator {
 
       // Estimate records (supervisors × days)
       final estimatedRecords = supervisors.length * periodDays;
-      
+
       // Estimate pages (assuming ~30 rows per page)
       final estimatedPages = (supervisors.length / 30).ceil();
-      
+
       // Estimate generation time (rough estimate: 100ms per supervisor + 50ms per day)
       final estimatedTimeMs = (supervisors.length * 100) + (periodDays * 50);
       final estimatedTime = Duration(milliseconds: estimatedTimeMs);
@@ -358,7 +360,7 @@ class ReportGenerator {
   }
 
   /// Preview site report data before generation
-  /// 
+  ///
   /// Requirements: 4.1
   Future<ReportPreview> previewSiteReport({
     required DateTime startDate,
@@ -385,10 +387,10 @@ class ReportGenerator {
 
       // Estimate records (number of sites)
       final estimatedRecords = sites.length;
-      
+
       // Estimate pages (assuming ~40 rows per page)
       final estimatedPages = (sites.length / 40).ceil();
-      
+
       // Estimate generation time (rough estimate: 50ms per site)
       final estimatedTimeMs = sites.length * 50;
       final estimatedTime = Duration(milliseconds: estimatedTimeMs);
@@ -445,10 +447,10 @@ class ReportGenerator {
       }
 
       // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
       final int nbJours = firstPointings.length;
-      
+
       final Workbook workbook = Workbook();
       final Worksheet sheet = workbook.worksheets[0];
       sheet.showGridlines = true;
@@ -474,8 +476,8 @@ class ReportGenerator {
       if (firstPointings.isNotEmpty) {
         titreDate = firstPointings.first['date'] as DateTime?;
       }
-      final titre = titreDate != null 
-          ? "Pointages du ${titreDate.month}/${titreDate.year}" 
+      final titre = titreDate != null
+          ? "Pointages du ${titreDate.month}/${titreDate.year}"
           : "Pointages";
       sheet.getRangeByIndex(1, 1).setText(titre);
       sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 18;
@@ -511,10 +513,10 @@ class ReportGenerator {
       for (Map<String, dynamic> pointage in reportData) {
         rowIndex++;
         int colIdx = 6;
-        
+
         final Supervisor superviseur = pointage['supervisor'] as Supervisor;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
 
         // Calculate totals
@@ -522,14 +524,15 @@ class ReportGenerator {
         for (var p in pointings) {
           nbPointages += (p['nbPointage'] ?? 0) as int;
         }
-        
+
         final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final double performance =
+            maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
 
         // Supervisor name
-        sheet.getRangeByIndex(rowIndex, 1).setText(
-          "${superviseur.firstName} ${superviseur.lastName}"
-        );
+        sheet
+            .getRangeByIndex(rowIndex, 1)
+            .setText("${superviseur.firstName} ${superviseur.lastName}");
         sheet.getRangeByIndex(rowIndex, 1).columnWidth = 20;
         sheet.getRangeByIndex(rowIndex, 1).cellStyle = rowStyle;
 
@@ -542,7 +545,9 @@ class ReportGenerator {
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
 
         // Performance
-        sheet.getRangeByIndex(rowIndex, 4).setValue("${performance.toStringAsFixed(2)}%");
+        sheet
+            .getRangeByIndex(rowIndex, 4)
+            .setValue("${performance.toStringAsFixed(2)}%");
         sheet.getRangeByIndex(rowIndex, 4).cellStyle = rowStyle;
 
         // Number of sites
@@ -561,7 +566,7 @@ class ReportGenerator {
       // Save to bytes
       final List<int> bytes = workbook.saveAsStream();
       workbook.dispose();
-      
+
       return Uint8List.fromList(bytes);
     } catch (e) {
       debugPrint('Error generating supervisor Excel: $e');
@@ -639,14 +644,12 @@ class ReportGenerator {
 
         // Supervisor 1
         sheet.getRangeByIndex(rowIndex, 2).setText(
-          "${site.supervisor?.firstName ?? ''} ${site.supervisor?.lastName ?? ''}"
-        );
+            "${site.supervisor?.firstName ?? ''} ${site.supervisor?.lastName ?? ''}");
         sheet.getRangeByIndex(rowIndex, 2).cellStyle = rowStyle;
 
         // Supervisor 2
         sheet.getRangeByIndex(rowIndex, 3).setText(
-          "${site.supervisor_2?.firstName ?? ''} ${site.supervisor_2?.lastName ?? ''}"
-        );
+            "${site.supervisor_2?.firstName ?? ''} ${site.supervisor_2?.lastName ?? ''}");
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
 
         // Number of visits
@@ -657,7 +660,7 @@ class ReportGenerator {
       // Save to bytes
       final List<int> bytes = workbook.saveAsStream();
       workbook.dispose();
-      
+
       return Uint8List.fromList(bytes);
     } catch (e) {
       debugPrint('Error generating site Excel: $e');
@@ -666,16 +669,22 @@ class ReportGenerator {
   }
 
   /// Build filename for supervisor report
-  String _buildSupervisorFilename(DateTime startDate, DateTime endDate, ReportFormat format) {
-    final start = '${startDate.year}${startDate.month.toString().padLeft(2, '0')}${startDate.day.toString().padLeft(2, '0')}';
-    final end = '${endDate.year}${endDate.month.toString().padLeft(2, '0')}${endDate.day.toString().padLeft(2, '0')}';
+  String _buildSupervisorFilename(
+      DateTime startDate, DateTime endDate, ReportFormat format) {
+    final start =
+        '${startDate.year}${startDate.month.toString().padLeft(2, '0')}${startDate.day.toString().padLeft(2, '0')}';
+    final end =
+        '${endDate.year}${endDate.month.toString().padLeft(2, '0')}${endDate.day.toString().padLeft(2, '0')}';
     return 'PointageSuperviseur_${start}_$end.${format.extension}';
   }
 
   /// Build filename for site report
-  String _buildSiteFilename(DateTime startDate, DateTime endDate, ReportFormat format) {
-    final start = '${startDate.year}${startDate.month.toString().padLeft(2, '0')}${startDate.day.toString().padLeft(2, '0')}';
-    final end = '${endDate.year}${endDate.month.toString().padLeft(2, '0')}${endDate.day.toString().padLeft(2, '0')}';
+  String _buildSiteFilename(
+      DateTime startDate, DateTime endDate, ReportFormat format) {
+    final start =
+        '${startDate.year}${startDate.month.toString().padLeft(2, '0')}${startDate.day.toString().padLeft(2, '0')}';
+    final end =
+        '${endDate.year}${endDate.month.toString().padLeft(2, '0')}${endDate.day.toString().padLeft(2, '0')}';
     return 'PointageSite_${start}_$end.${format.extension}';
   }
 
@@ -691,24 +700,24 @@ class ReportGenerator {
       }
 
       final pdf = pw.Document();
-      
+
       // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
       final int nbJours = firstPointings.length;
-      
+
       // Get title date
       DateTime? titreDate;
       if (firstPointings.isNotEmpty) {
         titreDate = firstPointings.first['date'] as DateTime?;
       }
-      final titre = titreDate != null 
-          ? "Pointages du ${titreDate.month}/${titreDate.year}" 
+      final titre = titreDate != null
+          ? "Pointages du ${titreDate.month}/${titreDate.year}"
           : "Pointages";
 
       // Build table data
       final List<List<String>> tableData = [];
-      
+
       // Header row
       final headerRow = ['Superviseurs', 'Max', 'Effectué', 'Perf.', 'Sites'];
       for (var p in firstPointings) {
@@ -721,7 +730,7 @@ class ReportGenerator {
       for (Map<String, dynamic> pointage in reportData) {
         final Supervisor superviseur = pointage['supervisor'] as Supervisor;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
 
         // Calculate totals
@@ -729,9 +738,10 @@ class ReportGenerator {
         for (var p in pointings) {
           nbPointages += (p['nbPointage'] ?? 0) as int;
         }
-        
+
         final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final double performance =
+            maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
 
         final row = [
           "${superviseur.firstName} ${superviseur.lastName}",
@@ -746,7 +756,7 @@ class ReportGenerator {
           final int nbPointage = (point['nbPointage'] ?? 0) as int;
           row.add(nbPointage.toString());
         }
-        
+
         tableData.add(row);
       }
 
@@ -769,7 +779,7 @@ class ReportGenerator {
                 ),
               ),
               pw.SizedBox(height: 20),
-              
+
               // Table
               pw.Table.fromTextArray(
                 context: context,
@@ -824,13 +834,13 @@ class ReportGenerator {
       });
 
       final pdf = pw.Document();
-      
+
       // Get period
       final String periode = reportData.first['date'] as String? ?? '';
-      
+
       // Build table data
       final List<List<String>> tableData = [];
-      
+
       // Header row
       tableData.add(['Sites', 'Superviseur 1', 'Superviseur 2', 'Visites']);
 
@@ -841,8 +851,10 @@ class ReportGenerator {
 
         tableData.add([
           site.name,
-          "${site.supervisor?.firstName ?? ''} ${site.supervisor?.lastName ?? ''}".trim(),
-          "${site.supervisor_2?.firstName ?? ''} ${site.supervisor_2?.lastName ?? ''}".trim(),
+          "${site.supervisor?.firstName ?? ''} ${site.supervisor?.lastName ?? ''}"
+              .trim(),
+          "${site.supervisor_2?.firstName ?? ''} ${site.supervisor_2?.lastName ?? ''}"
+              .trim(),
           nbPointage.toString(),
         ]);
       }
@@ -866,7 +878,7 @@ class ReportGenerator {
                 ),
               ),
               pw.SizedBox(height: 20),
-              
+
               // Summary
               pw.Text(
                 'Total: ${reportData.length} sites',
@@ -876,7 +888,7 @@ class ReportGenerator {
                 ),
               ),
               pw.SizedBox(height: 10),
-              
+
               // Table
               pw.Table.fromTextArray(
                 context: context,
@@ -912,7 +924,7 @@ class ReportGenerator {
   }
 
   /// Generate zone member report with progress tracking
-  /// 
+  ///
   /// Requirements: 2.1, 2.2, 2.3, 2.4
   Future<ReportResult> generateZoneMemberReport({
     required DateTime startDate,
@@ -923,15 +935,15 @@ class ReportGenerator {
   }) async {
     _resetCancellation();
     final startTime = DateTime.now();
-    
+
     try {
       // Import zone member service
       final zoneMemberService = ZoneMemberService();
-      
+
       // Step 1: Fetch zone members (10% progress)
       onProgress?.call(0.1, 'Chargement des chefs de zone...');
       _checkCancellation();
-      
+
       List<ZoneMember> zoneMembers;
       if (zoneMemberIds != null && zoneMemberIds.isNotEmpty) {
         zoneMembers = [];
@@ -954,19 +966,20 @@ class ReportGenerator {
       // Step 2: Generate list of days in the period (15% progress)
       onProgress?.call(0.15, 'Calcul de la période...');
       _checkCancellation();
-      
+
       final days = _generateDaysList(startDate, endDate);
       final zoneMemberUids = zoneMembers.map((zm) => zm.UID).toList();
 
       // Step 3: Fetch site counts for each zone member's zone (25% progress)
       onProgress?.call(0.25, 'Chargement des sites par zone...');
       _checkCancellation();
-      
+
       final Map<String, int> siteCounts = {};
       for (var zoneMember in zoneMembers) {
         if (zoneMember.zone != null) {
           // Count sites in this zone
-          final count = await _siteService.allSitesCountByZone(zoneMember.zone!);
+          final count =
+              await _siteService.allSitesCountByZone(zoneMember.zone!);
           siteCounts[zoneMember.UID] = count ?? 0;
         } else {
           siteCounts[zoneMember.UID] = 0;
@@ -976,8 +989,9 @@ class ReportGenerator {
       // Step 4: Aggregate pointages by zone member and day (60% progress)
       onProgress?.call(0.4, 'Agrégation des pointages...');
       _checkCancellation();
-      
-      final aggregatedData = await _aggregationService.aggregateByZoneMemberAndDay(
+
+      final aggregatedData =
+          await _aggregationService.aggregateByZoneMemberAndDay(
         zoneMemberIds: zoneMemberUids,
         days: days,
       );
@@ -985,18 +999,18 @@ class ReportGenerator {
       // Step 5: Build report data structure (75% progress)
       onProgress?.call(0.75, 'Construction du rapport...');
       _checkCancellation();
-      
+
       final List<Map<String, dynamic>> reportData = [];
       int totalPointages = 0;
 
       for (var zoneMember in zoneMembers) {
         final zoneMemberData = aggregatedData[zoneMember.UID] ?? {};
         final nbSite = siteCounts[zoneMember.UID] ?? 0;
-        
+
         // Build daily pointages list
         final List<Map<String, dynamic>> dailyPointages = [];
         int zoneMemberTotal = 0;
-        
+
         for (var day in days) {
           final count = zoneMemberData[day] ?? 0;
           dailyPointages.add({
@@ -1021,7 +1035,7 @@ class ReportGenerator {
       final formatName = format == ReportFormat.excel ? 'Excel' : 'PDF';
       onProgress?.call(0.9, 'Génération du fichier $formatName...');
       _checkCancellation();
-      
+
       final Uint8List bytes;
       if (format == ReportFormat.pdf) {
         bytes = await _generateZoneMemberPdf(reportData);
@@ -1031,7 +1045,7 @@ class ReportGenerator {
 
       // Step 7: Complete (100% progress)
       onProgress?.call(1.0, 'Terminé');
-      
+
       final generationTime = DateTime.now().difference(startTime);
       final filename = _buildZoneMemberFilename(startDate, endDate, format);
 
@@ -1063,7 +1077,7 @@ class ReportGenerator {
   }
 
   /// Preview zone member report data before generation
-  /// 
+  ///
   /// Requirements: 2.1
   Future<ReportPreview> previewZoneMemberReport({
     required DateTime startDate,
@@ -1073,7 +1087,7 @@ class ReportGenerator {
     try {
       // Import zone member service
       final zoneMemberService = ZoneMemberService();
-      
+
       // Fetch zone members
       List<ZoneMember> zoneMembers;
       if (zoneMemberIds != null && zoneMemberIds.isNotEmpty) {
@@ -1094,10 +1108,10 @@ class ReportGenerator {
 
       // Estimate records (zone members × days)
       final estimatedRecords = zoneMembers.length * periodDays;
-      
+
       // Estimate pages (assuming ~30 rows per page)
       final estimatedPages = (zoneMembers.length / 30).ceil();
-      
+
       // Estimate generation time (rough estimate: 100ms per zone member + 50ms per day)
       final estimatedTimeMs = (zoneMembers.length * 100) + (periodDays * 50);
       final estimatedTime = Duration(milliseconds: estimatedTimeMs.toInt());
@@ -1126,9 +1140,12 @@ class ReportGenerator {
   }
 
   /// Build filename for zone member report
-  String _buildZoneMemberFilename(DateTime startDate, DateTime endDate, ReportFormat format) {
-    final start = '${startDate.year}${startDate.month.toString().padLeft(2, '0')}${startDate.day.toString().padLeft(2, '0')}';
-    final end = '${endDate.year}${endDate.month.toString().padLeft(2, '0')}${endDate.day.toString().padLeft(2, '0')}';
+  String _buildZoneMemberFilename(
+      DateTime startDate, DateTime endDate, ReportFormat format) {
+    final start =
+        '${startDate.year}${startDate.month.toString().padLeft(2, '0')}${startDate.day.toString().padLeft(2, '0')}';
+    final end =
+        '${endDate.year}${endDate.month.toString().padLeft(2, '0')}${endDate.day.toString().padLeft(2, '0')}';
     return 'PointageChefZone_${start}_$end.${format.extension}';
   }
 
@@ -1144,10 +1161,10 @@ class ReportGenerator {
       }
 
       // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
       final int nbJours = firstPointings.length;
-      
+
       final Workbook workbook = Workbook();
       final Worksheet sheet = workbook.worksheets[0];
       sheet.showGridlines = true;
@@ -1173,8 +1190,8 @@ class ReportGenerator {
       if (firstPointings.isNotEmpty) {
         titreDate = firstPointings.first['date'] as DateTime?;
       }
-      final titre = titreDate != null 
-          ? "Pointages des chefs de zone du ${titreDate.month}/${titreDate.year}" 
+      final titre = titreDate != null
+          ? "Pointages des chefs de zone du ${titreDate.month}/${titreDate.year}"
           : "Pointages des chefs de zone";
       sheet.getRangeByIndex(1, 1).setText(titre);
       sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 18;
@@ -1210,10 +1227,10 @@ class ReportGenerator {
       for (Map<String, dynamic> pointage in reportData) {
         rowIndex++;
         int colIdx = 6;
-        
+
         final ZoneMember zoneMember = pointage['zoneMember'] as ZoneMember;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
 
         // Calculate totals
@@ -1221,15 +1238,16 @@ class ReportGenerator {
         for (var p in pointings) {
           nbPointages += (p['nbPointage'] ?? 0) as int;
         }
-        
+
         // Max pointage = number of sites in zone × number of days
         final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final double performance =
+            maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
 
         // Zone member name
-        sheet.getRangeByIndex(rowIndex, 1).setText(
-          "${zoneMember.firstName} ${zoneMember.lastName}"
-        );
+        sheet
+            .getRangeByIndex(rowIndex, 1)
+            .setText("${zoneMember.firstName} ${zoneMember.lastName}");
         sheet.getRangeByIndex(rowIndex, 1).columnWidth = 20;
         sheet.getRangeByIndex(rowIndex, 1).cellStyle = rowStyle;
 
@@ -1242,13 +1260,15 @@ class ReportGenerator {
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
 
         // Performance
-        sheet.getRangeByIndex(rowIndex, 4).setValue("${performance.toStringAsFixed(2)}%");
+        sheet
+            .getRangeByIndex(rowIndex, 4)
+            .setValue("${performance.toStringAsFixed(2)}%");
         sheet.getRangeByIndex(rowIndex, 4).cellStyle = rowStyle;
 
         // Zone name and site count
-        sheet.getRangeByIndex(rowIndex, 5).setText(
-          "${zoneMember.zone?.name ?? 'N/A'} ($nbSite sites)"
-        );
+        sheet
+            .getRangeByIndex(rowIndex, 5)
+            .setText("${zoneMember.zone?.name ?? 'N/A'} ($nbSite sites)");
         sheet.getRangeByIndex(rowIndex, 5).cellStyle = rowStyle;
 
         // Daily pointages
@@ -1263,7 +1283,7 @@ class ReportGenerator {
       // Save to bytes
       final List<int> bytes = workbook.saveAsStream();
       workbook.dispose();
-      
+
       return Uint8List.fromList(bytes);
     } catch (e) {
       debugPrint('Error generating zone member Excel: $e');
@@ -1283,24 +1303,24 @@ class ReportGenerator {
       }
 
       final pdf = pw.Document();
-      
+
       // Calculate number of days based on first entry
-      final List<Map<String, dynamic>> firstPointings = 
+      final List<Map<String, dynamic>> firstPointings =
           reportData.first['Pointages'] as List<Map<String, dynamic>>? ?? [];
       final int nbJours = firstPointings.length;
-      
+
       // Get title date
       DateTime? titreDate;
       if (firstPointings.isNotEmpty) {
         titreDate = firstPointings.first['date'] as DateTime?;
       }
-      final titre = titreDate != null 
-          ? "Pointages des chefs de zone du ${titreDate.month}/${titreDate.year}" 
+      final titre = titreDate != null
+          ? "Pointages des chefs de zone du ${titreDate.month}/${titreDate.year}"
           : "Pointages des chefs de zone";
 
       // Build table data
       final List<List<String>> tableData = [];
-      
+
       // Header row
       final headerRow = ['Chefs de zone', 'Max', 'Effectué', 'Perf.', 'Zone'];
       for (var p in firstPointings) {
@@ -1313,7 +1333,7 @@ class ReportGenerator {
       for (Map<String, dynamic> pointage in reportData) {
         final ZoneMember zoneMember = pointage['zoneMember'] as ZoneMember;
         final int nbSite = (pointage['nbSite'] ?? 0) as int;
-        final List<Map<String, dynamic>> pointings = 
+        final List<Map<String, dynamic>> pointings =
             pointage['Pointages'] as List<Map<String, dynamic>>? ?? [];
 
         // Calculate totals
@@ -1321,10 +1341,11 @@ class ReportGenerator {
         for (var p in pointings) {
           nbPointages += (p['nbPointage'] ?? 0) as int;
         }
-        
+
         // Max pointage = number of sites in zone × number of days
         final int maxPointage = nbSite * nbJours;
-        final double performance = maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
+        final double performance =
+            maxPointage == 0 ? 0.0 : nbPointages * 100.0 / maxPointage;
 
         final row = [
           "${zoneMember.firstName} ${zoneMember.lastName}",
@@ -1339,7 +1360,7 @@ class ReportGenerator {
           final int nbPointage = (point['nbPointage'] ?? 0) as int;
           row.add(nbPointage.toString());
         }
-        
+
         tableData.add(row);
       }
 
@@ -1362,7 +1383,7 @@ class ReportGenerator {
                 ),
               ),
               pw.SizedBox(height: 20),
-              
+
               // Table
               pw.Table.fromTextArray(
                 context: context,
@@ -1399,8 +1420,8 @@ class ReportGenerator {
   }
 
   /// Generate HR Summary Report for supervisors
-  /// 
-  /// Columns: Superviseur, Manager, Sites assignés, Nombre visite, Attendu, Diff, 
+  ///
+  /// Columns: Superviseur, Manager, Sites assignés, Nombre visite, Attendu, Diff,
   /// Nbre visites non effectués, Commentaire
   /// With optional conditional formatting (green/yellow/orange/red)
   Future<ReportResult> generateHRSummaryReport({
@@ -1412,12 +1433,12 @@ class ReportGenerator {
   }) async {
     _resetCancellation();
     final startTime = DateTime.now();
-    
+
     try {
       // Step 1: Fetch supervisors (10% progress)
       onProgress?.call(0.1, 'Chargement des superviseurs...');
       _checkCancellation();
-      
+
       List<Supervisor> supervisors;
       if (supervisorIds != null && supervisorIds.isNotEmpty) {
         supervisors = [];
@@ -1440,7 +1461,7 @@ class ReportGenerator {
       // Step 2: Generate list of days in the period (15% progress)
       onProgress?.call(0.15, 'Calcul de la période...');
       _checkCancellation();
-      
+
       final days = _generateDaysList(startDate, endDate);
       final nbDays = days.length;
       final supervisorUids = supervisors.map((s) => s.UID).toList();
@@ -1448,7 +1469,7 @@ class ReportGenerator {
       // Step 3: Fetch site counts for each supervisor (25% progress)
       onProgress?.call(0.25, 'Chargement des sites...');
       _checkCancellation();
-      
+
       final Map<String, int> siteCounts = {};
       for (var supervisor in supervisors) {
         final count = await _siteService.allSitesCountBySupervisor(supervisor);
@@ -1458,8 +1479,9 @@ class ReportGenerator {
       // Step 4: Aggregate pointages by supervisor and day (60% progress)
       onProgress?.call(0.4, 'Agrégation des pointages...');
       _checkCancellation();
-      
-      final aggregatedData = await _aggregationService.aggregateBySupervisorAndDay(
+
+      final aggregatedData =
+          await _aggregationService.aggregateUniqueSitesBySupervisorAndDay(
         supervisorIds: supervisorUids,
         days: days,
       );
@@ -1467,13 +1489,13 @@ class ReportGenerator {
       // Step 5: Build HR summary data (75% progress)
       onProgress?.call(0.75, 'Construction du résumé RH...');
       _checkCancellation();
-      
+
       final List<Map<String, dynamic>> summaryData = [];
 
       for (var supervisor in supervisors) {
         final supervisorData = aggregatedData[supervisor.UID] ?? {};
         final int assignedSites = siteCounts[supervisor.UID] ?? 0;
-        
+
         // Calculate total visits
         int completedVisits = 0;
         for (var day in days) {
@@ -1484,7 +1506,8 @@ class ReportGenerator {
         final int expected = assignedSites * nbDays;
         final int difference = expected - completedVisits;
         final int missedVisits = difference > 0 ? difference : 0;
-        final int daysBehind = assignedSites > 0 ? (difference / assignedSites).floor() : 0;
+        final int daysBehind =
+            assignedSites > 0 ? (difference / assignedSites).floor() : 0;
         final int daysBehindClamped = daysBehind < 0 ? 0 : daysBehind;
 
         // Generate comment
@@ -1522,12 +1545,13 @@ class ReportGenerator {
       // Step 6: Generate Excel file (90% progress)
       onProgress?.call(0.9, 'Génération du fichier Excel...');
       _checkCancellation();
-      
-      final bytes = await _generateHRSummaryExcel(summaryData, startDate, endDate, enableColors);
+
+      final bytes = await _generateHRSummaryExcel(
+          summaryData, startDate, endDate, enableColors);
 
       // Step 7: Complete (100% progress)
       onProgress?.call(1.0, 'Terminé');
-      
+
       final generationTime = DateTime.now().difference(startTime);
       final filename = _buildHRSummaryFilename(startDate, endDate);
 
@@ -1619,9 +1643,12 @@ class ReportGenerator {
       redStyle.fontColor = enableColors ? "#9C0006" : "#000000";
 
       // Title
-      final dateRange = "${startDate.day.toString().padLeft(2, '0')} au ${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}/${endDate.year}";
+      final dateRange =
+          "${startDate.day.toString().padLeft(2, '0')} au ${endDate.day.toString().padLeft(2, '0')}/${endDate.month.toString().padLeft(2, '0')}/${endDate.year}";
       sheet.getRangeByIndex(1, 1, 1, 8).merge();
-      sheet.getRangeByIndex(1, 1).setText("Rapport des visites des Superviseurs du $dateRange");
+      sheet
+          .getRangeByIndex(1, 1)
+          .setText("Rapport des visites des Superviseurs du $dateRange");
       sheet.getRangeByIndex(1, 1).cellStyle.fontSize = 14;
       sheet.getRangeByIndex(1, 1).cellStyle.bold = true;
       sheet.getRangeByIndex(1, 1).cellStyle.hAlign = HAlignType.center;
@@ -1680,7 +1707,9 @@ class ReportGenerator {
         }
 
         // Superviseur
-        sheet.getRangeByIndex(rowIndex, 1).setText("${supervisor.firstName} ${supervisor.lastName}");
+        sheet
+            .getRangeByIndex(rowIndex, 1)
+            .setText("${supervisor.firstName} ${supervisor.lastName}");
         sheet.getRangeByIndex(rowIndex, 1).cellStyle = rowStyle;
 
         // Manager
@@ -1688,27 +1717,37 @@ class ReportGenerator {
         sheet.getRangeByIndex(rowIndex, 2).cellStyle = rowStyle;
 
         // Sites assignés
-        sheet.getRangeByIndex(rowIndex, 3).setNumber((data['assignedSites'] as int).toDouble());
+        sheet
+            .getRangeByIndex(rowIndex, 3)
+            .setNumber((data['assignedSites'] as int).toDouble());
         sheet.getRangeByIndex(rowIndex, 3).cellStyle = rowStyle;
         sheet.getRangeByIndex(rowIndex, 3).cellStyle.hAlign = HAlignType.center;
 
         // Nombre visite
-        sheet.getRangeByIndex(rowIndex, 4).setNumber((data['completedVisits'] as int).toDouble());
+        sheet
+            .getRangeByIndex(rowIndex, 4)
+            .setNumber((data['completedVisits'] as int).toDouble());
         sheet.getRangeByIndex(rowIndex, 4).cellStyle = rowStyle;
         sheet.getRangeByIndex(rowIndex, 4).cellStyle.hAlign = HAlignType.center;
 
         // Attendu
-        sheet.getRangeByIndex(rowIndex, 5).setNumber((data['expected'] as int).toDouble());
+        sheet
+            .getRangeByIndex(rowIndex, 5)
+            .setNumber((data['expected'] as int).toDouble());
         sheet.getRangeByIndex(rowIndex, 5).cellStyle = rowStyle;
         sheet.getRangeByIndex(rowIndex, 5).cellStyle.hAlign = HAlignType.center;
 
         // Diff
-        sheet.getRangeByIndex(rowIndex, 6).setNumber((data['difference'] as int).toDouble());
+        sheet
+            .getRangeByIndex(rowIndex, 6)
+            .setNumber((data['difference'] as int).toDouble());
         sheet.getRangeByIndex(rowIndex, 6).cellStyle = rowStyle;
         sheet.getRangeByIndex(rowIndex, 6).cellStyle.hAlign = HAlignType.center;
 
         // Nbre visites non effectués
-        sheet.getRangeByIndex(rowIndex, 7).setNumber((data['missedVisits'] as int).toDouble());
+        sheet
+            .getRangeByIndex(rowIndex, 7)
+            .setNumber((data['missedVisits'] as int).toDouble());
         sheet.getRangeByIndex(rowIndex, 7).cellStyle = rowStyle;
         sheet.getRangeByIndex(rowIndex, 7).cellStyle.hAlign = HAlignType.center;
 
@@ -1730,8 +1769,10 @@ class ReportGenerator {
 
   /// Build filename for HR Summary report
   String _buildHRSummaryFilename(DateTime startDate, DateTime endDate) {
-    final start = '${startDate.day.toString().padLeft(2, '0')}.${startDate.month.toString().padLeft(2, '0')}';
-    final end = '${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year.toString().substring(2)}';
+    final start =
+        '${startDate.day.toString().padLeft(2, '0')}.${startDate.month.toString().padLeft(2, '0')}';
+    final end =
+        '${endDate.day.toString().padLeft(2, '0')}.${endDate.month.toString().padLeft(2, '0')}.${endDate.year.toString().substring(2)}';
     return 'Rapport_visites_Superviseurs_${start}_au_$end.xlsx';
   }
 }
