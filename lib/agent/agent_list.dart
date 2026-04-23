@@ -309,13 +309,22 @@ class _DataSource extends DataTableSource {
   @override
   DataRow? getRow(int index) {
     // TODO: implement getRow
+    print(" KEYWORD : $keyword");
     data = data.where((agent) {
       if (agent.site != null) {
-        return (agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
+        bool matches = (agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
             agent.site!.name.toLowerCase().contains(keyword.toLowerCase()) ||
             agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.phone.toLowerCase().contains(keyword.toLowerCase()));
-      } else {
+            agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
+            agent.typeAgent!.label
+                .toLowerCase()
+                .contains(keyword.toLowerCase())
+            ); 
+  
+    return matches;
+      }
+   
+       else {
         return agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
             agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
             agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
@@ -328,6 +337,7 @@ class _DataSource extends DataTableSource {
       }
     }).toList();
     dataForPrint = data;
+    
     if (index >= data.length) {
       return const DataRow(cells: [
         DataCell(Text("")),
@@ -342,7 +352,11 @@ class _DataSource extends DataTableSource {
       ]);
     }
     Agent agent = data[index];
-
+    
+    
+    if(agent.code.contains("NE")){
+      print(agent.code);
+    }
     return DataRow(cells: [
       DataCell(Chip(
         label: Text(

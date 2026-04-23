@@ -18,7 +18,7 @@ Future<void> main() async {
   await Firebase.initializeApp(
     options: DefaultFirebaseOptions.currentPlatform,
   );
-  FirebaseFirestore firestore = FirebaseFirestore.instance;
+  FirebaseFirestore.instance;
 
   // Preload menu assets for better performance
   await MenuItemModel.preloadAssets();

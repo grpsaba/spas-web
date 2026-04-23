@@ -244,7 +244,7 @@ class Agent extends Equatable {
       docs: docs.map((e) => DocumentFile.fromJson(e)).toList(),
       contacts: contacts.map((e) => ConactReference.fromJson(e)).toList(),
       typeAgent: json["AgentType"] == null
-          ? null
+          ? AgentType(label: "FIXE")
           : AgentType.fromJson(json["AgentType"]),
       site: json["site"] == null ? null : Site.fromJson(json["site"]),
       actif: json["actif"] ?? true,
@@ -887,8 +887,9 @@ class AgentType extends Equatable {
   String label;
   AgentType({required this.label});
   factory AgentType.fromJson(Map<String, dynamic> json) {
+    String label = json["label"] ?? "FIXE";
     return AgentType(
-      label: json["label"],
+      label: label,
     );
   }
 
