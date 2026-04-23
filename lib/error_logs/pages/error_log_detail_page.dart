@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:provider/provider.dart';
@@ -24,6 +25,8 @@ class ErrorLogDetailPage extends StatefulWidget {
 
 class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   late ErrorLog _currentLog;
+  bool _showTechnicalDetails = false;
+  bool _showStackTrace = false;
 
   @override
   void initState() {
@@ -73,71 +76,40 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 
   Widget _buildHeader(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 1000;
+
     return Container(
       padding: const EdgeInsets.all(PointageSpacing.md),
       decoration: PointageCardDecorations.standard,
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          IconButton(
-            onPressed: () => context.go('/errorlogs'),
-            icon: const Icon(Icons.arrow_back),
-            tooltip: 'Retour',
+          Wrap(
+            spacing: PointageSpacing.md,
+            runSpacing: PointageSpacing.sm,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              IconButton(
+                onPressed: () => context.go('/errorlogs'),
+                icon: const Icon(Icons.arrow_back),
+                tooltip: 'Retour',
+              ),
+              ErrorTypeBadge(errorType: _currentLog.errorType, large: true),
+              _buildStatusBadge(),
+              if (!isCompact) _buildResolveAction(context),
+            ],
           ),
-          const SizedBox(width: PointageSpacing.md),
-          ErrorTypeBadge(errorType: _currentLog.errorType, large: true),
-          const SizedBox(width: PointageSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Erreur #${_currentLog.id.substring(0, 8)}...',
-                  style: PointageTextStyles.headline4,
-                ),
-                Text(
-                  _formatDateTime(_currentLog.timestamp),
-                  style: PointageTextStyles.caption,
-                ),
-              ],
+          const SizedBox(height: PointageSpacing.md),
+          if (isCompact) ...[
+            _buildLogIdentityBlock(),
+            const SizedBox(height: PointageSpacing.md),
+            Align(
+              alignment: Alignment.centerLeft,
+              child: _buildResolveAction(context),
             ),
-          ),
-          if (_currentLog.isResolved)
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: PointageSpacing.md,
-                vertical: PointageSpacing.sm,
-              ),
-              decoration: BoxDecoration(
-                color: PointageColors.success.withValues(alpha: 0.1),
-                borderRadius: PointageBorderRadius.medium,
-                border: Border.all(color: PointageColors.success),
-              ),
-              child: const Row(
-                mainAxisSize: MainAxisSize.min,
-                children: [
-                  Icon(Icons.check_circle,
-                      color: PointageColors.success, size: 20),
-                  SizedBox(width: PointageSpacing.xs),
-                  Text(
-                    'Résolu',
-                    style: TextStyle(
-                      color: PointageColors.success,
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                ],
-              ),
-            )
-          else
-            ElevatedButton.icon(
-              onPressed: () => _markAsResolved(context),
-              icon: const Icon(Icons.check_circle, size: 18),
-              label: const Text('Marquer comme résolu'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: PointageColors.success,
-                foregroundColor: Colors.white,
-              ),
-            ),
+          ] else
+            _buildLogIdentityBlock(),
         ],
       ),
     );
@@ -167,7 +139,14 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
             _buildGpsAccuracyRow(_currentLog.gpsAccuracy!),
           if (_currentLog.gpsSource != null ||
               _currentLog.gpsAgeSeconds != null ||
-              _currentLog.gpsTimestamp != null)
+              _currentLog.gpsTimestamp != null ||
+              _currentLog.backgroundTrackerActive != null ||
+              _currentLog.backgroundCacheAgeSeconds != null ||
+              _currentLog.backgroundCacheAccuracy != null ||
+              _currentLog.backgroundCacheTimestamp != null ||
+              _currentLog.freshGpsAttempted != null ||
+              (_currentLog.freshGpsFailedReason != null &&
+                  _currentLog.freshGpsFailedReason!.trim().isNotEmpty))
             _buildGpsContextSection(),
           _buildDetailRow(
               'En ligne', _currentLog.isOnline == true ? 'Oui' : 'Non'),
@@ -231,14 +210,136 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
     );
   }
 
+  Widget _buildLogIdentityBlock() {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(PointageSpacing.md),
+      decoration: BoxDecoration(
+        color: PointageColors.background,
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(color: PointageColors.divider),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Erreur #${_currentLog.id.substring(0, 8)}...',
+            style: PointageTextStyles.headline4,
+          ),
+          const SizedBox(height: PointageSpacing.xs),
+          Text(
+            _formatDateTime(_currentLog.timestamp),
+            style: PointageTextStyles.caption,
+          ),
+          const SizedBox(height: PointageSpacing.sm),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(
+                child: SelectableText(
+                  _currentLog.id,
+                  style: PointageTextStyles.body2.copyWith(
+                    fontFamily: 'monospace',
+                  ),
+                ),
+              ),
+              const SizedBox(width: PointageSpacing.sm),
+              Tooltip(
+                message: 'Copier l’identifiant complet',
+                child: IconButton(
+                  onPressed: _copyLogId,
+                  icon: const Icon(Icons.copy, size: 18),
+                  visualDensity: VisualDensity.compact,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildResolveAction(BuildContext context) {
+    if (_currentLog.isResolved) {
+      return const SizedBox.shrink();
+    }
+
+    return ElevatedButton.icon(
+      onPressed: () => _markAsResolved(context),
+      icon: const Icon(Icons.check_circle, size: 18),
+      label: const Text('Marquer comme résolu'),
+      style: ElevatedButton.styleFrom(
+        backgroundColor: PointageColors.success,
+        foregroundColor: Colors.white,
+      ),
+    );
+  }
+
+  Widget _buildStatusBadge() {
+    final isResolved = _currentLog.isResolved;
+    final color = isResolved ? PointageColors.success : PointageColors.error;
+    final icon = isResolved ? Icons.check_circle : Icons.pending_actions;
+    final label = isResolved ? 'Résolu' : 'À traiter';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.md,
+        vertical: PointageSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(color: color),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: PointageSpacing.xs),
+          Text(
+            label,
+            style: TextStyle(
+              color: color,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildDetailRow(String label, String value) {
+    final isCompact = MediaQuery.of(context).size.width < 720;
+
+    if (isCompact) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(vertical: PointageSpacing.xs),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              label,
+              style: PointageTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: 2),
+            Text(
+              value,
+              style: PointageTextStyles.body2,
+            ),
+          ],
+        ),
+      );
+    }
+
     return Padding(
       padding: const EdgeInsets.symmetric(vertical: PointageSpacing.xs),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           SizedBox(
-            width: 120,
+            width: 150,
             child: Text(
               label,
               style: PointageTextStyles.caption.copyWith(
@@ -258,13 +359,14 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 
   /// Build GPS accuracy row with visual quality indicator
-  Widget _buildGpsAccuracyRow(double accuracy) {
+  Widget _buildGpsAccuracyRow(double accuracy,
+      {String label = 'Précision GPS'}) {
     // Determine quality level based on accuracy
     // < 10m = Excellent, 10-25m = Good, 25-50m = Fair, > 50m = Poor
     final String qualityLabel;
     final Color qualityColor;
     final IconData qualityIcon;
-    
+
     if (accuracy < 10) {
       qualityLabel = 'Excellente';
       qualityColor = PointageColors.success;
@@ -291,7 +393,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
           SizedBox(
             width: 120,
             child: Text(
-              'Précision GPS',
+              label,
               style: PointageTextStyles.caption.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -338,15 +440,19 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
     );
   }
 
-  /// Build GPS context section with source, age, and timestamp
+  /// Build GPS context section with source, age, timestamp and enriched diagnostics
   Widget _buildGpsContextSection() {
+    final hasFreshGpsFailedReason = _currentLog.freshGpsFailedReason != null &&
+        _currentLog.freshGpsFailedReason!.trim().isNotEmpty;
+
     return Container(
       margin: const EdgeInsets.symmetric(vertical: PointageSpacing.sm),
       padding: const EdgeInsets.all(PointageSpacing.md),
       decoration: BoxDecoration(
         color: PointageColors.chartBlue.withValues(alpha: 0.05),
         borderRadius: PointageBorderRadius.medium,
-        border: Border.all(color: PointageColors.chartBlue.withValues(alpha: 0.2)),
+        border:
+            Border.all(color: PointageColors.chartBlue.withValues(alpha: 0.2)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -378,6 +484,64 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
               'Timestamp GPS',
               _formatDateTime(_currentLog.gpsTimestamp!),
             ),
+          if (_currentLog.backgroundTrackerActive != null ||
+              _currentLog.backgroundCacheAgeSeconds != null ||
+              _currentLog.backgroundCacheAccuracy != null ||
+              _currentLog.backgroundCacheTimestamp != null) ...[
+            const SizedBox(height: PointageSpacing.sm),
+            _buildGpsDiagnosticSection(
+              title: 'Cache background',
+              icon: Icons.route,
+              color: PointageColors.warning,
+              children: [
+                if (_currentLog.backgroundTrackerActive != null)
+                  _buildBooleanDiagnosticRow(
+                    'Background tracker',
+                    _currentLog.backgroundTrackerActive!,
+                    trueLabel: 'Actif',
+                    falseLabel: 'Inactif',
+                  ),
+                if (_currentLog.backgroundCacheAgeSeconds != null)
+                  _buildGpsAgeRow(
+                    _currentLog.backgroundCacheAgeSeconds!,
+                    label: 'Âge cache',
+                  ),
+                if (_currentLog.backgroundCacheAccuracy != null)
+                  _buildGpsAccuracyRow(
+                    _currentLog.backgroundCacheAccuracy!,
+                    label: 'Précision cache',
+                  ),
+                if (_currentLog.backgroundCacheTimestamp != null)
+                  _buildDetailRow(
+                    'Timestamp cache',
+                    _formatDateTime(_currentLog.backgroundCacheTimestamp!),
+                  ),
+              ],
+            ),
+          ],
+          if (_currentLog.freshGpsAttempted != null ||
+              hasFreshGpsFailedReason) ...[
+            const SizedBox(height: PointageSpacing.sm),
+            _buildGpsDiagnosticSection(
+              title: 'Tentative GPS frais',
+              icon: Icons.my_location,
+              color: PointageColors.success,
+              children: [
+                if (_currentLog.freshGpsAttempted != null)
+                  _buildBooleanDiagnosticRow(
+                    'GPS frais tenté',
+                    _currentLog.freshGpsAttempted!,
+                    trueLabel: 'Oui',
+                    falseLabel: 'Non',
+                  ),
+                if (hasFreshGpsFailedReason)
+                  _buildDetailRow(
+                    'Cause échec GPS frais',
+                    _currentLog.freshGpsFailedReason!,
+                  ),
+              ],
+            ),
+          ],
         ],
       ),
     );
@@ -435,10 +599,11 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 
   /// Build GPS age row with warning indicator for old positions
-  Widget _buildGpsAgeRow(int ageSeconds) {
+  Widget _buildGpsAgeRow(int ageSeconds, {String label = 'Âge position'}) {
     final bool isOld = ageSeconds > 60;
-    final Color color = isOld ? PointageColors.warning : PointageColors.textPrimary;
-    
+    final Color color =
+        isOld ? PointageColors.warning : PointageColors.textPrimary;
+
     String ageDisplay;
     if (ageSeconds < 60) {
       ageDisplay = '$ageSeconds secondes';
@@ -460,7 +625,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
           SizedBox(
             width: 120,
             child: Text(
-              'Âge position',
+              label,
               style: PointageTextStyles.caption.copyWith(
                 fontWeight: FontWeight.w600,
               ),
@@ -469,8 +634,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
           Expanded(
             child: Row(
               children: [
-                if (isOld)
-                  Icon(Icons.warning_amber, size: 16, color: color),
+                if (isOld) Icon(Icons.warning_amber, size: 16, color: color),
                 if (isOld) const SizedBox(width: 6),
                 Text(
                   ageDisplay,
@@ -508,9 +672,90 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
     );
   }
 
+  Widget _buildGpsDiagnosticSection({
+    required String title,
+    required IconData icon,
+    required Color color,
+    required List<Widget> children,
+  }) {
+    return Container(
+      width: double.infinity,
+      padding: const EdgeInsets.all(PointageSpacing.md),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.06),
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(color: color.withValues(alpha: 0.18)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(icon, size: 16, color: color),
+              const SizedBox(width: PointageSpacing.xs),
+              Text(
+                title,
+                style: PointageTextStyles.label.copyWith(
+                  color: color,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: PointageSpacing.sm),
+          ...children,
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBooleanDiagnosticRow(
+    String label,
+    bool value, {
+    String trueLabel = 'Oui',
+    String falseLabel = 'Non',
+  }) {
+    final color = value ? PointageColors.success : PointageColors.textSecondary;
+    final icon = value ? Icons.check_circle : Icons.cancel_outlined;
+    final text = value ? trueLabel : falseLabel;
+
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: PointageSpacing.xs),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
+        children: [
+          SizedBox(
+            width: 120,
+            child: Text(
+              label,
+              style: PointageTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          Expanded(
+            child: Row(
+              children: [
+                Icon(icon, size: 16, color: color),
+                const SizedBox(width: 6),
+                Text(
+                  text,
+                  style: PointageTextStyles.body2.copyWith(
+                    color: color,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildMapCard() {
-    final hasPositions =
-        _currentLog.hasValidSupervisorPosition || _currentLog.hasValidSitePosition;
+    final hasPositions = _currentLog.hasValidSupervisorPosition ||
+        _currentLog.hasValidSitePosition;
 
     return Container(
       height: 400,
@@ -529,7 +774,12 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
                 if (hasPositions) ...[
                   _buildLegendItem(Colors.blue, 'Superviseur'),
                   const SizedBox(width: PointageSpacing.md),
-                  _buildLegendItem(Colors.red, 'Site'),
+                  _buildLegendItem(
+                    Colors.red,
+                    _currentLog.type == 'pointing_site'
+                        ? 'Site'
+                        : 'Site de référence',
+                  ),
                 ],
               ],
             ),
@@ -605,7 +855,8 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
     if (_currentLog.hasValidSupervisorPosition) {
       markers.add(Marker(
         markerId: const MarkerId('supervisor'),
-        position: LatLng(_currentLog.supervisorLat!, _currentLog.supervisorLng!),
+        position:
+            LatLng(_currentLog.supervisorLat!, _currentLog.supervisorLng!),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         infoWindow: InfoWindow(
           title: 'Superviseur',
@@ -620,7 +871,9 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
         position: LatLng(_currentLog.siteLat!, _currentLog.siteLng!),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         infoWindow: InfoWindow(
-          title: 'Site',
+          title: _currentLog.type == 'pointing_site'
+              ? 'Site'
+              : 'Site de référence',
           snippet: _currentLog.siteName,
         ),
       ));
@@ -667,48 +920,67 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
               Text('Détails techniques', style: PointageTextStyles.headline4),
             ],
           ),
+          const SizedBox(height: PointageSpacing.sm),
+          Text(
+            'Cette section est surtout utile pour l’investigation technique.',
+            style: PointageTextStyles.caption,
+          ),
           const SizedBox(height: PointageSpacing.md),
           const Divider(),
           if (_currentLog.technicalError != null) ...[
-            const SizedBox(height: PointageSpacing.md),
-            const Text('Erreur technique:', style: PointageTextStyles.label),
-            const SizedBox(height: PointageSpacing.xs),
-            Container(
-              width: double.infinity,
-              padding: const EdgeInsets.all(PointageSpacing.md),
-              decoration: BoxDecoration(
-                color: PointageColors.background,
-                borderRadius: PointageBorderRadius.medium,
-                border: Border.all(color: PointageColors.divider),
-              ),
-              child: SelectableText(
-                _currentLog.technicalError!,
-                style: PointageTextStyles.body2.copyWith(
-                  fontFamily: 'monospace',
-                  fontSize: 12,
+            const SizedBox(height: PointageSpacing.sm),
+            _buildExpandableTechnicalBlock(
+              title: 'Erreur technique',
+              isExpanded: _showTechnicalDetails,
+              onToggle: () {
+                setState(() {
+                  _showTechnicalDetails = !_showTechnicalDetails;
+                });
+              },
+              child: Container(
+                width: double.infinity,
+                padding: const EdgeInsets.all(PointageSpacing.md),
+                decoration: BoxDecoration(
+                  color: PointageColors.background,
+                  borderRadius: PointageBorderRadius.medium,
+                  border: Border.all(color: PointageColors.divider),
+                ),
+                child: SelectableText(
+                  _currentLog.technicalError!,
+                  style: PointageTextStyles.body2.copyWith(
+                    fontFamily: 'monospace',
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ),
           ],
           if (_currentLog.stackTrace != null) ...[
-            const SizedBox(height: PointageSpacing.md),
-            const Text('Stack trace:', style: PointageTextStyles.label),
-            const SizedBox(height: PointageSpacing.xs),
-            Container(
-              width: double.infinity,
-              height: 200,
-              padding: const EdgeInsets.all(PointageSpacing.md),
-              decoration: BoxDecoration(
-                color: const Color(0xFF1E1E1E),
-                borderRadius: PointageBorderRadius.medium,
-              ),
-              child: SingleChildScrollView(
-                child: SelectableText(
-                  _currentLog.stackTrace!,
-                  style: const TextStyle(
-                    fontFamily: 'monospace',
-                    fontSize: 11,
-                    color: Color(0xFFD4D4D4),
+            const SizedBox(height: PointageSpacing.sm),
+            _buildExpandableTechnicalBlock(
+              title: 'Stack trace',
+              isExpanded: _showStackTrace,
+              onToggle: () {
+                setState(() {
+                  _showStackTrace = !_showStackTrace;
+                });
+              },
+              child: Container(
+                width: double.infinity,
+                height: 200,
+                padding: const EdgeInsets.all(PointageSpacing.md),
+                decoration: BoxDecoration(
+                  color: const Color(0xFF1E1E1E),
+                  borderRadius: PointageBorderRadius.medium,
+                ),
+                child: SingleChildScrollView(
+                  child: SelectableText(
+                    _currentLog.stackTrace!,
+                    style: const TextStyle(
+                      fontFamily: 'monospace',
+                      fontSize: 11,
+                      color: Color(0xFFD4D4D4),
+                    ),
                   ),
                 ),
               ),
@@ -748,8 +1020,67 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
     );
   }
 
+  Widget _buildExpandableTechnicalBlock({
+    required String title,
+    required bool isExpanded,
+    required VoidCallback onToggle,
+    required Widget child,
+  }) {
+    return Container(
+      decoration: BoxDecoration(
+        color: PointageColors.background,
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(color: PointageColors.divider),
+      ),
+      child: Column(
+        children: [
+          InkWell(
+            onTap: onToggle,
+            borderRadius: PointageBorderRadius.medium,
+            child: Padding(
+              padding: const EdgeInsets.all(PointageSpacing.md),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Text(title, style: PointageTextStyles.label),
+                  ),
+                  Icon(
+                    isExpanded ? Icons.expand_less : Icons.expand_more,
+                    color: PointageColors.textSecondary,
+                  ),
+                ],
+              ),
+            ),
+          ),
+          if (isExpanded)
+            Padding(
+              padding: const EdgeInsets.fromLTRB(
+                PointageSpacing.md,
+                0,
+                PointageSpacing.md,
+                PointageSpacing.md,
+              ),
+              child: child,
+            ),
+        ],
+      ),
+    );
+  }
+
   String _formatDateTime(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} à ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  Future<void> _copyLogId() async {
+    await Clipboard.setData(ClipboardData(text: _currentLog.id));
+    if (!mounted) return;
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(
+        content: Text('Identifiant du log copié'),
+        backgroundColor: PointageColors.success,
+      ),
+    );
   }
 
   Future<void> _markAsResolved(BuildContext context) async {
@@ -821,7 +1152,8 @@ class _UpdateCoordinatesButton extends StatefulWidget {
   });
 
   @override
-  State<_UpdateCoordinatesButton> createState() => _UpdateCoordinatesButtonState();
+  State<_UpdateCoordinatesButton> createState() =>
+      _UpdateCoordinatesButtonState();
 }
 
 class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
@@ -830,13 +1162,14 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
   @override
   Widget build(BuildContext context) {
     final log = widget.errorLog;
-    
+
     return Container(
       padding: const EdgeInsets.all(PointageSpacing.md),
       decoration: BoxDecoration(
         color: PointageColors.warning.withValues(alpha: 0.1),
         borderRadius: PointageBorderRadius.medium,
-        border: Border.all(color: PointageColors.warning.withValues(alpha: 0.3)),
+        border:
+            Border.all(color: PointageColors.warning.withValues(alpha: 0.3)),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -862,8 +1195,50 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
           ),
           const SizedBox(height: PointageSpacing.sm),
           Text(
-            'Nouvelles coordonnées (position du superviseur):',
+            'Cette action mettra à jour de façon durable la position enregistrée du site avec la position du superviseur.',
             style: PointageTextStyles.caption,
+          ),
+          const SizedBox(height: PointageSpacing.sm),
+          if (log.hasValidSitePosition) ...[
+            Text(
+              'Coordonnées actuellement enregistrées :',
+              style: PointageTextStyles.caption.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+            const SizedBox(height: PointageSpacing.xs),
+            Container(
+              padding: const EdgeInsets.all(PointageSpacing.sm),
+              decoration: BoxDecoration(
+                color: PointageColors.background,
+                borderRadius: PointageBorderRadius.small,
+                border: Border.all(color: PointageColors.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    'Latitude: ${log.siteLat!.toStringAsFixed(6)}',
+                    style: PointageTextStyles.body2.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                  Text(
+                    'Longitude: ${log.siteLng!.toStringAsFixed(6)}',
+                    style: PointageTextStyles.body2.copyWith(
+                      fontFamily: 'monospace',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: PointageSpacing.sm),
+          ],
+          Text(
+            'Nouvelles coordonnées proposées (position du superviseur) :',
+            style: PointageTextStyles.caption.copyWith(
+              fontWeight: FontWeight.w600,
+            ),
           ),
           const SizedBox(height: PointageSpacing.xs),
           Container(
@@ -871,6 +1246,7 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
             decoration: BoxDecoration(
               color: PointageColors.background,
               borderRadius: PointageBorderRadius.small,
+              border: Border.all(color: PointageColors.divider),
             ),
             child: Row(
               children: [
@@ -931,7 +1307,7 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
 
   Future<void> _updateCoordinates(BuildContext context) async {
     final log = widget.errorLog;
-    
+
     // Show confirmation dialog
     final confirmed = await ModernDialog.show<bool>(
       context: context,
@@ -942,14 +1318,39 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
         children: [
           Text(
             'Voulez-vous mettre à jour les coordonnées du site "${log.siteName}" '
-            'avec la position du superviseur ?',
+            'avec la position du superviseur ? Cette modification affectera la '
+            'position de référence utilisée pour les prochains contrôles.',
           ),
           const SizedBox(height: PointageSpacing.md),
+          if (log.hasValidSitePosition) ...[
+            Container(
+              padding: const EdgeInsets.all(PointageSpacing.md),
+              decoration: BoxDecoration(
+                color: PointageColors.background,
+                borderRadius: PointageBorderRadius.medium,
+                border: Border.all(color: PointageColors.divider),
+              ),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  const Text(
+                    'Coordonnées actuelles:',
+                    style: TextStyle(fontWeight: FontWeight.w600),
+                  ),
+                  const SizedBox(height: PointageSpacing.sm),
+                  Text('Latitude: ${log.siteLat!.toStringAsFixed(6)}'),
+                  Text('Longitude: ${log.siteLng!.toStringAsFixed(6)}'),
+                ],
+              ),
+            ),
+            const SizedBox(height: PointageSpacing.sm),
+          ],
           Container(
             padding: const EdgeInsets.all(PointageSpacing.md),
             decoration: BoxDecoration(
               color: PointageColors.background,
               borderRadius: PointageBorderRadius.medium,
+              border: Border.all(color: PointageColors.divider),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
@@ -986,7 +1387,7 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
     try {
       // Fetch the site from Firestore
       final site = await SiteService().one(log.siteUID);
-      
+
       if (site == null) {
         if (mounted) {
           _showErrorSnackbar(context, 'Site introuvable');
@@ -1006,10 +1407,11 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
       if (mounted) {
         SuccessSnackbar.show(
           context,
-          message: 'Coordonnées du site "${log.siteName}" mises à jour avec succès',
+          message:
+              'Coordonnées du site "${log.siteName}" mises à jour avec succès',
           icon: Icons.location_on,
         );
-        
+
         // Call the success callback to propose marking as resolved
         widget.onSuccess();
       }

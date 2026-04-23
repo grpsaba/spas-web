@@ -75,10 +75,8 @@ class ErrorLogProvider extends ChangeNotifier {
 
     try {
       final query = _buildQuery();
-      final snapshot = await query
-          .startAfterDocument(_lastDocument!)
-          .limit(_pageSize)
-          .get();
+      final snapshot =
+          await query.startAfterDocument(_lastDocument!).limit(_pageSize).get();
 
       final newLogs =
           snapshot.docs.map((doc) => ErrorLog.fromFirestore(doc)).toList();
@@ -119,8 +117,7 @@ class ErrorLogProvider extends ChangeNotifier {
 
     // Filter by supervisor
     if (_filters.supervisorId != null) {
-      query =
-          query.where('supervisor.UID', isEqualTo: _filters.supervisorId);
+      query = query.where('supervisor.UID', isEqualTo: _filters.supervisorId);
     }
 
     // Filter by date range
@@ -276,9 +273,12 @@ class ErrorLogProvider extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Select all visible logs
+  /// Select all visible unresolved logs
   void selectAll() {
-    _selectedIds = filteredLogs.map((log) => log.id).toSet();
+    _selectedIds = filteredLogs
+        .where((log) => !log.isResolved)
+        .map((log) => log.id)
+        .toSet();
     notifyListeners();
   }
 
@@ -317,7 +317,8 @@ class ErrorLogProvider extends ChangeNotifier {
   }
 
   /// Mark multiple errors as resolved
-  Future<int> markMultipleAsResolved(List<String> ids, String resolvedBy) async {
+  Future<int> markMultipleAsResolved(
+      List<String> ids, String resolvedBy) async {
     int successCount = 0;
     final batch = _firestore.batch();
 
@@ -363,11 +364,12 @@ class ErrorLogProvider extends ChangeNotifier {
         'Date,Type,Error Type,Supervisor,Site/Agent,Message,Distance,Platform,Resolved,Resolved By,Resolved At');
 
     for (final log in filteredLogs) {
-      final date = '${log.timestamp.day}/${log.timestamp.month}/${log.timestamp.year} ${log.timestamp.hour}:${log.timestamp.minute.toString().padLeft(2, '0')}';
+      final date =
+          '${log.timestamp.day}/${log.timestamp.month}/${log.timestamp.year} ${log.timestamp.hour}:${log.timestamp.minute.toString().padLeft(2, '0')}';
       final resolvedAt = log.resolvedAt != null
           ? '${log.resolvedAt!.day}/${log.resolvedAt!.month}/${log.resolvedAt!.year}'
           : '';
-      
+
       buffer.writeln([
         date,
         log.type,

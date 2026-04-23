@@ -21,10 +21,13 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
   final TextEditingController _searchController = TextEditingController();
   final ScrollController _scrollController = ScrollController();
 
+  bool get _hasSearchText => _searchController.text.trim().isNotEmpty;
+
   @override
   void initState() {
     super.initState();
     _scrollController.addListener(_onScroll);
+    _searchController.addListener(_onSearchChanged);
     WidgetsBinding.instance.addPostFrameCallback((_) {
       context.read<ErrorLogProvider>().initialize();
     });
@@ -32,9 +35,16 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
 
   @override
   void dispose() {
+    _searchController.removeListener(_onSearchChanged);
     _searchController.dispose();
     _scrollController.dispose();
     super.dispose();
+  }
+
+  void _onSearchChanged() {
+    if (mounted) {
+      setState(() {});
+    }
   }
 
   void _onScroll() {
@@ -66,87 +76,130 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
   }
 
   Widget _buildHeader(BuildContext context, ErrorLogProvider provider) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final isCompact = screenWidth < 1100;
+
     return Container(
       padding: const EdgeInsets.all(PointageSpacing.md),
       decoration: BoxDecoration(
         color: PointageColors.surface,
         boxShadow: PointageShadows.sm,
       ),
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Stats summary
-          _buildStatChip(
-            'Total',
-            provider.stats.total.toString(),
-            PointageColors.primary,
-          ),
-          const SizedBox(width: PointageSpacing.sm),
-          _buildStatChip(
-            'Non résolus',
-            provider.stats.unresolved.toString(),
-            PointageColors.error,
-          ),
-          const SizedBox(width: PointageSpacing.sm),
-          _buildStatChip(
-            'Résolus',
-            provider.stats.resolved.toString(),
-            PointageColors.success,
-          ),
-          const Spacer(),
-          // Search bar
-          SizedBox(
-            width: 300,
-            child: TextField(
-              controller: _searchController,
-              decoration: PointageInputDecorations.standard(
-                hintText: 'Rechercher...',
-                prefixIcon: const Icon(Icons.search, size: 20),
-                suffixIcon: _searchController.text.isNotEmpty
-                    ? IconButton(
-                        icon: const Icon(Icons.clear, size: 20),
-                        onPressed: () {
-                          _searchController.clear();
-                          provider.setSearchQuery('');
-                        },
-                      )
-                    : null,
+          Wrap(
+            spacing: PointageSpacing.sm,
+            runSpacing: PointageSpacing.sm,
+            children: [
+              _buildStatChip(
+                'Total',
+                provider.stats.total.toString(),
+                PointageColors.primary,
               ),
-              onChanged: (value) => provider.setSearchQuery(value),
-            ),
-          ),
-          const SizedBox(width: PointageSpacing.md),
-          // Actions
-          if (provider.hasSelection) ...[
-            ElevatedButton.icon(
-              onPressed: () => _resolveSelected(context, provider),
-              icon: const Icon(Icons.check_circle, size: 18),
-              label: Text('Résoudre (${provider.selectedCount})'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: PointageColors.success,
-                foregroundColor: Colors.white,
+              _buildStatChip(
+                'Non résolus',
+                provider.stats.unresolved.toString(),
+                PointageColors.error,
               ),
+              _buildStatChip(
+                'Résolus',
+                provider.stats.resolved.toString(),
+                PointageColors.success,
+              ),
+            ],
+          ),
+          const SizedBox(height: PointageSpacing.md),
+          if (isCompact)
+            Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                _buildSearchField(provider),
+                const SizedBox(height: PointageSpacing.sm),
+                Wrap(
+                  spacing: PointageSpacing.sm,
+                  runSpacing: PointageSpacing.sm,
+                  alignment: WrapAlignment.end,
+                  children: _buildHeaderActions(context, provider),
+                ),
+              ],
+            )
+          else
+            Row(
+              children: [
+                Expanded(
+                  child: Align(
+                    alignment: Alignment.centerLeft,
+                    child: SizedBox(
+                      width: 340,
+                      child: _buildSearchField(provider),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: PointageSpacing.md),
+                Wrap(
+                  spacing: PointageSpacing.sm,
+                  runSpacing: PointageSpacing.sm,
+                  alignment: WrapAlignment.end,
+                  children: _buildHeaderActions(context, provider),
+                ),
+              ],
             ),
-            const SizedBox(width: PointageSpacing.sm),
-          ],
-          IconButton(
-            onPressed: () => _exportCsv(context, provider),
-            icon: const Icon(Icons.download),
-            tooltip: 'Exporter CSV',
-          ),
-          IconButton(
-            onPressed: provider.isLoading ? null : () => provider.refresh(),
-            icon: provider.isLoading
-                ? const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  )
-                : const Icon(Icons.refresh),
-            tooltip: 'Actualiser',
-          ),
         ],
       ),
     );
+  }
+
+  Widget _buildSearchField(ErrorLogProvider provider) {
+    return TextField(
+      controller: _searchController,
+      decoration: PointageInputDecorations.standard(
+        hintText: 'Rechercher...',
+        prefixIcon: const Icon(Icons.search, size: 20),
+        suffixIcon: _hasSearchText
+            ? IconButton(
+                icon: const Icon(Icons.clear, size: 20),
+                onPressed: () {
+                  _searchController.clear();
+                  provider.setSearchQuery('');
+                },
+              )
+            : null,
+      ),
+      onChanged: (value) => provider.setSearchQuery(value),
+    );
+  }
+
+  List<Widget> _buildHeaderActions(
+      BuildContext context, ErrorLogProvider provider) {
+    return [
+      if (provider.hasSelection)
+        ElevatedButton.icon(
+          onPressed: () => _resolveSelected(context, provider),
+          icon: const Icon(Icons.check_circle, size: 18),
+          label: Text('Résoudre (${provider.selectedCount})'),
+          style: ElevatedButton.styleFrom(
+            backgroundColor: PointageColors.success,
+            foregroundColor: Colors.white,
+          ),
+        ),
+      OutlinedButton.icon(
+        onPressed: () => _exportCsv(context, provider),
+        icon: const Icon(Icons.download, size: 18),
+        label: const Text('Exporter CSV'),
+      ),
+      IconButton(
+        onPressed: provider.isLoading ? null : () => provider.refresh(),
+        icon: provider.isLoading
+            ? const SizedBox(
+                width: 20,
+                height: 20,
+                child: CircularProgressIndicator(strokeWidth: 2),
+              )
+            : const Icon(Icons.refresh),
+        tooltip: 'Actualiser',
+      ),
+    ];
   }
 
   Widget _buildStatChip(String label, String value, Color color) {
@@ -331,6 +384,20 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
 
   Widget _buildTable(
       BuildContext context, ErrorLogProvider provider, List<ErrorLog> logs) {
+    final selectableLogs = logs.where((log) => !log.isResolved).toList();
+    final selectedSelectableCount = selectableLogs
+        .where((log) => provider.selectedIds.contains(log.id))
+        .length;
+
+    final bool? selectAllValue;
+    if (selectableLogs.isEmpty || selectedSelectableCount == 0) {
+      selectAllValue = false;
+    } else if (selectedSelectableCount == selectableLogs.length) {
+      selectAllValue = true;
+    } else {
+      selectAllValue = null;
+    }
+
     return SingleChildScrollView(
       controller: _scrollController,
       child: Column(
@@ -352,16 +419,17 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
                 SizedBox(
                   width: 40,
                   child: Checkbox(
-                    value: provider.selectedIds.length == logs.length &&
-                        logs.isNotEmpty,
+                    value: selectAllValue,
                     tristate: true,
-                    onChanged: (value) {
-                      if (value == true) {
-                        provider.selectAll();
-                      } else {
-                        provider.clearSelection();
-                      }
-                    },
+                    onChanged: selectableLogs.isEmpty
+                        ? null
+                        : (value) {
+                            if (value == true) {
+                              provider.selectAll();
+                            } else {
+                              provider.clearSelection();
+                            }
+                          },
                   ),
                 ),
                 _tableHeader('Date', flex: 2),
@@ -386,7 +454,10 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
             Padding(
               padding: const EdgeInsets.all(PointageSpacing.md),
               child: Text(
-                'Fin de la liste (${logs.length} erreurs)',
+                provider.filters.searchQuery != null &&
+                        provider.filters.searchQuery!.trim().isNotEmpty
+                    ? '${logs.length} résultat(s) affiché(s) après filtrage'
+                    : 'Tous les résultats chargés (${logs.length} erreurs)',
                 style: PointageTextStyles.caption,
               ),
             ),
@@ -410,6 +481,7 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
   Widget _buildTableRow(
       BuildContext context, ErrorLogProvider provider, ErrorLog log) {
     final isSelected = provider.selectedIds.contains(log.id);
+    final diagnosticSummary = _buildGpsDiagnosticSummary(log);
 
     return InkWell(
       onTap: () => context.go('/errorlogs/detail', extra: log),
@@ -423,9 +495,18 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
               ? PointageColors.primary.withValues(alpha: 0.05)
               : log.isResolved
                   ? PointageColors.success.withValues(alpha: 0.03)
-                  : Colors.transparent,
-          border: const Border(
-            bottom: BorderSide(color: PointageColors.divider, width: 0.5),
+                  : PointageColors.error.withValues(alpha: 0.03),
+          border: Border(
+            left: BorderSide(
+              color: log.isResolved
+                  ? PointageColors.success.withValues(alpha: 0.6)
+                  : PointageColors.error.withValues(alpha: 0.8),
+              width: 4,
+            ),
+            bottom: const BorderSide(
+              color: PointageColors.divider,
+              width: 0.5,
+            ),
           ),
         ),
         child: Row(
@@ -442,9 +523,19 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
             // Date
             Expanded(
               flex: 2,
-              child: Text(
-                _formatDate(log.timestamp),
-                style: PointageTextStyles.body2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    _formatDate(log.timestamp),
+                    style: PointageTextStyles.body2.copyWith(
+                      fontWeight:
+                          log.isResolved ? FontWeight.normal : FontWeight.w600,
+                    ),
+                  ),
+                  const SizedBox(height: 4),
+                  _buildResolutionStatusBadge(log),
+                ],
               ),
             ),
             // Type badge
@@ -484,14 +575,33 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
                 ],
               ),
             ),
-            // Message
+            // Message + diagnostic summary
             Expanded(
               flex: 3,
-              child: Text(
-                log.customMessage ?? '-',
-                style: PointageTextStyles.body2,
-                overflow: TextOverflow.ellipsis,
-                maxLines: 2,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    log.customMessage ?? '-',
+                    style: PointageTextStyles.body2.copyWith(
+                      fontWeight:
+                          log.isResolved ? FontWeight.normal : FontWeight.w600,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                    maxLines: 2,
+                  ),
+                  if (diagnosticSummary != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      diagnosticSummary,
+                      style: PointageTextStyles.caption.copyWith(
+                        color: PointageColors.textSecondary,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                      maxLines: 2,
+                    ),
+                  ],
+                ],
               ),
             ),
             // Actions
@@ -517,7 +627,8 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
                       color: PointageColors.success,
                     ),
                   IconButton(
-                    onPressed: () => context.go('/errorlogs/detail', extra: log),
+                    onPressed: () =>
+                        context.go('/errorlogs/detail', extra: log),
                     icon: const Icon(Icons.visibility, size: 20),
                     tooltip: 'Voir détails',
                     color: PointageColors.primary,
@@ -531,8 +642,72 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
     );
   }
 
+  Widget _buildResolutionStatusBadge(ErrorLog log) {
+    final color =
+        log.isResolved ? PointageColors.success : PointageColors.error;
+    final label = log.isResolved ? 'Résolu' : 'À traiter';
+    final icon =
+        log.isResolved ? Icons.check_circle_outline : Icons.pending_actions;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.sm,
+        vertical: 2,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(color: color.withValues(alpha: 0.3)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, size: 12, color: color),
+          const SizedBox(width: 4),
+          Text(
+            label,
+            style: PointageTextStyles.caption.copyWith(
+              color: color,
+              fontWeight: FontWeight.w600,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
   String _formatDate(DateTime date) {
     return '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year} ${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}';
+  }
+
+  String? _buildGpsDiagnosticSummary(ErrorLog log) {
+    final diagnostics = <String>[];
+
+    if (log.freshGpsAttempted != null) {
+      diagnostics.add(
+        log.freshGpsAttempted! ? 'GPS frais tenté' : 'GPS frais non tenté',
+      );
+    }
+
+    if (log.freshGpsFailedReason != null &&
+        log.freshGpsFailedReason!.trim().isNotEmpty) {
+      diagnostics.add('Échec GPS frais: ${log.freshGpsFailedReason!}');
+    }
+
+    if (log.backgroundTrackerActive != null) {
+      diagnostics.add(
+        log.backgroundTrackerActive!
+            ? 'Tracker background actif'
+            : 'Tracker background inactif',
+      );
+    }
+
+    if (log.backgroundCacheAgeSeconds != null) {
+      diagnostics.add('Cache background: ${log.backgroundCacheAgeSeconds}s');
+    }
+
+    if (diagnostics.isEmpty) return null;
+    return diagnostics.join(' • ');
   }
 
   Future<void> _resolveSingle(
@@ -549,7 +724,8 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
           content: Text(success
               ? 'Erreur marquée comme résolue'
               : 'Échec de la résolution'),
-          backgroundColor: success ? PointageColors.success : PointageColors.error,
+          backgroundColor:
+              success ? PointageColors.success : PointageColors.error,
         ),
       );
     }
@@ -578,7 +754,7 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
     final csv = provider.exportToCsv();
     final filename =
         'erreurs_pointage_${DateTime.now().toIso8601String().substring(0, 10)}.csv';
-    
+
     DownloadHelper.downloadText(csv, filename);
 
     ScaffoldMessenger.of(context).showSnackBar(

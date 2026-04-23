@@ -11,20 +11,27 @@ class ErrorLog {
   final String? customMessage;
   final String? technicalError;
   final String? stackTrace;
-  
+
   // These are Maps, NOT typed objects!
   final Map<String, dynamic>? supervisor;
   final Map<String, dynamic>? supervisorPosition;
   final Map<String, dynamic>? site;
   final Map<String, dynamic>? sitePosition;
   final Map<String, dynamic>? agent;
-  
+
   final bool? agentFound;
   final double? distance;
   final double? gpsAccuracy; // GPS accuracy in meters
-  final String? gpsSource; // "cache" (background tracking) or "fresh" (direct request)
+  final String?
+      gpsSource; // "cache" (background tracking) or "fresh" (direct request)
   final int? gpsAgeSeconds; // Age of GPS position in seconds
   final DateTime? gpsTimestamp; // Exact timestamp of GPS reading
+  final bool? backgroundTrackerActive;
+  final int? backgroundCacheAgeSeconds;
+  final double? backgroundCacheAccuracy;
+  final DateTime? backgroundCacheTimestamp;
+  final bool? freshGpsAttempted;
+  final String? freshGpsFailedReason;
   final bool? isOnline;
   final String? devicePlatform;
   final bool isResolved;
@@ -50,6 +57,12 @@ class ErrorLog {
     this.gpsSource,
     this.gpsAgeSeconds,
     this.gpsTimestamp,
+    this.backgroundTrackerActive,
+    this.backgroundCacheAgeSeconds,
+    this.backgroundCacheAccuracy,
+    this.backgroundCacheTimestamp,
+    this.freshGpsAttempted,
+    this.freshGpsFailedReason,
     this.isOnline,
     this.devicePlatform,
     this.isResolved = false,
@@ -63,9 +76,7 @@ class ErrorLog {
       id: doc.id,
       type: data['type'] ?? 'unknown',
       errorType: data['errorType'] ?? 'unknown',
-      timestamp: data['timestamp'] != null
-          ? (data['timestamp'] as Timestamp).toDate()
-          : DateTime.now(),
+      timestamp: _parseDateTime(data['timestamp']) ?? DateTime.now(),
       customMessage: data['customMessage'],
       technicalError: data['technicalError'],
       stackTrace: data['stackTrace'],
@@ -76,29 +87,31 @@ class ErrorLog {
       supervisorPosition: data['supervisorPosition'] != null
           ? Map<String, dynamic>.from(data['supervisorPosition'])
           : null,
-      site: data['site'] != null
-          ? Map<String, dynamic>.from(data['site'])
-          : null,
+      site:
+          data['site'] != null ? Map<String, dynamic>.from(data['site']) : null,
       sitePosition: data['sitePosition'] != null
           ? Map<String, dynamic>.from(data['sitePosition'])
           : null,
       agent: data['agent'] != null
           ? Map<String, dynamic>.from(data['agent'])
           : null,
-      agentFound: data['agentFound'],
-      distance: data['distance']?.toDouble(),
-      gpsAccuracy: data['gpsAccuracy']?.toDouble(),
-      gpsSource: data['gpsSource'],
-      gpsAgeSeconds: data['gpsAgeSeconds']?.toInt(),
-      gpsTimestamp: data['gpsTimestamp'] != null
-          ? (data['gpsTimestamp'] as Timestamp).toDate()
-          : null,
-      isOnline: data['isOnline'],
-      devicePlatform: data['devicePlatform'],
+      agentFound: data['agentFound'] as bool?,
+      distance: _parseDouble(data['distance']),
+      gpsAccuracy: _parseDouble(data['gpsAccuracy']),
+      gpsSource: data['gpsSource'] as String?,
+      gpsAgeSeconds: _parseInt(data['gpsAgeSeconds']),
+      gpsTimestamp: _parseDateTime(data['gpsTimestamp']),
+      backgroundTrackerActive: data['backgroundTrackerActive'] as bool?,
+      backgroundCacheAgeSeconds: _parseInt(data['backgroundCacheAgeSeconds']),
+      backgroundCacheAccuracy: _parseDouble(data['backgroundCacheAccuracy']),
+      backgroundCacheTimestamp:
+          _parseDateTime(data['backgroundCacheTimestamp']),
+      freshGpsAttempted: data['freshGpsAttempted'] as bool?,
+      freshGpsFailedReason: data['freshGpsFailedReason'] as String?,
+      isOnline: data['isOnline'] as bool?,
+      devicePlatform: data['devicePlatform'] as String?,
       isResolved: data['isResolved'] ?? false,
-      resolvedAt: data['resolvedAt'] != null
-          ? (data['resolvedAt'] as Timestamp).toDate()
-          : null,
+      resolvedAt: _parseDateTime(data['resolvedAt']),
       resolvedBy: data['resolvedBy'],
     );
   }
@@ -122,13 +135,45 @@ class ErrorLog {
       'gpsAccuracy': gpsAccuracy,
       'gpsSource': gpsSource,
       'gpsAgeSeconds': gpsAgeSeconds,
-      'gpsTimestamp': gpsTimestamp != null ? Timestamp.fromDate(gpsTimestamp!) : null,
+      'gpsTimestamp':
+          gpsTimestamp != null ? Timestamp.fromDate(gpsTimestamp!) : null,
+      'backgroundTrackerActive': backgroundTrackerActive,
+      'backgroundCacheAgeSeconds': backgroundCacheAgeSeconds,
+      'backgroundCacheAccuracy': backgroundCacheAccuracy,
+      'backgroundCacheTimestamp': backgroundCacheTimestamp != null
+          ? Timestamp.fromDate(backgroundCacheTimestamp!)
+          : null,
+      'freshGpsAttempted': freshGpsAttempted,
+      'freshGpsFailedReason': freshGpsFailedReason,
       'isOnline': isOnline,
       'devicePlatform': devicePlatform,
       'isResolved': isResolved,
       'resolvedAt': resolvedAt != null ? Timestamp.fromDate(resolvedAt!) : null,
       'resolvedBy': resolvedBy,
     };
+  }
+
+  static DateTime? _parseDateTime(dynamic value) {
+    if (value == null) return null;
+    if (value is Timestamp) return value.toDate();
+    if (value is DateTime) return value;
+    if (value is String) return DateTime.tryParse(value);
+    return null;
+  }
+
+  static double? _parseDouble(dynamic value) {
+    if (value == null) return null;
+    if (value is num) return value.toDouble();
+    if (value is String) return double.tryParse(value);
+    return null;
+  }
+
+  static int? _parseInt(dynamic value) {
+    if (value == null) return null;
+    if (value is int) return value;
+    if (value is num) return value.toInt();
+    if (value is String) return int.tryParse(value);
+    return null;
   }
 
   // Getters for easy access to supervisor data
@@ -230,6 +275,12 @@ class ErrorLog {
       gpsSource: gpsSource,
       gpsAgeSeconds: gpsAgeSeconds,
       gpsTimestamp: gpsTimestamp,
+      backgroundTrackerActive: backgroundTrackerActive,
+      backgroundCacheAgeSeconds: backgroundCacheAgeSeconds,
+      backgroundCacheAccuracy: backgroundCacheAccuracy,
+      backgroundCacheTimestamp: backgroundCacheTimestamp,
+      freshGpsAttempted: freshGpsAttempted,
+      freshGpsFailedReason: freshGpsFailedReason,
       isOnline: isOnline,
       devicePlatform: devicePlatform,
       isResolved: true,
