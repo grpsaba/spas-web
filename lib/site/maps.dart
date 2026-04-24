@@ -103,11 +103,11 @@ class _MapsState extends State<Maps> {
             if (snapshot.hasData) {
               try {
                 var docs = snapshot.data?.docs
-                    .map((e) => jsonDecode(jsonEncode(e.data())))
+                    .map((e) => e.data())
                     .toList();
 
                 _sites = docs!
-                    .map((e) => Site.fromJson(e))
+                    .map((e) => Site.fromJson(e as Map<String, dynamic>))
                     .toList()
                     .where((element) => element.actif == true)
                     .toList();
@@ -219,7 +219,12 @@ class _MapsState extends State<Maps> {
                           size: 64,
                           color: Theme.of(context).primaryColor,
                         ),
-                        const Text("Pas de données")
+                        const Text("Pas de données"),
+                        const SizedBox(height: 8),
+                        Text(
+                          "Erreur: ${error.toString()}",
+                          style: TextStyle(color: Colors.red),
+                        ),
                       ]),
                 );
               }

@@ -1,502 +1,951 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:provider/provider.dart';
 import 'package:spas_web/administration/home.dart';
-import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/agent/providers/agent_list_provider.dart';
 import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../pdf/api/pdf_api.dart';
-import '../rowperPageWidget.dart';
 import '../services/agent.dart';
 import '../services/export.dart';
 import '../services/loading.dart';
 
-class AgentList extends StatefulWidget {
-  const AgentList({
-    super.key,
-  });
-
-  @override
-  _AgentListState createState() => _AgentListState();
-}
-
-class _AgentListState extends State<AgentList> {
-  final AgentService _service = AgentService();
-  final TextEditingController _texController = TextEditingController();
-  String _keyword = "";
-  int rowParPage = 0;
-  int defauldRowParPage = 10;
-//filtre
-  bool _actif = true;
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-
-    rowParPage = defauldRowParPage;
-    _texController.text = defauldRowParPage.toString();
-
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    super.dispose();
-    _texController.dispose();
-  }
+class AgentList extends StatelessWidget {
+  const AgentList({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return PageModel(
-      pageIndex: 3,
-      title: "Gestion des agents",
-      child: SingleChildScrollView(
-          child: StreamBuilder(
-              stream: _service.all(),
-              builder: (context, snapshot) {
-                if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
-                      .toList();
-                  var data = docs
-                      ?.map((e) => Agent.fromJson(e))
-                      .toList()
-                      .where((element) => element.actif == _actif)
-                      .toList();
-
-                  return PaginatedDataTable(
-                    header: Row(
-                      children: [
-                        SearchTextField(
-                            onSearch: (value) {
-                              setState(() {
-                                _keyword = value;
-                              });
-                            },
-                            onPress: () {}),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _keyword = "FIXE";
-                            });
-                          },
-                          child: const Chip(
-                              backgroundColor: Colors.green,
-                              label: Text(
-                                "Fixe",
-                                style: TextStyle(color: Colors.white),
-                              )),
-                        ),
-                        const SizedBox(
-                          width: 5,
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _keyword = "POINT ZERO";
-                            });
-                          },
-                          child: const Chip(
-                              backgroundColor: Colors.redAccent,
-                              label: Text(
-                                "Point Zéro",
-                                style: TextStyle(color: Colors.white),
-                              )),
-                        ),
-                        const SizedBox(
-                          width: 5,
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _keyword = "RONDIER";
-                            });
-                          },
-                          child: const Chip(
-                              backgroundColor: Colors.deepOrange,
-                              label: Text(
-                                "Rondier",
-                                style: TextStyle(color: Colors.white),
-                              )),
-                        ),
-                        const SizedBox(
-                          width: 5,
-                        ),
-                        GestureDetector(
-                          onTap: () {
-                            setState(() {
-                              _actif = _actif ? false : true;
-                            });
-                          },
-                          child: Chip(
-                              backgroundColor:
-                                  _actif ? Colors.green : Colors.redAccent,
-                              label: Row(
-                                children: [
-                                  Checkbox(
-                                      value: _actif,
-                                      onChanged: ((value) {
-                                        setState(() {
-                                          _actif = _actif ? false : true;
-                                        });
-                                      })),
-                                  _actif
-                                      ? const Text(
-                                          "Actif",
-                                          style: TextStyle(color: Colors.white),
-                                        )
-                                      : const Text("Inactif",
-                                          style:
-                                              TextStyle(color: Colors.white)),
-                                ],
-                              )),
-                        ),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.AGENT)!
-                                .add
-                            ? Tooltip(
-                                message: "Ajouter un Agent",
-                                child: ElevatedButton(
-                                  onPressed: () {
-                                    Agent agent = Agent(
-                                      docs: [],
-                                      typeAgent: null,
-                                      code: '',
-                                      firstName: '',
-                                      lastName: '',
-                                      phone: '',
-                                      email: '',
-                                      tracking: false,
-                                      site: null,
-                                      actif: false,
-                                      department: null,
-                                      contacts: [],
-                                      dateEmbauche: null,
-                                      dateArret: null,
-                                    );
-                                    context.go('/agents/add', extra: agent);
-                                  },
-                                  child: const Icon(Icons.add),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.AGENT)!
-                                .add
-                            ? Tooltip(
-                                message: "Importer Agents",
-                                child: ElevatedButton(
-                                  onPressed: () async {
-                                    context.go('/agents/import');
-                                  },
-                                  child: const Icon(Icons.upload_file),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.AGENT)!
-                                .generBadge
-                            ? Tooltip(
-                                message: "Générer les QR CODES",
-                                child: ElevatedButton(
-                                  style: ElevatedButton.styleFrom(
-                                      shape: RoundedRectangleBorder(
-                                          borderRadius:
-                                              BorderRadius.circular(100))),
-                                  onPressed: () {
-                                    CarteGenerator.generateMiltiCarteAgent(
-                                        _DataSource.dataForPrint);
-                                  },
-                                  child: const Icon(
-                                    Icons.badge,
-                                  ),
-                                ),
-                              )
-                            : const SizedBox.shrink(),
-                        const SizedBox(
-                          width: 10,
-                        ),
-                        AuthService.currentManager!.profil!
-                                .getModule(ModuleName.AGENT)!
-                                .print
-                            ? IconButton(
-                                onPressed: () async {
-                                  var document = await AgentListToPDF.export(
-                                      _DataSource.dataForPrint);
-                                  PdfApi.openFile(document);
-                                },
-                                icon: const Icon(Icons.print))
-                            : const SizedBox.shrink(),
-                      ],
-                    ),
-                    actions: [
-                      RowPerPageWidget(
-                        controller: _texController,
-                        incremente: () {
-                          setState(() {
-                            rowParPage += 1;
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                        decremente: () {
-                          setState(() {
-                            rowParPage = rowParPage <= defauldRowParPage
-                                ? defauldRowParPage
-                                : rowParPage - 1;
-
-                            _texController.text = rowParPage.toString();
-                          });
-                        },
-                      )
-                    ],
-                    rowsPerPage: rowParPage,
-                    showFirstLastButtons: true,
-                    columns: const [
-                      DataColumn(label: Text("Domaine")),
-                      DataColumn(label: Text("Code")),
-                      DataColumn(label: Text("Prénom")),
-                      DataColumn(label: Text("Nom")),
-                      DataColumn(label: Text("Contact")),
-                      DataColumn(label: Text("Site")),
-                      DataColumn(label: Text("Type")),
-                      DataColumn(label: Text("Statut")),
-                      DataColumn(label: Text("Action")),
-                    ],
-                    source: _DataSource(
-                      context: context,
-                      keyword: _keyword,
-                      data: data!,
-                    ),
-                  );
-                } else {
-                  return Center(
-                    child: Loading(
-                      size: 64,
-                      inline: true,
-                    ),
-                  );
-                }
-              })),
+    return ChangeNotifierProvider<AgentListProvider>(
+      create: (_) => AgentListProvider()..initialize(),
+      child: const _AgentListView(),
     );
   }
 }
 
-class _DataSource extends DataTableSource {
-  static List<Agent> dataForPrint = [];
-  List<Agent> data = [];
-  String keyword;
-  BuildContext context;
+class _AgentListView extends StatelessWidget {
+  const _AgentListView();
 
-  _DataSource({
-    required this.context,
-    required this.data,
-    required this.keyword,
-  });
+  Module? get _agentModule =>
+      AuthService.currentManager?.profil?.getModule(ModuleName.AGENT);
+
+  bool get _canAdd => _agentModule?.add ?? false;
+  bool get _canPrint => _agentModule?.print ?? false;
+  bool get _canGenerateBadge => _agentModule?.generBadge ?? false;
+  bool get _canValidate => _agentModule?.validation ?? false;
+
   @override
-  DataRow? getRow(int index) {
-    // TODO: implement getRow
-    print(" KEYWORD : $keyword");
-    data = data.where((agent) {
-      if (agent.site != null) {
-        bool matches = (agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.site!.name.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.typeAgent!.label
-                .toLowerCase()
-                .contains(keyword.toLowerCase())
-            ); 
-  
-    return matches;
-      }
-   
-       else {
-        return agent.firstName.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.code.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.phone.toLowerCase().contains(keyword.toLowerCase()) ||
-            agent.department!.label
-                .toLowerCase()
-                .contains(keyword.toLowerCase()) ||
-            agent.typeAgent!.label
-                .toLowerCase()
-                .contains(keyword.toLowerCase());
-      }
-    }).toList();
-    dataForPrint = data;
-    
-    if (index >= data.length) {
-      return const DataRow(cells: [
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-        DataCell(Text("")),
-      ]);
-    }
-    Agent agent = data[index];
-    
-    
-    if(agent.code.contains("NE")){
-      print(agent.code);
-    }
-    return DataRow(cells: [
-      DataCell(Chip(
-        label: Text(
-          agent.department?.label ?? "Unconnu",
+  Widget build(BuildContext context) {
+    return Consumer<AgentListProvider>(
+      builder: (context, provider, _) {
+        return PageModel(
+          pageIndex: 3,
+          title: 'Gestion des agents',
+          child: RefreshIndicator(
+            onRefresh: provider.refresh,
+            child: SingleChildScrollView(
+              physics: const AlwaysScrollableScrollPhysics(),
+              padding: const EdgeInsets.all(20),
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  _buildHeader(context, provider),
+                  const SizedBox(height: 20),
+                  _buildFilterPanel(context, provider),
+                  const SizedBox(height: 20),
+                  _buildBody(context, provider),
+                ],
+              ),
+            ),
+          ),
+        );
+      },
+    );
+  }
+
+  Widget _buildHeader(BuildContext context, AgentListProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(20),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Wrap(
+        runSpacing: 16,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Liste des agents',
+                style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                      fontWeight: FontWeight.w700,
+                      color: const Color(0xFF152033),
+                    ),
+              ),
+              const SizedBox(height: 6),
+              Text(
+                provider.resultText,
+                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                      color: const Color(0xFF697586),
+                    ),
+              ),
+            ],
+          ),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            children: [
+              if (_canAdd)
+                _HeaderActionButton(
+                  label: 'Ajouter',
+                  icon: Icons.person_add_alt_1_rounded,
+                  onPressed: () => _onAddAgent(context),
+                ),
+              if (_canAdd)
+                _HeaderActionButton(
+                  label: 'Importer',
+                  icon: Icons.upload_file_rounded,
+                  onPressed: () => context.go('/agents/import'),
+                  outlined: true,
+                ),
+              if (_canGenerateBadge)
+                _HeaderActionButton(
+                  label: 'QR / Badge',
+                  icon: Icons.badge_rounded,
+                  onPressed: provider.exportableAgents.isEmpty
+                      ? null
+                      : () {
+                          CarteGenerator.generateMiltiCarteAgent(
+                            provider.exportableAgents,
+                          );
+                        },
+                  outlined: true,
+                ),
+              if (_canPrint)
+                _HeaderActionButton(
+                  label: 'Imprimer',
+                  icon: Icons.print_rounded,
+                  onPressed: provider.exportableAgents.isEmpty
+                      ? null
+                      : () async {
+                          final document = await AgentListToPDF.export(
+                              provider.exportableAgents);
+                          PdfApi.openFile(document);
+                        },
+                  outlined: true,
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFilterPanel(BuildContext context, AgentListProvider provider) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            'Filtres',
+            style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF152033),
+                ),
+          ),
+          const SizedBox(height: 14),
+          Wrap(
+            spacing: 14,
+            runSpacing: 14,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              SizedBox(
+                width: 320,
+                child: TextField(
+                  controller: provider.searchController,
+                  onChanged: provider.setSearchQuery,
+                  decoration: InputDecoration(
+                    hintText:
+                        'Rechercher par code, nom, téléphone, site, type...',
+                    prefixIcon: const Icon(Icons.search_rounded),
+                    filled: true,
+                    fillColor: Colors.white,
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: 16,
+                      vertical: 14,
+                    ),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFD0D7E2)),
+                    ),
+                    enabledBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: const BorderSide(color: Color(0xFFD0D7E2)),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(14),
+                      borderSide: BorderSide(
+                        color: Theme.of(context).primaryColor,
+                        width: 1.5,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+              _FilterDropdown<bool?>(
+                label: 'Statut',
+                value: provider.selectedActif,
+                items: const [
+                  DropdownMenuItem<bool?>(
+                    value: null,
+                    child: Text('Tous'),
+                  ),
+                  DropdownMenuItem<bool?>(
+                    value: true,
+                    child: Text('Actifs'),
+                  ),
+                  DropdownMenuItem<bool?>(
+                    value: false,
+                    child: Text('Inactifs'),
+                  ),
+                ],
+                onChanged: provider.setStatus,
+              ),
+              _FilterDropdown<String>(
+                label: 'Type',
+                value: provider.selectedType,
+                items: AgentListProvider.typeOptions
+                    .map(
+                      (type) => DropdownMenuItem<String>(
+                        value: type,
+                        child: Text(type),
+                      ),
+                    )
+                    .toList(),
+                onChanged: provider.setType,
+              ),
+              _FilterDropdown<String>(
+                label: 'Département',
+                value: provider.selectedDepartment,
+                items: provider.departmentOptions
+                    .map(
+                      (department) => DropdownMenuItem<String>(
+                        value: department,
+                        child: Text(department),
+                      ),
+                    )
+                    .toList(),
+                onChanged: provider.isLoadingDepartments
+                    ? null
+                    : provider.setDepartment,
+              ),
+              OutlinedButton.icon(
+                onPressed: provider.resetFilters,
+                icon: const Icon(Icons.restart_alt_rounded),
+                label: const Text('Réinitialiser'),
+                style: OutlinedButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 18,
+                    vertical: 16,
+                  ),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(14),
+                  ),
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          Wrap(
+            spacing: 8,
+            runSpacing: 8,
+            children: [
+              _ActiveFilterChip(
+                  label: 'Statut : ${provider.selectedStatusLabel}'),
+              _ActiveFilterChip(label: 'Type : ${provider.selectedType}'),
+              _ActiveFilterChip(
+                label: 'Département : ${provider.selectedDepartment}',
+              ),
+              if (provider.searchQuery.trim().isNotEmpty)
+                _ActiveFilterChip(
+                  label: 'Recherche : ${provider.searchQuery.trim()}',
+                ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildBody(BuildContext context, AgentListProvider provider) {
+    if (provider.isInitialLoading) {
+      return SizedBox(
+        height: 320,
+        child: Center(
+          child: Loading(
+            size: 60,
+            inline: true,
+          ),
         ),
-      )),
-      DataCell(Text(agent.code)),
-      DataCell(Text(agent.firstName)),
-      DataCell(Text(agent.lastName)),
-      DataCell(Text(agent.phone)),
-      DataCell(agent.site == null
-          ? const SizedBox.shrink()
-          : Text(agent.site!.name)),
-      DataCell(Chip(
-        label: Text(
-          agent.typeAgent?.label ?? "Unconnu",
-        ),
-      )),
-      DataCell(AgentStatut(
-        agent: agent,
-      )),
-      DataCell(agent.actif!
-          ? Row(
+      );
+    }
+
+    if (provider.errorMessage != null) {
+      return _AgentListMessageCard(
+        icon: Icons.error_outline_rounded,
+        title: 'Erreur de chargement',
+        subtitle: provider.errorMessage!,
+        actionLabel: 'Réessayer',
+        onPressed: provider.loadInitialData,
+      );
+    }
+
+    if (provider.agents.isEmpty) {
+      return _AgentListMessageCard(
+        icon: Icons.people_outline_rounded,
+        title: 'Aucun agent disponible',
+        subtitle: 'Aucun agent n’a encore été récupéré.',
+        actionLabel: 'Actualiser',
+        onPressed: provider.loadInitialData,
+      );
+    }
+
+    if (provider.filteredAgents.isEmpty) {
+      return _AgentListMessageCard(
+        icon: Icons.filter_alt_off_rounded,
+        title: 'Aucun résultat',
+        subtitle:
+            'Aucun agent ne correspond aux filtres sélectionnés. Réinitialise les filtres pour revenir à la liste complète.',
+        actionLabel: 'Réinitialiser',
+        onPressed: provider.resetFilters,
+      );
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        _buildTableCard(context, provider),
+        const SizedBox(height: 16),
+        _buildFooterControls(context, provider),
+      ],
+    );
+  }
+
+  Widget _buildTableCard(BuildContext context, AgentListProvider provider) {
+    return Container(
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.04),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
+            child: Wrap(
+              spacing: 12,
+              runSpacing: 12,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.edit,
-                    color: Theme.of(context).primaryColor,
-                  ),
-                  onPressed: () {
-                    // ignore: use_build_context_synchronously
-                    context.go('/agents/add', extra: agent);
-                  },
+                Text(
+                  'Tableau des agents',
+                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
+                        fontWeight: FontWeight.w700,
+                        color: const Color(0xFF152033),
+                      ),
                 ),
-                IconButton(
-                  icon: Icon(
-                    Icons.file_present,
-                    color: Theme.of(context).primaryColor,
+                Container(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+                  decoration: BoxDecoration(
+                    color: const Color(0xFFF8FAFC),
+                    borderRadius: BorderRadius.circular(999),
+                    border: Border.all(color: const Color(0xFFE7ECF3)),
                   ),
-                  onPressed: () {
-                    // ignore: use_build_context_synchronously
-                    context.go('/agents/documents', extra: agent);
-                  },
-                ),
-                ElevatedButton(
-                  style: ElevatedButton.styleFrom(
-                      shape: RoundedRectangleBorder(
-                          borderRadius: BorderRadius.circular(100))),
-                  onPressed: () {
-                    CarteGenerator.generateCarteAgent(agent);
-                  },
-                  child: const Icon(
-                    Icons.badge,
+                  child: Text(
+                    '${provider.filteredAgents.length} ligne${provider.filteredAgents.length > 1 ? 's' : ''} affichée${provider.filteredAgents.length > 1 ? 's' : ''}',
+                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                          color: const Color(0xFF475467),
+                          fontWeight: FontWeight.w600,
+                        ),
                   ),
                 ),
               ],
-            )
-          : const SizedBox.shrink()),
-    ]);
+            ),
+          ),
+          const SizedBox(height: 12),
+          LayoutBuilder(
+            builder: (context, constraints) {
+              final viewportWidth =
+                  constraints.maxWidth.isFinite && constraints.maxWidth > 0
+                      ? constraints.maxWidth
+                      : MediaQuery.of(context).size.width;
+
+              const tableMinWidth = 1400.0;
+              final constrainedWidth =
+                  viewportWidth > tableMinWidth ? viewportWidth : tableMinWidth;
+
+              return ClipRRect(
+                borderRadius: const BorderRadius.vertical(
+                  bottom: Radius.circular(18),
+                ),
+                child: SingleChildScrollView(
+                  scrollDirection: Axis.horizontal,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  child: SizedBox(
+                    width: constrainedWidth,
+                    child: Theme(
+                      data: Theme.of(context).copyWith(
+                        cardTheme: const CardThemeData(
+                          margin: EdgeInsets.zero,
+                          elevation: 0,
+                          color: Colors.white,
+                        ),
+                      ),
+                      child: PaginatedDataTable(
+                        header: const SizedBox.shrink(),
+                        showFirstLastButtons: true,
+                        rowsPerPage: provider.filteredAgents.isEmpty
+                            ? 1
+                            : (provider.filteredAgents.length <
+                                    provider.rowsPerPage
+                                ? provider.filteredAgents.length
+                                : provider.rowsPerPage),
+                        availableRowsPerPage: const <int>[10, 20, 30, 50, 100],
+                        onRowsPerPageChanged: (value) {
+                          if (value != null) {
+                            provider.setRowsPerPage(value);
+                          }
+                        },
+                        columnSpacing: 28,
+                        horizontalMargin: 18,
+                        columns: const [
+                          DataColumn(label: Text('Département')),
+                          DataColumn(label: Text('Code')),
+                          DataColumn(label: Text('Prénom')),
+                          DataColumn(label: Text('Nom')),
+                          DataColumn(label: Text('Contact')),
+                          DataColumn(label: Text('Site')),
+                          DataColumn(label: Text('Type')),
+                          DataColumn(label: Text('Statut')),
+                          DataColumn(label: Text('Actions')),
+                        ],
+                        source: _AgentDataSource(
+                          context: context,
+                          data: provider.filteredAgents,
+                          canValidate: _canValidate,
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildFooterControls(
+      BuildContext context, AgentListProvider provider) {
+    return Wrap(
+      spacing: 14,
+      runSpacing: 14,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+          decoration: BoxDecoration(
+            color: Colors.white,
+            borderRadius: BorderRadius.circular(14),
+            border: Border.all(color: const Color(0xFFE7ECF3)),
+          ),
+          child: Text(
+            provider.loadedCountText,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF475467),
+                  fontWeight: FontWeight.w600,
+                ),
+          ),
+        ),
+        if (provider.hasMore)
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: BoxDecoration(
+              color: const Color(0xFFFFFAEB),
+              borderRadius: BorderRadius.circular(14),
+              border: Border.all(color: const Color(0xFFFEDF89)),
+            ),
+            child: Text(
+              'La base contient encore d’autres agents. Utilise "Charger plus" pour compléter la liste.',
+              style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                    color: const Color(0xFFB54708),
+                    fontWeight: FontWeight.w600,
+                  ),
+            ),
+          ),
+        ElevatedButton.icon(
+          onPressed: provider.hasMore && !provider.isLoadingMore
+              ? provider.loadMoreAgents
+              : null,
+          icon: provider.isLoadingMore
+              ? const SizedBox(
+                  height: 18,
+                  width: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                )
+              : const Icon(Icons.expand_more_rounded),
+          label: Text(provider.hasMore ? 'Charger plus' : 'Tout est chargé'),
+          style: ElevatedButton.styleFrom(
+            padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 14),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(14),
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  void _onAddAgent(BuildContext context) {
+    final agent = Agent(
+      docs: const [],
+      typeAgent: null,
+      code: '',
+      firstName: '',
+      lastName: '',
+      phone: '',
+      email: '',
+      tracking: false,
+      site: null,
+      actif: false,
+      department: null,
+      contacts: const [],
+      dateEmbauche: null,
+      dateArret: null,
+    );
+
+    context.go('/agents/add', extra: agent);
+  }
+}
+
+class _AgentDataSource extends DataTableSource {
+  _AgentDataSource({
+    required this.context,
+    required this.data,
+    required this.canValidate,
+  });
+
+  final BuildContext context;
+  final List<Agent> data;
+  final bool canValidate;
+
+  @override
+  DataRow? getRow(int index) {
+    if (index < 0 || index >= data.length) {
+      return null;
+    }
+
+    final agent = data[index];
+
+    return DataRow.byIndex(
+      index: index,
+      cells: [
+        DataCell(
+          _TagCell(
+            label: agent.department?.label ?? 'Non défini',
+            backgroundColor: const Color(0xFFEAF2FF),
+            foregroundColor: const Color(0xFF1D4ED8),
+          ),
+        ),
+        DataCell(Text(agent.code)),
+        DataCell(Text(agent.firstName)),
+        DataCell(Text(agent.lastName)),
+        DataCell(Text(agent.phone)),
+        DataCell(
+          Text(
+            agent.site?.name ?? '—',
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        DataCell(
+          _TagCell(
+            label: agent.typeAgent?.label ?? 'Non défini',
+            backgroundColor: const Color(0xFFFFF1E8),
+            foregroundColor: const Color(0xFFB54708),
+          ),
+        ),
+        DataCell(
+          AgentStatut(
+            agent: agent,
+            canValidate: canValidate,
+          ),
+        ),
+        DataCell(
+          Wrap(
+            spacing: 6,
+            runSpacing: 6,
+            children: <Widget>[
+              IconButton(
+                icon: Icon(
+                  Icons.edit_rounded,
+                  color: Theme.of(context).primaryColor,
+                ),
+                tooltip: 'Modifier',
+                onPressed: () {
+                  context.go('/agents/add', extra: agent);
+                },
+              ),
+              IconButton(
+                icon: Icon(
+                  Icons.file_present_rounded,
+                  color: Theme.of(context).primaryColor,
+                ),
+                tooltip: 'Documents',
+                onPressed: () {
+                  context.go('/agents/documents', extra: agent);
+                },
+              ),
+              if (agent.actif == true)
+                OutlinedButton.icon(
+                  onPressed: () {
+                    CarteGenerator.generateCarteAgent(agent);
+                  },
+                  icon: const Icon(Icons.badge_rounded),
+                  label: const Text('Badge'),
+                ),
+            ],
+          ),
+        ),
+      ],
+    );
   }
 
   @override
-  // TODO: implement isRowCountApproximate
   bool get isRowCountApproximate => false;
 
   @override
-  // TODO: implement rowCount
   int get rowCount => data.length;
 
   @override
-  // TODO: implement selectedRowCount
   int get selectedRowCount => 0;
 }
 
-//widget d'état de l'agent
-
 class AgentStatut extends StatefulWidget {
-  AgentStatut({
+  const AgentStatut({
     super.key,
     required this.agent,
+    required this.canValidate,
   });
-  Agent agent;
+
+  final Agent agent;
+  final bool canValidate;
 
   @override
-  _AgentStatutState createState() => _AgentStatutState();
+  State<AgentStatut> createState() => _AgentStatutState();
 }
 
 class _AgentStatutState extends State<AgentStatut> {
   bool _updating = false;
+
   @override
   Widget build(BuildContext context) {
-    return _updating
-        ? Loading(size: 28, inline: false)
-        : GestureDetector(
-            onTap: () {
-              if (AuthService.currentManager!.profil!
-                  .getModule(ModuleName.AGENT)!
-                  .validation) {
-                actifInactifAgent();
-              }
-            },
-            child: Chip(
-                backgroundColor:
-                    widget.agent.actif! ? Colors.green : Colors.redAccent,
-                label: Row(
-                  children: [
-                    AuthService.currentManager!.profil!
-                            .getModule(ModuleName.AGENT)!
-                            .validation
-                        ? Checkbox(
-                            value: widget.agent.actif!,
-                            onChanged: ((value) {
-                              actifInactifAgent();
-                            }))
-                        : const SizedBox.shrink(),
-                    widget.agent.actif!
-                        ? const Text(
-                            "Actif",
-                            style: TextStyle(color: Colors.white),
-                          )
-                        : const Text("Inactif",
-                            style: TextStyle(color: Colors.white)),
-                  ],
-                )),
-          );
+    if (_updating) {
+      return Loading(size: 28, inline: false);
+    }
+
+    final isActive = widget.agent.actif ?? false;
+
+    return InkWell(
+      onTap: widget.canValidate ? _toggleAgentStatus : null,
+      borderRadius: BorderRadius.circular(999),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
+        decoration: BoxDecoration(
+          color: isActive ? const Color(0xFFE7F8EC) : const Color(0xFFFFE8EA),
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: isActive ? const Color(0xFFABEFC6) : const Color(0xFFF7B5BD),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              isActive ? Icons.check_circle_rounded : Icons.cancel_rounded,
+              size: 18,
+              color:
+                  isActive ? const Color(0xFF067647) : const Color(0xFFB42318),
+            ),
+            const SizedBox(width: 8),
+            Text(
+              isActive ? 'Actif' : 'Inactif',
+              style: TextStyle(
+                fontWeight: FontWeight.w600,
+                color: isActive
+                    ? const Color(0xFF067647)
+                    : const Color(0xFFB42318),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
   }
 
-  void actifInactifAgent() {
+  Future<void> _toggleAgentStatus() async {
     setState(() {
       _updating = true;
     });
-    widget.agent.actif = widget.agent.actif! ? false : true;
-    AgentService().update(widget.agent).then((value) {
-      setState(() {
-        _updating = false;
-      });
-    }).onError((error, stackTrace) {
-      setState(() {
-        _updating = false;
-      });
-    });
+
+    widget.agent.actif = !(widget.agent.actif ?? false);
+
+    try {
+      await AgentService().update(widget.agent);
+    } finally {
+      if (mounted) {
+        setState(() {
+          _updating = false;
+        });
+      }
+    }
+  }
+}
+
+class _FilterDropdown<T> extends StatelessWidget {
+  const _FilterDropdown({
+    required this.label,
+    required this.value,
+    required this.items,
+    required this.onChanged,
+  });
+
+  final String label;
+  final T value;
+  final List<DropdownMenuItem<T>> items;
+  final ValueChanged<T?>? onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 220,
+      child: DropdownButtonFormField<T>(
+        initialValue: value,
+        items: items,
+        onChanged: onChanged,
+        decoration: InputDecoration(
+          labelText: label,
+          filled: true,
+          fillColor: Colors.white,
+          contentPadding: const EdgeInsets.symmetric(
+            horizontal: 14,
+            vertical: 14,
+          ),
+          border: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFD0D7E2)),
+          ),
+          enabledBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: const BorderSide(color: Color(0xFFD0D7E2)),
+          ),
+          focusedBorder: OutlineInputBorder(
+            borderRadius: BorderRadius.circular(14),
+            borderSide: BorderSide(
+              color: Theme.of(context).primaryColor,
+              width: 1.5,
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderActionButton extends StatelessWidget {
+  const _HeaderActionButton({
+    required this.label,
+    required this.icon,
+    required this.onPressed,
+    this.outlined = false,
+  });
+
+  final String label;
+  final IconData icon;
+  final VoidCallback? onPressed;
+  final bool outlined;
+
+  @override
+  Widget build(BuildContext context) {
+    final child = Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        Icon(icon, size: 18),
+        const SizedBox(width: 8),
+        Text(label),
+      ],
+    );
+
+    if (outlined) {
+      return OutlinedButton(
+        onPressed: onPressed,
+        style: OutlinedButton.styleFrom(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(14),
+          ),
+        ),
+        child: child,
+      );
+    }
+
+    return ElevatedButton(
+      onPressed: onPressed,
+      style: ElevatedButton.styleFrom(
+        padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+        shape: RoundedRectangleBorder(
+          borderRadius: BorderRadius.circular(14),
+        ),
+      ),
+      child: child,
+    );
+  }
+}
+
+class _ActiveFilterChip extends StatelessWidget {
+  const _ActiveFilterChip({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Chip(
+      side: const BorderSide(color: Color(0xFFD0D7E2)),
+      backgroundColor: Colors.white,
+      label: Text(
+        label,
+        style: const TextStyle(
+          color: Color(0xFF344054),
+          fontWeight: FontWeight.w500,
+        ),
+      ),
+    );
+  }
+}
+
+class _TagCell extends StatelessWidget {
+  const _TagCell({
+    required this.label,
+    required this.backgroundColor,
+    required this.foregroundColor,
+  });
+
+  final String label;
+  final Color backgroundColor;
+  final Color foregroundColor;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+      decoration: BoxDecoration(
+        color: backgroundColor,
+        borderRadius: BorderRadius.circular(999),
+      ),
+      child: Text(
+        label,
+        style: TextStyle(
+          color: foregroundColor,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _AgentListMessageCard extends StatelessWidget {
+  const _AgentListMessageCard({
+    required this.icon,
+    required this.title,
+    required this.subtitle,
+    required this.actionLabel,
+    required this.onPressed,
+  });
+
+  final IconData icon;
+  final String title;
+  final String subtitle;
+  final String actionLabel;
+  final VoidCallback onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(28),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+      ),
+      child: Column(
+        children: [
+          Icon(
+            icon,
+            size: 48,
+            color: Theme.of(context).primaryColor,
+          ),
+          const SizedBox(height: 14),
+          Text(
+            title,
+            style: Theme.of(context).textTheme.titleLarge?.copyWith(
+                  fontWeight: FontWeight.w700,
+                  color: const Color(0xFF152033),
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 8),
+          Text(
+            subtitle,
+            style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                  color: const Color(0xFF697586),
+                ),
+            textAlign: TextAlign.center,
+          ),
+          const SizedBox(height: 18),
+          ElevatedButton.icon(
+            onPressed: onPressed,
+            icon: const Icon(Icons.refresh_rounded),
+            label: Text(actionLabel),
+          ),
+        ],
+      ),
+    );
   }
 }
