@@ -1,3 +1,4 @@
+import 'dart:collection';
 import 'package:flutter/foundation.dart';
 import '../models/pointage_filters.dart';
 import '../models/pagination_models.dart';
@@ -17,6 +18,7 @@ class PointageProvider extends ChangeNotifier {
 
   // State
   List<PointingSite> _pointages = [];
+  List<PointingSite> _unmodifiablePointages = UnmodifiableListView([]);
   PointageFilters _filters = PointageFilters();
   PaginationState _pagination = PaginationState(itemsPerPage: 20);
   PointageStats? _stats;
@@ -38,7 +40,7 @@ class PointageProvider extends ChangeNotifier {
   }
 
   // Getters
-  List<PointingSite> get pointages => List.unmodifiable(_pointages);
+  List<PointingSite> get pointages => _unmodifiablePointages;
   PointageFilters get filters => _filters;
   PaginationState get pagination => _pagination;
   PointageStats? get stats => _stats;
@@ -117,11 +119,8 @@ class PointageProvider extends ChangeNotifier {
       // Invalidate cache for old filters
       await _invalidateCache();
       
-      // Load with new filters
+      // Load with new filters (stats loaded separately on demand)
       await loadPointages(refresh: true);
-      
-      // Reload statistics with new filters
-      await loadStats();
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
     }
@@ -151,6 +150,7 @@ class PointageProvider extends ChangeNotifier {
 
       // Append new items to existing list (for lazy loading/infinite scroll)
       _pointages.addAll(result.items);
+      _unmodifiablePointages = UnmodifiableListView(_pointages);
       _pagination = _pagination.copyWith(
         currentPage: nextPage,
         totalItems: result.totalCount,
@@ -187,6 +187,7 @@ class PointageProvider extends ChangeNotifier {
       );
 
       _pointages = result.items;
+      _unmodifiablePointages = UnmodifiableListView(_pointages);
       _pagination = _pagination.copyWith(
         currentPage: prevPage,
         totalItems: result.totalCount,
@@ -220,6 +221,7 @@ class PointageProvider extends ChangeNotifier {
       );
 
       _pointages = result.items;
+      _unmodifiablePointages = UnmodifiableListView(_pointages);
       _pagination = _pagination.copyWith(
         currentPage: page,
         totalItems: result.totalCount,
@@ -238,10 +240,16 @@ class PointageProvider extends ChangeNotifier {
   /// 
   /// Forces a fresh load from the server
   /// Requirements: 9.1, 9.2
-  Future<void> refreshData() async {
+  Future<void> refreshData({bool includeStats = false}) async {
     await _invalidateCache();
-    await loadPointages(refresh: true);
-    await loadStats();
+    if (includeStats) {
+      await Future.wait([
+        loadPointages(refresh: true),
+        loadStats(),
+      ]);
+    } else {
+      await loadPointages(refresh: true);
+    }
   }
 
   /// Load statistics for the current filters
@@ -322,6 +330,7 @@ class PointageProvider extends ChangeNotifier {
     );
 
     _pointages = result.items;
+    _unmodifiablePointages = UnmodifiableListView(_pointages);
     _pagination = _pagination.copyWith(
       totalItems: result.totalCount,
     );
@@ -347,6 +356,7 @@ class PointageProvider extends ChangeNotifier {
           _pointages = itemsList
               .map((json) => PointingSite.fromJson(json as Map<String, dynamic>))
               .toList();
+          _unmodifiablePointages = UnmodifiableListView(_pointages);
           
           _pagination = PaginationState(
             currentPage: cached['currentPage'] as int? ?? 1,
@@ -408,7 +418,7 @@ class PointageProvider extends ChangeNotifier {
     
     try {
       _isRefreshingInBackground = true;
-      notifyListeners();
+      // Don't notifyListeners here - avoid unnecessary rebuild just to set a flag
       
       final result = await _repository.getPointages(
         page: _pagination.currentPage,
@@ -422,6 +432,7 @@ class PointageProvider extends ChangeNotifier {
       if (result.items.length != _pointages.length ||
           result.totalCount != _pagination.totalItems) {
         _pointages = result.items;
+        _unmodifiablePointages = UnmodifiableListView(_pointages);
         _pagination = _pagination.copyWith(
           totalItems: result.totalCount,
         );

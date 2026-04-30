@@ -547,10 +547,22 @@ class PointingSite {
       required this.supervisor});
 
   factory PointingSite.fromJson(Map<String, dynamic> json) {
+    DateTime? parsedDate;
+    if (json["datetimestamp"] != null) {
+      if (json["datetimestamp"] is Timestamp) {
+        parsedDate = (json["datetimestamp"] as Timestamp).toDate();
+      } else if (json["datetimestamp"] is String) {
+        parsedDate = DateTime.tryParse(json["datetimestamp"]);
+      }
+    }
+    if (parsedDate == null && json["date"] != null) {
+      if (json["date"] is String) {
+        parsedDate = DateTime.tryParse(json["date"]);
+      }
+    }
+    parsedDate ??= DateTime.now();
     return PointingSite(
-        date: json["date"] != null
-            ? DateTime.parse(json["date"])
-            : DateTime.now(),
+        date: parsedDate,
         latlng: LatLngModel.fromJson(json["latlng"]),
         site: Site.fromJson(json["site"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),

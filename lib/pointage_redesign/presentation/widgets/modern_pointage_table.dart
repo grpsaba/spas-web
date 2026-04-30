@@ -336,12 +336,7 @@ class ModernPointageTable extends StatelessWidget {
     return Container(
       decoration: PointageCardDecorations.standard,
       padding: const EdgeInsets.all(PointageSpacing.lg),
-      child: Column(
-        children: List.generate(
-          loadingRowCount ?? 10,
-          (index) => _LoadingRow(isEven: index % 2 == 0),
-        ),
-      ),
+      child: _AnimatedLoadingSkeleton(rowCount: loadingRowCount ?? 10),
     );
   }
 
@@ -404,17 +399,18 @@ class ModernPointageTable extends StatelessWidget {
   }
 }
 
-/// Loading skeleton row
-class _LoadingRow extends StatefulWidget {
-  final bool isEven;
+/// Animated loading skeleton container with a single shared AnimationController
+/// Instead of N controllers (one per row), we use one controller and pass the value down
+class _AnimatedLoadingSkeleton extends StatefulWidget {
+  final int rowCount;
 
-  const _LoadingRow({Key? key, required this.isEven}) : super(key: key);
+  const _AnimatedLoadingSkeleton({Key? key, required this.rowCount}) : super(key: key);
 
   @override
-  State<_LoadingRow> createState() => _LoadingRowState();
+  State<_AnimatedLoadingSkeleton> createState() => _AnimatedLoadingSkeletonState();
 }
 
-class _LoadingRowState extends State<_LoadingRow>
+class _AnimatedLoadingSkeletonState extends State<_AnimatedLoadingSkeleton>
     with SingleTickerProviderStateMixin {
   late AnimationController _controller;
   late Animation<double> _animation;
@@ -443,60 +439,85 @@ class _LoadingRowState extends State<_LoadingRow>
     return AnimatedBuilder(
       animation: _animation,
       builder: (context, child) {
-        return Container(
-          margin: const EdgeInsets.only(bottom: PointageSpacing.sm),
-          padding: const EdgeInsets.all(PointageSpacing.md),
-          decoration: BoxDecoration(
-            color: widget.isEven
-                ? Colors.transparent
-                : PointageColors.background.withValues(alpha: 0.3),
-            borderRadius: PointageBorderRadius.small,
-          ),
-          child: Row(
-            children: [
-              // Date
-              Container(
-                width: 80,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: PointageColors.divider.withValues(alpha: _animation.value),
-                  borderRadius: PointageBorderRadius.small,
-                ),
-              ),
-              const SizedBox(width: PointageSpacing.lg),
-              // Time
-              Container(
-                width: 50,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: PointageColors.divider.withValues(alpha: _animation.value),
-                  borderRadius: PointageBorderRadius.small,
-                ),
-              ),
-              const SizedBox(width: PointageSpacing.lg),
-              // Supervisor
-              Container(
-                width: 120,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: PointageColors.divider.withValues(alpha: _animation.value),
-                  borderRadius: PointageBorderRadius.small,
-                ),
-              ),
-              const SizedBox(width: PointageSpacing.lg),
-              // Site
-              Container(
-                width: 100,
-                height: 16,
-                decoration: BoxDecoration(
-                  color: PointageColors.divider.withValues(alpha: _animation.value),
-                  borderRadius: PointageBorderRadius.small,
-                ),
-              ),
-            ],
+        return Column(
+          children: List.generate(
+            widget.rowCount,
+            (index) => _LoadingRow(
+              isEven: index % 2 == 0,
+              animationValue: _animation.value,
+            ),
           ),
         );
       },
+    );
+  }
+}
+
+/// Loading skeleton row — stateless, receives animation value from parent
+class _LoadingRow extends StatelessWidget {
+  final bool isEven;
+  final double animationValue;
+
+  const _LoadingRow({
+    Key? key,
+    required this.isEven,
+    required this.animationValue,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      margin: const EdgeInsets.only(bottom: PointageSpacing.sm),
+      padding: const EdgeInsets.all(PointageSpacing.md),
+      decoration: BoxDecoration(
+        color: isEven
+            ? Colors.transparent
+            : PointageColors.background.withValues(alpha: 0.3),
+        borderRadius: PointageBorderRadius.small,
+      ),
+      child: Row(
+        children: [
+          // Date
+          Container(
+            width: 80,
+            height: 16,
+            decoration: BoxDecoration(
+              color: PointageColors.divider.withValues(alpha: animationValue),
+              borderRadius: PointageBorderRadius.small,
+            ),
+          ),
+          const SizedBox(width: PointageSpacing.lg),
+          // Time
+          Container(
+            width: 50,
+            height: 16,
+            decoration: BoxDecoration(
+              color: PointageColors.divider.withValues(alpha: animationValue),
+              borderRadius: PointageBorderRadius.small,
+            ),
+          ),
+          const SizedBox(width: PointageSpacing.lg),
+          // Supervisor
+          Container(
+            width: 120,
+            height: 16,
+            decoration: BoxDecoration(
+              color: PointageColors.divider.withValues(alpha: animationValue),
+              borderRadius: PointageBorderRadius.small,
+            ),
+          ),
+          const SizedBox(width: PointageSpacing.lg),
+          // Site
+          Container(
+            width: 100,
+            height: 16,
+            decoration: BoxDecoration(
+              color: PointageColors.divider.withValues(alpha: animationValue),
+              borderRadius: PointageBorderRadius.small,
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
