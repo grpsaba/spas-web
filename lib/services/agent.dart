@@ -83,6 +83,30 @@ class AgentService {
     return _collectionReference.doc(agent.code).update(agent.toJson());
   }
 
+  Future<void> bulkUpdate(List<Agent> agents) async {
+    if (agents.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    for (final agent in agents) {
+      batch.update(_collectionReference.doc(agent.code), agent.toJson());
+    }
+
+    await batch.commit();
+  }
+
+  Future<void> bulkDelete(List<Agent> agents) async {
+    if (agents.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+
+    for (final agent in agents) {
+      batch.delete(_collectionReference.doc(agent.code));
+    }
+
+    await batch.commit();
+  }
+
   Future<PaginatedAgentResult> fetchPage({
     int limit = 20,
     DocumentSnapshot? startAfterDocument,
@@ -91,40 +115,42 @@ class AgentService {
     String? departmentLabel,
     bool descending = false,
   }) async {
-   try{
-     Query query = _collectionReference.orderBy('code', descending: descending);
+    try {
+      Query query =
+          _collectionReference.orderBy('code', descending: descending);
 
-    if (actif != null) {
-      query = query.where('actif', isEqualTo: actif);
+      if (actif != null) {
+        query = query.where('actif', isEqualTo: actif);
+      }
+
+      if (agentTypeLabel != null && agentTypeLabel.trim().isNotEmpty) {
+        query =
+            query.where('AgentType.label', isEqualTo: agentTypeLabel.trim());
+      }
+
+      if (departmentLabel != null && departmentLabel.trim().isNotEmpty) {
+        query =
+            query.where('department.label', isEqualTo: departmentLabel.trim());
+      }
+
+      if (startAfterDocument != null) {
+        query = query.startAfterDocument(startAfterDocument);
+      }
+
+      final snapshot = await query.limit(limit).get();
+
+      final agents = snapshot.docs.map(_mapSnapshotToAgent).toList();
+      final lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
+
+      return PaginatedAgentResult(
+        agents: agents,
+        lastDocument: lastDocument,
+        hasMore: snapshot.docs.length == limit,
+      );
+    } catch (e) {
+      debugPrint('Error fetching agents page: $e');
+      rethrow;
     }
-
-    if (agentTypeLabel != null && agentTypeLabel.trim().isNotEmpty) {
-      query = query.where('AgentType.label', isEqualTo: agentTypeLabel.trim());
-    }
-
-    if (departmentLabel != null && departmentLabel.trim().isNotEmpty) {
-      query =
-          query.where('department.label', isEqualTo: departmentLabel.trim());
-    }
-
-    if (startAfterDocument != null) {
-      query = query.startAfterDocument(startAfterDocument);
-    }
-
-    final snapshot = await query.limit(limit).get();
-
-    final agents = snapshot.docs.map(_mapSnapshotToAgent).toList();
-    final lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;
-
-    return PaginatedAgentResult(
-      agents: agents,
-      lastDocument: lastDocument,
-      hasMore: snapshot.docs.length == limit,
-    );
-   }catch(e){
-     debugPrint('Error fetching agents page: $e');
-     rethrow;
-   }
   }
 
   Future<List<Agent>> searchPage({

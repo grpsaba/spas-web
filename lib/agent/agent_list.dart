@@ -119,17 +119,28 @@ class _AgentListView extends StatelessWidget {
                   onPressed: () => context.go('/agents/import'),
                   outlined: true,
                 ),
+              if (_canAdd)
+                _HeaderActionButton(
+                  label: 'Création bulk',
+                  icon: Icons.groups_rounded,
+                  onPressed: () => context.go('/agents/bulk-create'),
+                  outlined: true,
+                ),
+              if (_canAdd)
+                _HeaderActionButton(
+                  label: 'Gestion groupée',
+                  icon: Icons.playlist_add_check_circle_rounded,
+                  onPressed: () => context.go('/agents/bulk-manage'),
+                  outlined: true,
+                ),
               if (_canGenerateBadge)
                 _HeaderActionButton(
                   label: 'QR / Badge',
                   icon: Icons.badge_rounded,
-                  onPressed: provider.exportableAgents.isEmpty
-                      ? null
-                      : () {
-                          CarteGenerator.generateMiltiCarteAgent(
-                            provider.exportableAgents,
-                          );
-                        },
+                  onPressed: () => context.go(
+                    '/agents/badges',
+                    extra: provider.exportableAgents,
+                  ),
                   outlined: true,
                 ),
               if (_canPrint)
