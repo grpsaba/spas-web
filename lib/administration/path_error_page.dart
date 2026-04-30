@@ -31,7 +31,7 @@ class _PathErrorPageState extends State<PathErrorPage> {
                 'assets/images/404_not_found.png',
                 height: 200,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
                 '404',
                 style: TextStyle(
@@ -40,15 +40,15 @@ class _PathErrorPageState extends State<PathErrorPage> {
                   color: Colors.grey[800],
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
-                GoRouterState.of(context).extra.toString() ?? widget.error!,
+                GoRouterState.of(context).extra?.toString() ?? widget.error!,
                 style: TextStyle(
                   fontSize: 24,
                   color: Colors.grey[600],
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
                 'Page you are loking for might have been removed, had its name changed ,or is temporarily unavailable.',
                 textAlign: TextAlign.center,
@@ -57,7 +57,7 @@ class _PathErrorPageState extends State<PathErrorPage> {
                   color: Colors.grey[600],
                 ),
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
                   context.go('/login');
@@ -69,10 +69,11 @@ class _PathErrorPageState extends State<PathErrorPage> {
                   // );
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   backgroundColor: Colors.blue,
                 ),
-                child: Text(
+                child: const Text(
                   'Go to Home',
                   style: TextStyle(fontSize: 18, color: Colors.white),
                 ),
@@ -115,7 +116,7 @@ class _PathErrorPage2State extends State<PathErrorPage2> {
                 'assets/images/404_not_found.png',
                 height: 200,
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
                 '404',
                 style: TextStyle(
@@ -124,7 +125,7 @@ class _PathErrorPage2State extends State<PathErrorPage2> {
                   color: Colors.grey[800],
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
                 widget.error!,
                 style: TextStyle(
@@ -132,7 +133,7 @@ class _PathErrorPage2State extends State<PathErrorPage2> {
                   color: Colors.grey[600],
                 ),
               ),
-              SizedBox(height: 20),
+              const SizedBox(height: 20),
               Text(
                 'Page you are loking for might have been removed, had its name changed ,or is temporarily unavailable.',
                 textAlign: TextAlign.center,
@@ -141,7 +142,7 @@ class _PathErrorPage2State extends State<PathErrorPage2> {
                   color: Colors.grey[600],
                 ),
               ),
-              SizedBox(height: 40),
+              const SizedBox(height: 40),
               ElevatedButton(
                 onPressed: () {
                   context.go('/login');
@@ -153,10 +154,11 @@ class _PathErrorPage2State extends State<PathErrorPage2> {
                   // );
                 },
                 style: ElevatedButton.styleFrom(
-                  padding: EdgeInsets.symmetric(horizontal: 32, vertical: 16),
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 32, vertical: 16),
                   backgroundColor: Colors.blue,
                 ),
-                child: Text(
+                child: const Text(
                   'Go to Home',
                   style: TextStyle(fontSize: 18, color: Colors.white),
                 ),

@@ -1,4 +1,5 @@
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:flutter/foundation.dart';
 
 import '../model.dart';
 import 'manager.dart';
@@ -27,7 +28,8 @@ class AuthService {
           email: email, password: password);
       return credential.user;
     } catch (e) {
-      print(e.toString());
+      debugPrint(e.toString());
+      return null;
     }
   }
 

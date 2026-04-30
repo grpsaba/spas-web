@@ -2,6 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/path_error_page.dart';
 import 'package:spas_web/agent/add_file_agent.dart';
+import 'package:spas_web/agent/agent_badge_generation_page.dart';
+import 'package:spas_web/agent/agent_bulk_create_page.dart';
+import 'package:spas_web/agent/agent_bulk_manage_page.dart';
 import 'package:spas_web/agent/agent_form.dart';
 import 'package:spas_web/agent/agent_list.dart';
 import 'package:spas_web/agent/import_agent.dart';
@@ -161,6 +164,21 @@ GoRouter routeConfig = GoRouter(
                 path: "add",
                 builder: (context, state) => AddAgent(
                       agent: state.extra as Agent,
+                    )),
+            GoRoute(
+                name: "création en masse des agents",
+                path: "bulk-create",
+                builder: (context, state) => const AgentBulkCreatePage()),
+            GoRoute(
+                name: "gestion groupée des agents",
+                path: "bulk-manage",
+                builder: (context, state) => const AgentBulkManagePage()),
+            GoRoute(
+                name: "génération avancée des badges agents",
+                path: "badges",
+                builder: (context, state) => AgentBadgeGenerationPage(
+                      currentAgents:
+                          (state.extra as List<Agent>?) ?? const <Agent>[],
                     )),
             GoRoute(
                 name: "import agents",

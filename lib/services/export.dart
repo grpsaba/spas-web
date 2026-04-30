@@ -496,22 +496,27 @@ class CarteGenerator {
   }
 
 //multiple
-  static void generateMiltiCarteAgent(List<Agent> data) async {
+  static void generateMiltiCarteAgent(List<Agent> data, {bool isSecurity = true}) async {
     final pdf = pw.Document();
     //get logo
     var image = pw.MemoryImage(
       (await rootBundle.load("assets/logo.png")).buffer.asUint8List(),
     );
     // get default avatar
-    var avatar = pw.MemoryImage(
+    MemoryImage? avatar;
+    if(isSecurity){
+      avatar = pw.MemoryImage(
       (await rootBundle.load("assets/agent.png")).buffer.asUint8List(),
     );
+    }
     pw.Widget listCarte = pw.Wrap(
         children: data.map((agent) {
       pw.Widget contant;
       //get avatar
-      pw.Image avatarImage = pw.Image(avatar);
-
+      pw.Image? avatarImage ;
+      if(isSecurity && avatar != null){
+        avatarImage = pw.Image(avatar);
+      }
       return pw.Container(
           margin: const pw.EdgeInsets.all(5),
           height: 152,
