@@ -18,6 +18,7 @@ class AggregationService {
   Future<Map<String, Map<DateTime, int>>> aggregateBySupervisorAndDay({
     required List<String> supervisorIds,
     required List<DateTime> days,
+    Map<String, List<String>>? activeSitesBySupervisor,
   }) async {
     try {
       if (supervisorIds.isEmpty || days.isEmpty) {
@@ -72,6 +73,19 @@ class AggregationService {
           final supervisorUID = supervisorData['UID'] as String?;
           if (supervisorUID == null || !supervisorIds.contains(supervisorUID)) {
             continue;
+          }
+
+          // If filtering by active sites, check if the site is in the supervisor's active sites
+          if (activeSitesBySupervisor != null) {
+            final siteData = data['site'] as Map<String, dynamic>?;
+            final siteUID = siteData?['UID'] as String?;
+            
+            if (siteUID == null || siteUID.isEmpty) continue;
+            
+            final activeSites = activeSitesBySupervisor[supervisorUID];
+            if (activeSites == null || !activeSites.contains(siteUID)) {
+              continue; // Skip pointage for inactive/unassigned site
+            }
           }
 
           // Extract and normalize date
@@ -133,6 +147,7 @@ class AggregationService {
       aggregateUniqueSitesBySupervisorAndDay({
     required List<String> supervisorIds,
     required List<DateTime> days,
+    Map<String, List<String>>? activeSitesBySupervisor,
   }) async {
     try {
       if (supervisorIds.isEmpty || days.isEmpty) {
@@ -198,6 +213,14 @@ class AggregationService {
 
           final siteUID = siteData['UID'] as String?;
           if (siteUID == null || siteUID.isEmpty) continue;
+
+          // Check if site is currently active for this supervisor
+          if (activeSitesBySupervisor != null) {
+            final activeSites = activeSitesBySupervisor[supervisorUID];
+            if (activeSites == null || !activeSites.contains(siteUID)) {
+              continue; // Skip pointage for inactive/unassigned site
+            }
+          }
 
           // Extract and normalize date
           final timestamp = data['datetimestamp'];

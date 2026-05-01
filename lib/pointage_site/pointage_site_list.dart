@@ -600,92 +600,182 @@ class _PointageSiteListState extends State<PointageSiteList> {
   }
 
   // ============================================================
-  // EXCEL EXPORT — Reports Dialog
+  // REPORTS DIALOG (Visual & Excel)
   // ============================================================
 
   void _showReportsDialog(BuildContext context) {
-    showDialog(
+    DateTimeRange? selectedRange;
+    
+    ModernDialog.show(
       context: context,
-      builder: (dialogContext) {
-        return AlertDialog(
-          shape: RoundedRectangleBorder(
-            borderRadius: PointageBorderRadius.large,
-          ),
-          title: Row(
+      title: 'Générer un rapport',
+      content: StatefulBuilder(
+        builder: (dialogContext, setState) {
+          return Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
-              Container(
-                padding: const EdgeInsets.all(PointageSpacing.sm),
-                decoration: BoxDecoration(
-                  color: PointageColors.primary.withValues(alpha: 0.1),
-                  borderRadius: PointageBorderRadius.medium,
-                ),
-                child: const Icon(
-                  Icons.table_chart,
-                  color: PointageColors.primary,
-                  size: PointageIconSizes.md,
+              Text(
+                'Sélectionnez une période pour générer un rapport',
+                style: PointageTextStyles.body2.copyWith(
+                  color: PointageColors.textSecondary,
                 ),
               ),
-              const SizedBox(width: PointageSpacing.md),
-              const Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(
-                      'Rapports Excel',
-                      style: PointageTextStyles.headline4,
-                    ),
-                    SizedBox(height: PointageSpacing.xs),
-                    Text(
-                      'Exporter les pointages du mois en cours',
-                      style: PointageTextStyles.caption,
-                    ),
-                  ],
+              const SizedBox(height: PointageSpacing.md),
+              
+              // Date Range Picker
+              ModernDateRangePicker(
+                initialRange: selectedRange ?? DateTimeRange(
+                  start: _selectedReportDate,
+                  end: _selectedReportDate,
                 ),
+                onRangeSelected: (range) {
+                  setState(() {
+                    selectedRange = range;
+                    _selectedReportDate = range.start;
+                  });
+                },
               ),
-            ],
-          ),
-          content: SizedBox(
-            width: 450,
-            child: Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                const Divider(),
-                const SizedBox(height: PointageSpacing.sm),
-                // Option 1: Per supervisor
-                _buildReportOption(
-                  icon: Icons.person_outline,
-                  title: 'Par superviseur',
-                  description: 'Sélectionnez un superviseur pour exporter ses pointages dans un fichier Excel individuel.',
-                  color: PointageColors.primary,
-                  onTap: () {
-                    Navigator.pop(dialogContext);
-                    _showSupervisorSelectionDialog(context);
-                  },
-                ),
+              
+              // Validation feedback
+              if (selectedRange != null) ...[
                 const SizedBox(height: PointageSpacing.md),
-                // Option 2: All grouped
-                _buildReportOption(
-                  icon: Icons.groups_outlined,
-                  title: 'Tous les superviseurs (regroupés)',
-                  description: 'Un seul fichier Excel avec tous les superviseurs, chacun dans sa propre section.',
-                  color: PointageColors.secondary,
-                  onTap: () {
-                    Navigator.pop(dialogContext);
-                    _exportAllGrouped(context);
-                  },
+                Container(
+                  padding: const EdgeInsets.all(PointageSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: PointageColors.success.withValues(alpha: 0.1),
+                    borderRadius: BorderRadius.circular(PointageBorderRadius.sm),
+                    border: Border.all(
+                      color: PointageColors.success.withValues(alpha: 0.3),
+                      width: 1,
+                    ),
+                  ),
+                  child: Row(
+                    children: [
+                      const Icon(
+                        Icons.check_circle_outline,
+                        size: PointageIconSizes.sm,
+                        color: PointageColors.success,
+                      ),
+                      const SizedBox(width: PointageSpacing.sm),
+                      Expanded(
+                        child: Text(
+                          'Période valide: ${selectedRange!.duration.inDays + 1} jour(s)',
+                          style: PointageTextStyles.caption.copyWith(
+                            color: PointageColors.success,
+                            fontWeight: FontWeight.w500,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
               ],
-            ),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(dialogContext),
-              style: PointageButtonStyles.text,
-              child: const Text('Annuler'),
-            ),
-          ],
-        );
-      },
+              
+              const SizedBox(height: PointageSpacing.lg),
+              
+              // Divider
+              Divider(
+                color: PointageColors.textSecondary.withValues(alpha: 0.2),
+                height: 1,
+              ),
+              
+              const SizedBox(height: PointageSpacing.md),
+              
+              Text(
+                'Analyses Visuelles (Graphiques)',
+                style: PointageTextStyles.headline4.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              
+              const SizedBox(height: PointageSpacing.sm),
+              
+              // Old Visual Reports
+              Row(
+                children: [
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: selectedRange != null
+                          ? () {
+                              Navigator.of(dialogContext).pop();
+                              context.go('/pointages/spm', extra: _selectedReportDate);
+                            }
+                          : null,
+                      icon: const Icon(Icons.people, size: PointageIconSizes.md),
+                      label: const Text('Par superviseur'),
+                      style: PointageButtonStyles.primary,
+                    ),
+                  ),
+                  const SizedBox(width: PointageSpacing.sm),
+                  Expanded(
+                    child: ElevatedButton.icon(
+                      onPressed: selectedRange != null
+                          ? () {
+                              Navigator.of(dialogContext).pop();
+                              context.go('/pointages/smp', extra: _selectedReportDate);
+                            }
+                          : null,
+                      icon: const Icon(Icons.location_on, size: PointageIconSizes.md),
+                      label: const Text('Par site'),
+                      style: PointageButtonStyles.outlined,
+                    ),
+                  ),
+                ],
+              ),
+
+              const SizedBox(height: PointageSpacing.lg),
+              
+              // Divider
+              Divider(
+                color: PointageColors.textSecondary.withValues(alpha: 0.2),
+                height: 1,
+              ),
+              
+              const SizedBox(height: PointageSpacing.md),
+
+              Text(
+                'Exports Excel',
+                style: PointageTextStyles.headline4.copyWith(
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              
+              const SizedBox(height: PointageSpacing.sm),
+
+              // New Excel Options
+              _buildReportOption(
+                icon: Icons.person_outline,
+                title: 'Excel par superviseur',
+                description: 'Sélectionnez un superviseur pour exporter ses pointages.',
+                color: PointageColors.primary,
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  _showSupervisorSelectionDialog(context, selectedRange);
+                },
+              ),
+              const SizedBox(height: PointageSpacing.md),
+              _buildReportOption(
+                icon: Icons.groups_outlined,
+                title: 'Excel tous les superviseurs',
+                description: 'Un seul fichier Excel avec tous les superviseurs groupés.',
+                color: PointageColors.secondary,
+                onTap: () {
+                  Navigator.pop(dialogContext);
+                  _exportAllGrouped(context, selectedRange);
+                },
+              ),
+            ],
+          );
+        },
+      ),
+      actions: [
+        DialogAction(
+          label: 'Fermer',
+          onPressed: () => Navigator.of(context).pop(),
+          isPrimary: false,
+        ),
+      ],
     );
   }
 
@@ -746,7 +836,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
   }
 
   /// Dialog to select a supervisor and export their pointages
-  void _showSupervisorSelectionDialog(BuildContext context) {
+  void _showSupervisorSelectionDialog(BuildContext context, DateTimeRange? selectedRange) {
     final supervisors = _availableSupervisors ?? [];
 
     if (supervisors.isEmpty) {
@@ -847,7 +937,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
                                   ),
                                   onTap: () {
                                     Navigator.pop(dialogContext);
-                                    _exportForSupervisor(context, sup);
+                                    _exportForSupervisor(context, sup, selectedRange);
                                   },
                                 );
                               },
@@ -871,7 +961,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
   }
 
   /// Fetch and export pointages for a single supervisor
-  Future<void> _exportForSupervisor(BuildContext context, Supervisor supervisor) async {
+  Future<void> _exportForSupervisor(BuildContext context, Supervisor supervisor, DateTimeRange? selectedRange) async {
     if (!mounted || _isExportingExcel) return;
     
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -885,14 +975,17 @@ class _PointageSiteListState extends State<PointageSiteList> {
         duration: const Duration(seconds: 2),
       );
 
-      // Date range: start of current month to now
+      // Use selected range or default to current month
       final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final endOfDay = now.add(const Duration(days: 1));
+      final startDate = selectedRange?.start ?? DateTime(now.year, now.month, 1);
+      // Add 1 day to end date if it's the same day to include all hours, or just use the range's end
+      final endDate = selectedRange != null 
+          ? selectedRange.end.add(const Duration(days: 1)) 
+          : now.add(const Duration(days: 1));
 
       final pointages = await _fetchPointagesForPeriod(
-        startDate: startOfMonth,
-        endDate: endOfDay,
+        startDate: startDate,
+        endDate: endDate,
         supervisorUID: supervisor.UID,
       );
 
@@ -908,7 +1001,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
         return;
       }
 
-      final period = '${startOfMonth.day.toString().padLeft(2, '0')}/${startOfMonth.month.toString().padLeft(2, '0')}/${startOfMonth.year} - ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+      final period = '${startDate.day.toString().padLeft(2, '0')}/${startDate.month.toString().padLeft(2, '0')}/${startDate.year} - ${(endDate.subtract(const Duration(days: 1))).day.toString().padLeft(2, '0')}/${(endDate.subtract(const Duration(days: 1))).month.toString().padLeft(2, '0')}/${(endDate.subtract(const Duration(days: 1))).year}';
       final supName = '${supervisor.firstName} ${supervisor.lastName}';
 
       PointageExcelExport.exportForSupervisor(
@@ -937,7 +1030,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
   }
 
   /// Fetch and export ALL pointages grouped by supervisor
-  Future<void> _exportAllGrouped(BuildContext context) async {
+  Future<void> _exportAllGrouped(BuildContext context, DateTimeRange? selectedRange) async {
     if (!mounted || _isExportingExcel) return;
     
     final scaffoldMessenger = ScaffoldMessenger.of(context);
@@ -947,17 +1040,20 @@ class _PointageSiteListState extends State<PointageSiteList> {
     try {
       InfoSnackbar.show(
         context,
-        message: 'Chargement de tous les pointages du mois...',
+        message: 'Chargement de tous les pointages...',
         duration: const Duration(seconds: 3),
       );
 
+      // Use selected range or default to current month
       final now = DateTime.now();
-      final startOfMonth = DateTime(now.year, now.month, 1);
-      final endOfDay = now.add(const Duration(days: 1));
+      final startDate = selectedRange?.start ?? DateTime(now.year, now.month, 1);
+      final endDate = selectedRange != null 
+          ? selectedRange.end.add(const Duration(days: 1)) 
+          : now.add(const Duration(days: 1));
 
       final pointages = await _fetchPointagesForPeriod(
-        startDate: startOfMonth,
-        endDate: endOfDay,
+        startDate: startDate,
+        endDate: endDate,
       );
 
       if (!mounted) return;
@@ -972,7 +1068,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
         return;
       }
 
-      final period = '${startOfMonth.day.toString().padLeft(2, '0')}/${startOfMonth.month.toString().padLeft(2, '0')}/${startOfMonth.year} - ${now.day.toString().padLeft(2, '0')}/${now.month.toString().padLeft(2, '0')}/${now.year}';
+      final period = '${startDate.day.toString().padLeft(2, '0')}/${startDate.month.toString().padLeft(2, '0')}/${startDate.year} - ${(endDate.subtract(const Duration(days: 1))).day.toString().padLeft(2, '0')}/${(endDate.subtract(const Duration(days: 1))).month.toString().padLeft(2, '0')}/${(endDate.subtract(const Duration(days: 1))).year}';
 
       PointageExcelExport.exportAllGrouped(
         pointages: pointages,
