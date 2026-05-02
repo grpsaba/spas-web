@@ -539,12 +539,14 @@ class PointingSite {
   Site site;
   Supervisor? supervisor;
   double distance;
+  String? agentPhotoUrl;
   PointingSite(
       {required this.site,
       required this.latlng,
       required this.date,
       required this.distance,
-      required this.supervisor});
+      required this.supervisor,
+      this.agentPhotoUrl});
 
   factory PointingSite.fromJson(Map<String, dynamic> json) {
     DateTime? parsedDate;
@@ -566,7 +568,8 @@ class PointingSite {
         latlng: LatLngModel.fromJson(json["latlng"]),
         site: Site.fromJson(json["site"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
-        distance: json["distance"]);
+        distance: json["distance"],
+        agentPhotoUrl: json["agentPhotoUrl"] as String?);
   }
 
   Map<String, dynamic> toJson() {
@@ -576,7 +579,8 @@ class PointingSite {
       "site": site.toJson(),
       "datetimestamp": date,
       "distance": distance,
-      "supervisor": supervisor?.toJson()
+      "supervisor": supervisor?.toJson(),
+      "agentPhotoUrl": agentPhotoUrl,
     };
   }
 

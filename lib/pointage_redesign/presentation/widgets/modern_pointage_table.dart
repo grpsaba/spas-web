@@ -70,11 +70,13 @@ class ModernPointageTable extends StatelessWidget {
               },
             ),
             columns: _buildColumns(),
-            rows: _buildRows(),
+            rows: _buildRows(context),
             columnSpacing: PointageSpacing.lg,
             horizontalMargin: PointageSpacing.lg,
             showCheckboxColumn: false,
-            sortColumnIndex: sortConfig != null ? _getSortColumnIndex(sortConfig!.field) : null,
+            sortColumnIndex: sortConfig != null
+                ? _getSortColumnIndex(sortConfig!.field)
+                : null,
             sortAscending: sortConfig?.ascending ?? true,
           ),
         ),
@@ -109,19 +111,22 @@ class ModernPointageTable extends StatelessWidget {
       _buildSortableColumn('Date', 'datetimestamp'),
       // Heure (sortable - uses same field as Date)
       _buildSortableColumn('Heure', 'datetimestamp'),
-      // Distance (sortable)
-      _buildSortableColumn('Distance', 'distance'),
+      // Photo Agent (non-sortable) - replaces Distance
+      DataColumn(
+        label: Text(
+          'Photo Agent',
+          style: PointageTextStyles.label,
+        ),
+      ),
     ];
   }
 
   /// Get the column index for a given sort field
-  /// New column order: Superviseur(0), Site(1), Zone(2), Date(3), Heure(4), Distance(5)
+  /// New column order: Superviseur(0), Site(1), Zone(2), Date(3), Heure(4), Photo Agent(5)
   int? _getSortColumnIndex(String field) {
     switch (field) {
       case 'datetimestamp':
-        return 3; // Date column (index 3 in new order)
-      case 'distance':
-        return 5; // Distance column (index 5 in new order)
+        return 3; // Date column (index 3)
       default:
         return null;
     }
@@ -180,12 +185,12 @@ class ModernPointageTable extends StatelessWidget {
     );
   }
 
-  List<DataRow> _buildRows() {
+  List<DataRow> _buildRows(BuildContext tableContext) {
     return pointages.asMap().entries.map((entry) {
       final index = entry.key;
       final pointage = entry.value;
       final isEven = index % 2 == 0;
-
+      if (pointage.agentPhotoUrl != null) print(pointage.agentPhotoUrl);
       return DataRow(
         color: WidgetStateProperty.resolveWith<Color>(
           (Set<WidgetState> states) {
@@ -205,7 +210,8 @@ class ModernPointageTable extends StatelessWidget {
               children: [
                 CircleAvatar(
                   radius: 16,
-                  backgroundColor: PointageColors.primary.withValues(alpha: 0.1),
+                  backgroundColor:
+                      PointageColors.primary.withValues(alpha: 0.1),
                   child: Text(
                     _getInitials(
                       pointage.supervisor?.firstName ?? '',
@@ -263,25 +269,100 @@ class ModernPointageTable extends StatelessWidget {
           DataCell(
             _buildTimeChip(pointage.date),
           ),
-          // Distance (column 5)
+          // Photo Agent (column 5) - replaces Distance
           DataCell(
-            Container(
-              padding: const EdgeInsets.symmetric(
-                horizontal: PointageSpacing.sm,
-                vertical: PointageSpacing.xs,
-              ),
-              decoration: BoxDecoration(
-                color: _getDistanceColor(pointage.distance).withValues(alpha: 0.1),
-                borderRadius: PointageBorderRadius.small,
-              ),
-              child: Text(
-                '${pointage.distance.toStringAsFixed(0)}m',
-                style: PointageTextStyles.body2.copyWith(
-                  color: _getDistanceColor(pointage.distance),
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ),
+            pointage.agentPhotoUrl != null
+                ? MouseRegion(
+                    cursor: SystemMouseCursors.click,
+                    child: GestureDetector(
+                      onTap: () => _showPhotoLightbox(
+                        tableContext,
+                        pointage.agentPhotoUrl!,
+                        '${pointage.supervisor?.firstName ?? ''} ${pointage.supervisor?.lastName ?? ''}',
+                        pointage.site.name,
+                      ),
+                      child: Tooltip(
+                        message: 'Cliquer pour agrandir la photo',
+                        child: Container(
+                          width: 36,
+                          height: 36,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            border: Border.all(
+                              color:
+                                  PointageColors.primary.withValues(alpha: 0.3),
+                              width: 2,
+                            ),
+                            boxShadow: [
+                              BoxShadow(
+                                color: PointageColors.primary
+                                    .withValues(alpha: 0.1),
+                                blurRadius: 4,
+                                offset: const Offset(0, 2),
+                              ),
+                            ],
+                          ),
+                          child: ClipOval(
+                            child: Image.network(
+                              pointage.agentPhotoUrl!,
+                              width: 36,
+                              height: 36,
+                              fit: BoxFit.cover,
+                              loadingBuilder:
+                                  (context, child, loadingProgress) {
+                                if (loadingProgress == null) return child;
+                                return Center(
+                                  child: SizedBox(
+                                    width: 16,
+                                    height: 16,
+                                    child: CircularProgressIndicator(
+                                      strokeWidth: 2,
+                                      value:
+                                          loadingProgress.expectedTotalBytes !=
+                                                  null
+                                              ? loadingProgress
+                                                      .cumulativeBytesLoaded /
+                                                  loadingProgress
+                                                      .expectedTotalBytes!
+                                              : null,
+                                      color: PointageColors.primary,
+                                    ),
+                                  ),
+                                );
+                              },
+                              errorBuilder: (context, error, stackTrace) {
+                                return const Icon(
+                                  Icons.broken_image_outlined,
+                                  size: 18,
+                                  color: PointageColors.error,
+                                );
+                              },
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  )
+                : Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      Icon(
+                        Icons.no_photography_outlined,
+                        size: 16,
+                        color:
+                            PointageColors.textSecondary.withValues(alpha: 0.5),
+                      ),
+                      const SizedBox(width: 4),
+                      Text(
+                        'Pas de photo',
+                        style: PointageTextStyles.caption.copyWith(
+                          color: PointageColors.textSecondary
+                              .withValues(alpha: 0.6),
+                          fontStyle: FontStyle.italic,
+                        ),
+                      ),
+                    ],
+                  ),
           ),
         ],
       );
@@ -388,14 +469,24 @@ class ModernPointageTable extends StatelessWidget {
     return '$first$last';
   }
 
-  Color _getDistanceColor(double distance) {
-    if (distance <= 50) {
-      return PointageColors.success;
-    } else if (distance <= 100) {
-      return PointageColors.warning;
-    } else {
-      return PointageColors.error;
-    }
+  /// Show a fullscreen lightbox dialog to display the agent photo
+  static void _showPhotoLightbox(
+    BuildContext context,
+    String imageUrl,
+    String supervisorName,
+    String siteName,
+  ) {
+    showDialog(
+      context: context,
+      barrierColor: Colors.black87,
+      builder: (dialogContext) {
+        return _PhotoLightboxDialog(
+          imageUrl: imageUrl,
+          supervisorName: supervisorName,
+          siteName: siteName,
+        );
+      },
+    );
   }
 }
 
@@ -404,10 +495,12 @@ class ModernPointageTable extends StatelessWidget {
 class _AnimatedLoadingSkeleton extends StatefulWidget {
   final int rowCount;
 
-  const _AnimatedLoadingSkeleton({Key? key, required this.rowCount}) : super(key: key);
+  const _AnimatedLoadingSkeleton({Key? key, required this.rowCount})
+      : super(key: key);
 
   @override
-  State<_AnimatedLoadingSkeleton> createState() => _AnimatedLoadingSkeletonState();
+  State<_AnimatedLoadingSkeleton> createState() =>
+      _AnimatedLoadingSkeletonState();
 }
 
 class _AnimatedLoadingSkeletonState extends State<_AnimatedLoadingSkeleton>
@@ -514,6 +607,188 @@ class _LoadingRow extends StatelessWidget {
             decoration: BoxDecoration(
               color: PointageColors.divider.withValues(alpha: animationValue),
               borderRadius: PointageBorderRadius.small,
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+/// Lightbox dialog for viewing agent photos in full size
+class _PhotoLightboxDialog extends StatelessWidget {
+  final String imageUrl;
+  final String supervisorName;
+  final String siteName;
+
+  const _PhotoLightboxDialog({
+    Key? key,
+    required this.imageUrl,
+    required this.supervisorName,
+    required this.siteName,
+  }) : super(key: key);
+
+  @override
+  Widget build(BuildContext context) {
+    return Dialog(
+      backgroundColor: Colors.transparent,
+      insetPadding: const EdgeInsets.all(PointageSpacing.lg),
+      child: Stack(
+        children: [
+          // Main content
+          Center(
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Header with supervisor name
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: PointageSpacing.lg,
+                    vertical: PointageSpacing.md,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    borderRadius: BorderRadius.only(
+                      topLeft: Radius.circular(PointageBorderRadius.lg),
+                      topRight: Radius.circular(PointageBorderRadius.lg),
+                    ),
+                  ),
+                  child: Row(
+                    mainAxisSize: MainAxisSize.min,
+                    children: [
+                      const Icon(
+                        Icons.camera_alt_outlined,
+                        color: Colors.white70,
+                        size: PointageIconSizes.sm,
+                      ),
+                      const SizedBox(width: PointageSpacing.sm),
+                      Flexible(
+                        child: Text(
+                          'Photo de pointage — $supervisorName, Site : $siteName',
+                          style: PointageTextStyles.body2.copyWith(
+                            color: Colors.white,
+                            fontWeight: FontWeight.w600,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+                // Image container
+                Container(
+                  constraints: BoxConstraints(
+                    maxWidth: MediaQuery.of(context).size.width * 0.8,
+                    maxHeight: MediaQuery.of(context).size.height * 0.8,
+                  ),
+                  decoration: const BoxDecoration(
+                    color: Colors.black26,
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(PointageBorderRadius.lg),
+                      bottomRight: Radius.circular(PointageBorderRadius.lg),
+                    ),
+                  ),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.only(
+                      bottomLeft: Radius.circular(PointageBorderRadius.lg),
+                      bottomRight: Radius.circular(PointageBorderRadius.lg),
+                    ),
+                    child: Image.network(
+                      imageUrl,
+                      fit: BoxFit.contain,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return SizedBox(
+                          width: 300,
+                          height: 400,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                CircularProgressIndicator(
+                                  value: loadingProgress.expectedTotalBytes !=
+                                          null
+                                      ? loadingProgress.cumulativeBytesLoaded /
+                                          loadingProgress.expectedTotalBytes!
+                                      : null,
+                                  color: PointageColors.primary,
+                                ),
+                                const SizedBox(height: PointageSpacing.md),
+                                Text(
+                                  'Chargement de la photo...',
+                                  style: PointageTextStyles.caption.copyWith(
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return SizedBox(
+                          width: 300,
+                          height: 300,
+                          child: Center(
+                            child: Column(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                const Icon(
+                                  Icons.broken_image_outlined,
+                                  size: PointageIconSizes.xl,
+                                  color: PointageColors.error,
+                                ),
+                                const SizedBox(height: PointageSpacing.md),
+                                Text(
+                                  'Impossible de charger la photo',
+                                  style: PointageTextStyles.body2.copyWith(
+                                    color: Colors.white70,
+                                  ),
+                                ),
+                                const SizedBox(height: PointageSpacing.sm),
+                                Text(
+                                  'Vérifiez votre connexion internet',
+                                  style: PointageTextStyles.caption.copyWith(
+                                    color: Colors.white54,
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ],
+            ),
+          ),
+          // Close button
+          Positioned(
+            top: 0,
+            right: 0,
+            child: Material(
+              color: Colors.transparent,
+              child: InkWell(
+                onTap: () => Navigator.of(context).pop(),
+                borderRadius: BorderRadius.circular(20),
+                child: Container(
+                  padding: const EdgeInsets.all(PointageSpacing.sm),
+                  decoration: BoxDecoration(
+                    color: Colors.black54,
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: Colors.white24,
+                      width: 1,
+                    ),
+                  ),
+                  child: const Icon(
+                    Icons.close,
+                    color: Colors.white,
+                    size: PointageIconSizes.md,
+                  ),
+                ),
+              ),
             ),
           ),
         ],
