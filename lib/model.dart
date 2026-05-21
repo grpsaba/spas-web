@@ -485,7 +485,7 @@ class ZoneMember extends Equatable {
 
 class PointingZone {
   DateTime date;
-  LatLngModel latlng;
+  LatLngModel? latlng;
   Site site;
   ZoneMember? zoneMember;
   double distance;
@@ -517,7 +517,7 @@ class PointingZone {
   Map<String, dynamic> toJson() {
     return {
       "date": date.toIso8601String(),
-      "latlng": latlng.toJson(),
+      "latlng": latlng?.toJson(),
       "site": site.toJson(),
       "distance": distance,
       "zoneMember": zoneMember?.toJson(),
@@ -535,7 +535,7 @@ class PointingZone {
 
 class PointingSite {
   DateTime date;
-  LatLngModel latlng;
+  LatLngModel? latlng;
   Site site;
   Supervisor? supervisor;
   double distance;
@@ -565,7 +565,7 @@ class PointingSite {
     parsedDate ??= DateTime.now();
     return PointingSite(
         date: parsedDate,
-        latlng: LatLngModel.fromJson(json["latlng"]),
+        latlng: json['latlng'] != null ? LatLngModel.fromJson(json["latlng"]) : null,
         site: Site.fromJson(json["site"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
         distance: json["distance"],
@@ -575,7 +575,7 @@ class PointingSite {
   Map<String, dynamic> toJson() {
     return {
       "date": date.toIso8601String(),
-      "latlng": latlng.toJson(),
+      "latlng": latlng?.toJson(),
       "site": site.toJson(),
       "datetimestamp": date,
       "distance": distance,
@@ -1017,13 +1017,13 @@ class Profil extends Equatable {
     if (modules.isEmpty) return null;
     return modules.firstWhere((element) => element.moduleName == name,
         orElse: () => Module(
-            moduleName: ModuleName.MANAGER,
-            add: true,
+            moduleName: name,
+            add: false,
             delete: false,
             validation: false,
             view: false,
-            print: true,
-            generBadge: true));
+            print: false,
+            generBadge: false));
   }
 }
 
@@ -1077,17 +1077,41 @@ class Module {
       case "AGENT_TYPE":
         moduleName = ModuleName.AGENT_TYPE;
         break;
+      case "ZONE":
+        moduleName = ModuleName.ZONE;
+        break;
+      case "ZONE_MEMBER":
+        moduleName = ModuleName.ZONE_MEMBER;
+        break;
+      case "POINTAGE_SITE":
+        moduleName = ModuleName.POINTAGE_SITE;
+        break;
+      case "POINTAGE_AGENT":
+        moduleName = ModuleName.POINTAGE_AGENT;
+        break;
+      case "POINTAGE_RONDIER":
+        moduleName = ModuleName.POINTAGE_RONDIER;
+        break;
+      case "POINTAGE_TOOL":
+        moduleName = ModuleName.POINTAGE_TOOL;
+        break;
+      case "POINTAGE_ZONE":
+        moduleName = ModuleName.POINTAGE_ZONE;
+        break;
+      case "ERROR_LOG":
+        moduleName = ModuleName.ERROR_LOG;
+        break;
       default:
         moduleName = ModuleName.MANAGER;
     }
     return Module(
         moduleName: moduleName,
-        validation: json['validation'],
-        delete: json['delete'],
-        add: json['add'],
-        print: json['print'],
-        generBadge: json['generBadge'],
-        view: json['view']);
+        validation: json['validation'] ?? false,
+        delete: json['delete'] ?? false,
+        add: json['add'] ?? false,
+        print: json['print'] ?? false,
+        generBadge: json['generBadge'] ?? false,
+        view: json['view'] ?? false);
   }
 
   Map<String, dynamic> toJson() => {
@@ -1113,7 +1137,15 @@ enum ModuleName {
   MANAGER,
   CATEGORIE_TOOL,
   DEPARTMENT,
-  AGENT_TYPE
+  AGENT_TYPE,
+  ZONE,
+  ZONE_MEMBER,
+  POINTAGE_SITE,
+  POINTAGE_AGENT,
+  POINTAGE_RONDIER,
+  POINTAGE_TOOL,
+  POINTAGE_ZONE,
+  ERROR_LOG
 }
 
 class PushNotification {

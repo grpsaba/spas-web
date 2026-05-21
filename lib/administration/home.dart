@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/models/menu_item_model.dart';
+import 'package:spas_web/services/access_control.dart';
 import '../const.dart';
 import '../services/authentication.dart';
 
@@ -21,7 +22,8 @@ class PageModel extends StatefulWidget {
   State<PageModel> createState() => _PageModelState();
 }
 
-class _PageModelState extends State<PageModel> with SingleTickerProviderStateMixin {
+class _PageModelState extends State<PageModel>
+    with SingleTickerProviderStateMixin {
   bool _showDrawer = false;
   late AnimationController _animationController;
   late Animation<double> _drawerAnimation;
@@ -51,7 +53,8 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: widget.pageIndex == 0 ? AppConstants.bgColor : Colors.white,
+      backgroundColor:
+          widget.pageIndex == 0 ? AppConstants.bgColor : Colors.white,
       appBar: _buildAppBar(context),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -84,8 +87,8 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
         ),
       ),
       actions: [
-        const Text("V14/01/2026"),
-         Sos(),
+        const Text("V21/05/2026"),
+        Sos(),
         const SizedBox(width: 16),
         _buildUserInfo(),
         const SizedBox(width: 8),
@@ -174,10 +177,15 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
     final isTablet = screenWidth > 768 && screenWidth <= 1200;
     final isLarge = isDesktop || isTablet;
 
+    final visibleMenuItems = MenuItemModel.menuItems
+        .where((item) => AccessControl.canView(item.moduleName))
+        .toList();
+
     return AnimatedBuilder(
       animation: _drawerAnimation,
       builder: (context, child) {
-        final double drawerWidth = isLarge ? 80 + (_drawerAnimation.value * 170) : 80;
+        final double drawerWidth =
+            isLarge ? 80 + (_drawerAnimation.value * 170) : 80;
         return Container(
           width: drawerWidth,
           decoration: BoxDecoration(
@@ -194,13 +202,23 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
             children: [
               _buildDrawerHeader(isLarge),
               Expanded(
-                child: MenuItemModel.menuItems.isEmpty
-                    ? const Center(child: Text('No menu items available'))
+                child: visibleMenuItems.isEmpty
+                    ? const Center(
+                        child: Padding(
+                          padding: EdgeInsets.all(12),
+                          child: Text(
+                            'Aucun menu disponible',
+                            textAlign: TextAlign.center,
+                            style:
+                                TextStyle(color: Colors.white70, fontSize: 12),
+                          ),
+                        ),
+                      )
                     : ListView.builder(
                         physics: const BouncingScrollPhysics(),
-                        itemCount: MenuItemModel.menuItems.length,
+                        itemCount: visibleMenuItems.length,
                         itemBuilder: (context, index) => _buildMenuItem(
-                          MenuItemModel.menuItems[index],
+                          visibleMenuItems[index],
                           isLarge,
                         ),
                       ),
@@ -226,7 +244,8 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
       ),
       child: isLarge
           ? Row(
-              mainAxisSize: MainAxisSize.min, // Prevent Row from expanding unnecessarily
+              mainAxisSize:
+                  MainAxisSize.min, // Prevent Row from expanding unnecessarily
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
               children: [
                 Flexible(
@@ -249,21 +268,19 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
                   color: Colors.transparent,
                   child: InkWell(
                     onTap: () {
-                      if(_showDrawer){
-                        setState(() async{
-                        _showDrawer = false;
-                        await Future.delayed(const Duration(milliseconds: 3));
-                       _animationController.reverse();
-                           
-                      });
-                      }else{
-                         setState(() async{
-                        
-                       _animationController.forward();
-                             await Future.delayed(const Duration(milliseconds: 5));
+                      if (_showDrawer) {
+                        setState(() async {
+                          _showDrawer = false;
+                          await Future.delayed(const Duration(milliseconds: 3));
+                          _animationController.reverse();
+                        });
+                      } else {
+                        setState(() async {
+                          _animationController.forward();
+                          await Future.delayed(const Duration(milliseconds: 5));
 
-                            _showDrawer = true;
-                      });
+                          _showDrawer = true;
+                        });
                       }
                     },
                     borderRadius: BorderRadius.circular(8),
@@ -335,7 +352,8 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
                   : Colors.transparent,
               borderRadius: BorderRadius.circular(12),
               border: isSelected
-                  ? Border.all(color: AppConstants.primaryColor.withOpacity(0.3))
+                  ? Border.all(
+                      color: AppConstants.primaryColor.withOpacity(0.3))
                   : null,
             ),
             child: Row(
@@ -356,14 +374,18 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
                           child: item.cachedAssetImage != null
                               ? Image(
                                   image: item.cachedAssetImage!,
-                                  color: isSelected ? Colors.white : Colors.white70,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white70,
                                   fit: BoxFit.contain,
                                   width: 24,
                                   height: 24,
                                 )
                               : Image.asset(
                                   item.assetIcon!,
-                                  color: isSelected ? Colors.white : Colors.white70,
+                                  color: isSelected
+                                      ? Colors.white
+                                      : Colors.white70,
                                   fit: BoxFit.contain,
                                   width: 24,
                                   height: 24,
@@ -387,7 +409,8 @@ class _PageModelState extends State<PageModel> with SingleTickerProviderStateMix
                         style: TextStyle(
                           color: Colors.white,
                           fontSize: 12,
-                          fontWeight: isSelected ? FontWeight.w600 : FontWeight.w400,
+                          fontWeight:
+                              isSelected ? FontWeight.w600 : FontWeight.w400,
                           overflow: TextOverflow.ellipsis,
                         ),
                         maxLines: 1,

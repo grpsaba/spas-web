@@ -45,19 +45,20 @@ class _PointageSiteGlobalState extends State<PointageSiteGlobal> {
 
     //filter les données selon la plage
     var collection = docs
-        ?.map((e) => PointingSite.fromJson(e as Map<String, dynamic>))
+        ?.map((e) {
+          if(e ==null){
+            print("=======================");
+            print(e);
+          }
+          return PointingSite.fromJson(e as Map<String, dynamic>);
+        })
         .toList();
-    //collection = collection?.where((element) => element.isToday()).toList();
 
     //transformer les données sous forme maps site => liste pointage du site
     List<Map<String, dynamic>> pointages = [];
     List<Site>? sites = collection?.map((e) => e.site).toSet().toList();
     //elimination des doublons
-    /*var temps = [];
-            for (Site site in sites ?? []) {
-              temps.add(site);
-              sites?.removeWhere((element) => element.UID == site.UID);
-            }*/
+
     for (Site site in sites ?? []) {
       var Listpointage = collection?.where((element) {
         return element.site.UID == site.UID;
@@ -65,13 +66,6 @@ class _PointageSiteGlobalState extends State<PointageSiteGlobal> {
 
       pointages.add({"site": site, "pointages": Listpointage ?? []});
     }
-
-    //filtre par site
-
-    /* pointages = pointages.where((element) {
-              Site site = element["site"];
-              return site.supervisor?.UID == widget.supervisor.UID;
-            }).toList();*/
 
     int? value = pointages.length;
     double purcent = 0;

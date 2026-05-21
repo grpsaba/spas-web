@@ -110,7 +110,7 @@ class ModernPointageTable extends StatelessWidget {
       // Date (sortable)
       _buildSortableColumn('Date', 'datetimestamp'),
       // Heure (sortable - uses same field as Date)
-      _buildSortableColumn('Heure', 'datetimestamp'),
+    //  _buildSortableColumn('Heure', 'datetimestamp'),
       // Photo Agent (non-sortable) - replaces Distance
       DataColumn(
         label: Text(
@@ -266,9 +266,9 @@ class ModernPointageTable extends StatelessWidget {
             _buildDateChip(pointage.date),
           ),
           // Heure (column 4) - with colored chip
-          DataCell(
-            _buildTimeChip(pointage.date),
-          ),
+          // DataCell(
+          //   _buildTimeChip(pointage.date),
+          // ),
           // Photo Agent (column 5) - replaces Distance
           DataCell(
             pointage.agentPhotoUrl != null

@@ -282,7 +282,10 @@ class _SupervisorListState extends State<SiteList> {
                                             },
                                           )
                                         : const SizedBox(),
-                                    _buildActionButton(
+                                    AuthService.currentManager!.profil!
+                                            .getModule(ModuleName.SITE)!
+                                            .add
+                                        ? _buildActionButton(
                                       context,
                                       "Pointage en lot",
                                       Icons.checklist,
@@ -291,7 +294,7 @@ class _SupervisorListState extends State<SiteList> {
                                         _showBulkPointingDialog(
                                             context, _DataSource.dataToprint);
                                       },
-                                    ),
+                                    ) : const SizedBox(),
                                     AuthService.currentManager!.profil!
                                             .getModule(ModuleName.SITE)!
                                             .print
