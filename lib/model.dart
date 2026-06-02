@@ -1101,6 +1101,9 @@ class Module {
       case "ERROR_LOG":
         moduleName = ModuleName.ERROR_LOG;
         break;
+      case "MOBILE_CONFIG":
+        moduleName = ModuleName.MOBILE_CONFIG;
+        break;
       default:
         moduleName = ModuleName.MANAGER;
     }
@@ -1145,7 +1148,8 @@ enum ModuleName {
   POINTAGE_RONDIER,
   POINTAGE_TOOL,
   POINTAGE_ZONE,
-  ERROR_LOG
+  ERROR_LOG,
+  MOBILE_CONFIG
 }
 
 class PushNotification {

@@ -157,6 +157,14 @@ class AppConstants {
         validation: false,
         view: true,
         print: false,
+        generBadge: false),
+    Module(
+        moduleName: ModuleName.MOBILE_CONFIG,
+        add: true,
+        delete: false,
+        validation: false,
+        view: true,
+        print: false,
         generBadge: false)
   ];
 

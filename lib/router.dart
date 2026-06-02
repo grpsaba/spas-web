@@ -53,6 +53,7 @@ import 'department/department_form.dart';
 import 'department/department_list.dart';
 import 'manager/manager_form.dart';
 import 'manager/user_page.dart';
+import 'mobile_config/mobile_config_page.dart';
 
 GoRouter routeConfig = GoRouter(
     initialLocation: "/home",
@@ -379,4 +380,9 @@ GoRouter routeConfig = GoRouter(
                       errorLog: state.extra as ErrorLog,
                     )),
           ]),
+      GoRoute(
+        name: "configuration mobile",
+        path: "/mobile-config",
+        builder: (context, state) => const MobileConfigPage(),
+      ),
     ]);

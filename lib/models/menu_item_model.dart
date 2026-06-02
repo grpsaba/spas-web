@@ -168,6 +168,13 @@ class MenuItemModel {
       index: 18,
       moduleName: ModuleName.ERROR_LOG,
     ),
+    MenuItemModel(
+      icon: Icons.settings_cell_rounded,
+      title: "Config Mobile",
+      route: "/mobile-config",
+      index: 19,
+      moduleName: ModuleName.MOBILE_CONFIG,
+    ),
   ];
 
   // Méthode pour précharger tous les assets
