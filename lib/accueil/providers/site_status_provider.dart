@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/site.dart';
+import 'package:spas_web/services/tenant_scope.dart';
 
 /// Provider pour gérer les données de statut des sites (pointés/non pointés)
 /// Optimisé pour éviter les requêtes répétées et le filtrage côté client
@@ -120,12 +121,17 @@ class SiteStatusProvider extends ChangeNotifier {
     DateTime endDate,
   ) async {
     final collection = FirebaseFirestore.instance.collection('sitePointings');
-    
-    final snapshot = await collection
-        .where('supervisor.UID', isEqualTo: supervisor.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
-        .get();
+
+    final snapshot = await TenantScope.getQuery(
+      'SiteStatusProvider.pointedSitesBySupervisor',
+      TenantScope.applyToQuery(collection)
+          .where('supervisor.UID', isEqualTo: supervisor.UID)
+          .where(
+            'datetimestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
+          .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate)),
+    );
     
     return snapshot.docs
         .map((doc) => doc.data()['site']?['UID'] as String?)
@@ -141,12 +147,17 @@ class SiteStatusProvider extends ChangeNotifier {
     DateTime endDate,
   ) async {
     final collection = FirebaseFirestore.instance.collection('zonePointings');
-    
-    final snapshot = await collection
-        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
-        .get();
+
+    final snapshot = await TenantScope.getQuery(
+      'SiteStatusProvider.pointedSitesByZoneMember',
+      TenantScope.applyToQuery(collection)
+          .where('zoneMember.UID', isEqualTo: zoneMember.UID)
+          .where(
+            'datetimestamp',
+            isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+          )
+          .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate)),
+    );
     
     return snapshot.docs
         .map((doc) => doc.data()['site']?['UID'] as String?)

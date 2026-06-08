@@ -103,6 +103,8 @@ Approche simple:
 - le nom du profil determine si le filtre pays est obligatoire;
 - `Administrateur` et `Directeur General` peuvent choisir un pays globalement ou sur une page;
 - si aucun pays n'est choisi par ces profils globaux, la requete peut etre faite sans filtre tenant, mais avec pagination obligatoire.
+- le login backoffice ne doit pas affecter automatiquement un `tenantId` a un manager normal sans pays;
+- un manager normal sans `tenantId` doit etre refuse a la connexion et renvoye vers un administrateur.
 
 Donc le contexte utilisateur peut etre:
 
@@ -155,10 +157,35 @@ Apres Firebase Auth:
 1. recuperer `Managers/{uid}`;
 2. si le document manager a deja un `tenantId`, utiliser celui de Firestore;
 3. si le pays choisi est different du `tenantId` Firestore, ignorer le choix utilisateur et utiliser la valeur Firestore;
-4. si le document n'a pas encore `tenantId`, utiliser le pays choisi pour initialiser/memoriser cette information, avec fallback `ml` pendant la transition;
-5. si le manager a le profil `Administrateur` ou `Directeur General`, il peut ensuite choisir d'afficher un tenant precis ou tous les tenants selon la page.
+4. si le document n'a pas encore `tenantId` et que le profil est normal, refuser la connexion avec un message demandant de contacter un administrateur;
+5. si le manager a le profil `Administrateur` ou `Directeur General`, il peut se connecter sans `tenantId`;
+6. si le manager a le profil `Administrateur` ou `Directeur General`, il peut ensuite choisir d'afficher un tenant precis ou tous les tenants selon la page.
 
 Le pays choisi avant login ne doit donc pas ecraser un `tenantId` deja existant dans `Managers` ou `Supervisors`.
+
+## Affectation des utilisateurs aux tenants
+
+Le rattachement d'un utilisateur a un pays doit etre explicite depuis le backoffice.
+
+Regles retenues:
+
+- `Administrateur` et `Directeur General` peuvent rester sans `tenantId`;
+- un manager normal doit avoir un `tenantId` pour se connecter;
+- un superviseur mobile doit avoir un `tenantId` pour etre correctement filtre;
+- le login backoffice ne cree pas automatiquement le `tenantId` d'un manager normal;
+- les formulaires backoffice `Managers` et `Supervisors` portent le champ pays;
+- un administrateur peut affecter ou modifier le pays d'un manager ou d'un superviseur;
+- un manager non global ne peut affecter que son propre tenant.
+- `Administrateur` et `Directeur General` peuvent appliquer un filtre pays global dans le backoffice.
+
+Effet attendu:
+
+```txt
+Manager normal sans tenantId
+  -> connexion refusee
+  -> message: contacter un administrateur
+  -> l'administrateur affecte tenantId depuis le backoffice
+```
 
 ## Collections concernees par `tenantId`
 
@@ -627,12 +654,201 @@ Puis seulement:
 4. Pointages historiques sans `tenantId` si la migration n'est pas faite.
 5. Incoherence entre objet embarque et champ top-level.
 6. Profil global mal defini si la logique `Administrateur` / `Directeur General` n'est pas centralisee.
+7. Certaines pages avec provider/cache peuvent devoir relancer explicitement leurs requetes quand le filtre pays global change.
+
+## Index Firestore detectes pendant les tests
+
+Les index ne sont pas tous crees manuellement a l'avance. Pendant les tests, Firestore affiche un lien de creation automatique dans la console quand une requete composite manque d'index.
+
+Premiers index detectes apres ajout de `TenantScope`:
+
+```txt
+Collection: sitePointings
+Champs:
+- tenantId ASC
+- datetimestamp ASC
+- __name__ ASC
+
+Contexte probable:
+- PointingSiteService.all
+- pointages site filtres par tenant + plage de date
+```
+
+```txt
+Collection: Notes
+Champs:
+- tenantId ASC
+- viewed ASC
+- date DESC
+- __name__ DESC
+
+Contexte:
+- NoteService.allNoViewedNote
+```
+
+```txt
+Collection: agentPointings
+Champs:
+- tenantId ASC
+- date ASC
+- __name__ ASC
+
+Contexte:
+- PointingAgentService.allByDay
+```
+
+Regle pratique:
+
+- cliquer le lien Firebase donne par l'erreur `failed-precondition`;
+- attendre que l'index soit actif;
+- relancer la page ou la requete;
+- ajouter ici les index importants qui reviennent souvent.
+
+Note apres backfill Mali:
+
+- le backfill des documents historiques vers `tenantId: "ml"` a ete execute;
+- le choix global `Mali` ne doit plus rester equivalent a une lecture non filtree;
+- la prochaine etape code est de rendre `Mali` strictement filtre dans `TenantScope`;
+- l'ancien fallback `tenantId absent => ml` reste utile dans les modeles et les rules pendant une courte transition, mais ne doit plus piloter les grandes requetes applicatives.
+
+## Etat apres backfill du 2026-06-05
+
+Backfill execute et confirme termine par l'utilisateur sur les collections metier prioritaires.
+
+Collections confirmees traitees:
+
+```txt
+Agents
+Zones
+ZoneMembers
+Tools
+Notes
+CheckLists
+locationTracker
+sitePointings
+agentPointings
+zonePointings
+rondierPointings
+toolPointings
+```
+
+Collections a ne pas traiter automatiquement ou a traiter separement selon besoin:
+
+```txt
+Managers
+error_logs
+```
+
+Notes:
+
+- `Managers` ne doit pas etre backfill automatiquement en `ml`, car l'affectation pays des managers doit rester explicite;
+- `error_logs` est maintenant filtre par `TenantScope` cote backoffice; si les logs historiques doivent etre visibles pour les managers normaux, lancer un backfill `tenantId: "ml"` sur cette collection;
+- le script `scripts/backfill_tenant_ml.js` inclut maintenant `error_logs` dans ses collections par defaut;
+- un dernier dry-run par collection peut servir de controle, mais le blocage principal des donnees invisibles Mali est leve.
+
+## Plan de reprise apres backfill
+
+### Priorite 1: verrouiller le filtrage pays
+
+Etat: fait le 2026-06-05 apres backfill.
+
+1. L'exception temporaire dans `TenantScope` qui rendait `Mali` non filtre pour les profils globaux a ete retiree.
+2. Garder la regle simple:
+
+```txt
+Administrateur / Directeur General + Tous pays => pas de filtre tenant
+Administrateur / Directeur General + Mali => where tenantId == "ml"
+Administrateur / Directeur General + Burkina => where tenantId == "bf"
+Manager normal => where tenantId == manager.tenantId
+```
+
+3. Tester avec:
+
+```txt
+Administrateur sans filtre
+Administrateur filtre Mali
+Manager normal Mali
+Manager normal sans tenantId
+```
+
+### Priorite 2: verifier les collections critiques
+
+Etat partiel: les lectures directes backoffice identifiees ont ete branchees sur `TenantScope` le 2026-06-05.
+
+Fichiers corriges:
+
+```txt
+lib/error_logs/providers/error_log_provider.dart
+lib/accueil/providers/site_status_provider.dart
+lib/pointage_site/pointage_site_list.dart
+lib/zone/zone_site_monthly_pointage.dart
+lib/zone/providers/zone_pointage_provider.dart
+```
+
+Tester d'abord les ecrans qui lisent beaucoup de donnees:
+
+```txt
+Sites
+Agents
+Notes
+CheckLists
+Pointages site
+Pointages agent
+Pointages zone
+Dashboard / accueil
+```
+
+Objectif:
+
+- confirmer que les donnees Mali reviennent pour un manager normal;
+- cliquer les liens d'index Firestore qui apparaissent encore;
+- noter les nouveaux index dans ce document.
+
+### Priorite 3: finaliser les ecritures
+
+Etat partiel: la creation bulk d'agents ecrit maintenant le tenant via `TenantScope.applyTenantIdForWrite`.
+
+Verifier que les creations et modifications ecrivent toujours:
+
+```txt
+tenantId
+```
+
+Et pour les documents concernes:
+
+```txt
+departmentId
+```
+
+Le point important est de ne plus creer de nouveaux documents metier sans `tenantId`.
+
+### Priorite 4: rules Firestore
+
+Quand les tests backoffice sont stables:
+
+1. renforcer les rules pour obliger le `tenantId` sur les creations;
+2. limiter les lectures/ecritures d'un manager normal a son tenant;
+3. garder une tolerance courte pour les anciens documents sans `tenantId`;
+4. ne pas activer de filtre departement strict pour `ml`.
+
+### Priorite 5: mobile
+
+Appliquer ensuite le meme principe dans `spasmobile`:
+
+```txt
+choix pays avant login
+lecture Supervisors/{uid}
+tenantId Firestore prioritaire
+ecritures pointage avec tenantId top-level
+departmentId top-level quand disponible
+```
+
+Le mobile doit etre traite apres stabilisation backoffice, car les superviseurs et pointages dependent des memes donnees.
 
 ## Decisions ouvertes
 
 1. Decider quand activer les filtres departement pour `ml`.
-2. Definir comment un administrateur reaffecte un manager/superviseur a un autre tenant.
-3. Definir les valeurs exactes de `departmentId`: `security`, `cleaning`, `direction` ou variantes francaises.
+2. Definir les valeurs exactes de `departmentId`: `security`, `cleaning`, `direction` ou variantes francaises.
 
 ## Decisions confirmees
 
@@ -649,6 +865,9 @@ Puis seulement:
 11. `departmentId` doit etre ecrit sur les nouveaux documents concernes, notamment tous les pointages.
 12. Pour `ml`, on n'applique pas encore le filtre departement global.
 13. Pour les tenants differents de `ml`, le filtre departement peut etre applique des le depart.
+14. Un manager normal sans `tenantId` ne doit pas recevoir automatiquement `ml` au login.
+15. L'affectation `tenantId` des managers et superviseurs se fait depuis le backoffice par un profil autorise.
+16. Le filtre pays global admin/DG est applique par les services via `TenantScope` quand un tenant est selectionne.
 
 ## Conclusion
 

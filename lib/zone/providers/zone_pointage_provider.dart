@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/site.dart';
+import 'package:spas_web/services/tenant_scope.dart';
 import 'package:spas_web/services/zoneMember.dart';
 
 /// Modèle pour les stats de pointage d'un membre de zone
@@ -180,11 +181,13 @@ class ZonePointageListProvider extends ChangeNotifier {
   ) async {
 try{
       final collection = FirebaseFirestore.instance.collection('zonePointings');
-    final snapshot = await collection
+    final snapshot = await TenantScope.getQuery(
+      'ZonePointageListProvider.visitedSitesCount',
+      TenantScope.applyToQuery(collection)
         .where('zoneMember.UID', isEqualTo: zoneMember.UID)
         .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate))
-        .get();
+        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate)),
+    );
     // Compter les sites uniques
     final uniqueSiteIds = snapshot.docs
         .map((doc) => doc.data()['site']?['UID'] as String?)

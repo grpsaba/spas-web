@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class AgentService {
   AgentService({FirebaseFirestore? firestore})
@@ -13,38 +14,52 @@ class AgentService {
   final CollectionReference _collectionReference;
 
   Future<void> add(Agent agent) async {
+    TenantScope.applyTenantIdForWrite(agent);
     agent.genererCode();
     await _collectionReference.doc(agent.code).set(agent.toJson());
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'AgentService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Stream<QuerySnapshot> allOfficePersonnel() {
-    return _collectionReference
-        .where("actif", isEqualTo: true)
-        .where("site.UID", isEqualTo: "rXkVVl9AH8MYSPn25FSHS7eESpc2")
-        .snapshots();
+    return TenantScope.watchQuery(
+      'AgentService.allOfficePersonnel',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("actif", isEqualTo: true)
+          .where("site.UID", isEqualTo: "rXkVVl9AH8MYSPn25FSHS7eESpc2"),
+    );
   }
 
   Future<List<Agent>> allFuture() async {
-    final snapshot = await _collectionReference.get();
+    final snapshot = await TenantScope.getQuery(
+      'AgentService.allFuture',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     return snapshot.docs.map(_mapSnapshotToAgent).toList();
   }
 
   Future<List<Agent>> allByDomaine(String domaine) async {
-    final snapshot = await _collectionReference
-        .where("AgentType.label", isEqualTo: domaine)
-        .where("site", isNotEqualTo: null)
-        .where("actif", isEqualTo: true)
-        .get();
+    final snapshot = await TenantScope.getQuery(
+      'AgentService.allByDomaine',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("AgentType.label", isEqualTo: domaine)
+          .where("site", isNotEqualTo: null)
+          .where("actif", isEqualTo: true),
+    );
 
     return snapshot.docs.map(_mapSnapshotToAgent).toList();
   }
 
   Future<List<Agent>> allBySupervisor(dynamic uid) async {
-    final snapshot = await _collectionReference.get();
+    final snapshot = await TenantScope.getQuery(
+      'AgentService.allBySupervisor',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     return snapshot.docs
         .map(_mapSnapshotToAgent)
         .where(
@@ -58,8 +73,11 @@ class AgentService {
   }
 
   Future<List<Agent>> allBySite(dynamic uid) async {
-    final snapshot =
-        await _collectionReference.where("site.UID", isEqualTo: uid).get();
+    final snapshot = await TenantScope.getQuery(
+      'AgentService.allBySite',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("site.UID", isEqualTo: uid),
+    );
 
     return snapshot.docs.map(_mapSnapshotToAgent).toList();
   }
@@ -80,6 +98,7 @@ class AgentService {
   }
 
   Future<void> update(Agent agent) {
+    TenantScope.applyTenantIdForWrite(agent);
     return _collectionReference.doc(agent.code).update(agent.toJson());
   }
 
@@ -89,6 +108,7 @@ class AgentService {
     final batch = FirebaseFirestore.instance.batch();
 
     for (final agent in agents) {
+      TenantScope.applyTenantIdForWrite(agent);
       batch.update(_collectionReference.doc(agent.code), agent.toJson());
     }
 
@@ -116,8 +136,8 @@ class AgentService {
     bool descending = false,
   }) async {
     try {
-      Query query =
-          _collectionReference.orderBy('code', descending: descending);
+      Query query = TenantScope.applyToQuery(_collectionReference)
+          .orderBy('code', descending: descending);
 
       if (actif != null) {
         query = query.where('actif', isEqualTo: actif);
@@ -137,7 +157,10 @@ class AgentService {
         query = query.startAfterDocument(startAfterDocument);
       }
 
-      final snapshot = await query.limit(limit).get();
+      final snapshot = await TenantScope.getQuery(
+        'AgentService.fetchPage',
+        query.limit(limit),
+      );
 
       final agents = snapshot.docs.map(_mapSnapshotToAgent).toList();
       final lastDocument = snapshot.docs.isNotEmpty ? snapshot.docs.last : null;

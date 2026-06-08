@@ -185,6 +185,7 @@ class _SupervisorListState extends State<SupervisorList> {
                       DataColumn(label: Text('Nom')),
                       DataColumn(label: Text('Contact')),
                       DataColumn(label: Text('email')),
+                      DataColumn(label: Text('Pays')),
                       DataColumn(label: Text('Sites'), numeric: true),
                       DataColumn(label: Text('Agents'), numeric: true),
                       DataColumn(label: Text('Position')),
@@ -282,6 +283,7 @@ class _DataSource extends DataTableSource {
         DataCell(Text('')),
         DataCell(Text('')),
         DataCell(Text('')),
+        DataCell(Text('')),
       ]);
     }
 
@@ -297,6 +299,11 @@ class _DataSource extends DataTableSource {
         DataCell(Text(supervisor.lastName)),
         DataCell(Text(supervisor.phone)),
         DataCell(Text(supervisor.email)),
+        DataCell(Text(
+          supervisor.hasTenantId
+              ? supervisor.tenantId.toUpperCase()
+              : 'Non affecte',
+        )),
         DataCell(_nbSite(supervisor)),
         DataCell(_nbAgent(supervisor)),
         DataCell(

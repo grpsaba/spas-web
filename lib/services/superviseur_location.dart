@@ -4,11 +4,13 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class LocationService {
   final CollectionReference _collectionReference =
   FirebaseFirestore.instance.collection("locationTracker");
   Future<void> add(SuperviseurLocaion location) async {
+    TenantScope.applyTenantIdForWrite(location);
     String docID = '';
     if(location.supervisor!=null){
       if(location.supervisor!.tracking==true){
@@ -22,11 +24,17 @@ class LocationService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'LocationService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Future<List<SuperviseurLocaion>> allFuture() async {
-    var snpshot = await _collectionReference.get();
+    var snpshot = await TenantScope.getQuery(
+      'LocationService.allFuture',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     List<SuperviseurLocaion> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>
         SuperviseurLocaion.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -35,7 +43,10 @@ class LocationService {
   }
 
   Future<List<SuperviseurLocaion>> allBySupervisor(uid) async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await TenantScope.getQuery(
+      'LocationService.allBySupervisor',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     var collection = snapshot.docs
         .map((snap) {
       return SuperviseurLocaion.fromJson(jsonDecode(jsonEncode(snap.data())));
@@ -70,6 +81,7 @@ class LocationService {
   }
 
   Future<void> update(SuperviseurLocaion location) {
+    TenantScope.applyTenantIdForWrite(location);
     String docID='';
     if(location.supervisor!.tracking=true){
       docID = '${location.supervisor?.UID??''}${DateTime.now().hour}${DateTime.now().minute}${DateTime.now().second}${DateTime.now().millisecond}${DateTime.now().microsecond}';

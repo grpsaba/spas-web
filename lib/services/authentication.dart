@@ -5,14 +5,17 @@ import '../model.dart';
 import 'manager.dart';
 import 'profil.dart';
 
+class TenantAssignmentRequiredException implements Exception {}
+
 class AuthService {
   var auth = FirebaseAuth.instance;
   static Manager? currentManager;
-  Future<Manager?> authState() async {
+  Future<Manager?> authState({String? selectedTenantId}) async {
     try {
       var user = auth.currentUser;
       if (user != null) {
-        var manager = await ManagerService().one(user.uid);
+        final managerService = ManagerService();
+        var manager = await managerService.one(user.uid);
         final profileName = manager?.profil?.name;
 
         if (manager != null && profileName != null && profileName.isNotEmpty) {
@@ -22,10 +25,24 @@ class AuthService {
           }
         }
 
+        if (manager != null && !canBypassTenantForProfile(manager.profil)) {
+          final hasTenant = await managerService.hasAssignedTenant(manager);
+          if (!hasTenant) {
+            currentManager = null;
+            await logOut();
+            if (selectedTenantId != null) {
+              throw TenantAssignmentRequiredException();
+            }
+            return null;
+          }
+        }
+
         currentManager = manager;
         return manager;
       }
       return null;
+    } on TenantAssignmentRequiredException {
+      rethrow;
     } catch (e) {
       debugPrint(e.toString());
       return null;
@@ -63,7 +80,8 @@ class AuthService {
     return confirmation;
   }
 
-  Future<void> logOut() {
-    return auth.signOut();
+  Future<void> logOut() async {
+    currentManager = null;
+    await auth.signOut();
   }
 }

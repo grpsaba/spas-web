@@ -3,17 +3,22 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class ToolService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Tools");
 
   Future<void> add(Tool tool) async {
+    TenantScope.applyTenantIdForWrite(tool);
     _collectionReference.doc(tool.serialNumber).set(tool.toJson());
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'ToolService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Future<void> delete(Tool tool) async {
@@ -27,11 +32,15 @@ class ToolService {
   }
 
   Future<void> update(Tool tool) {
+    TenantScope.applyTenantIdForWrite(tool);
     return _collectionReference.doc(tool.serialNumber).update(tool.toJson());
   }
 
   Future<List<Tool>> allBySite(uid) async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await TenantScope.getQuery(
+      'ToolService.allBySite',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     var collection = snapshot.docs
         .map((snap) {
           return Tool.fromJson(jsonDecode(jsonEncode(snap.data())));

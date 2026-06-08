@@ -4,7 +4,10 @@ import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/models/menu_item_model.dart';
 import 'package:spas_web/services/access_control.dart';
 import '../const.dart';
+import '../model.dart';
 import '../services/authentication.dart';
+import '../services/tenant_options.dart';
+import '../services/tenant_scope.dart';
 
 class PageModel extends StatefulWidget {
   const PageModel({
@@ -25,6 +28,8 @@ class PageModel extends StatefulWidget {
 class _PageModelState extends State<PageModel>
     with SingleTickerProviderStateMixin {
   bool _showDrawer = false;
+  bool _loadingTenants = true;
+  List<Tenant> _tenants = TenantOptions.fallback;
   late AnimationController _animationController;
   late Animation<double> _drawerAnimation;
 
@@ -42,6 +47,18 @@ class _PageModelState extends State<PageModel>
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
+    _loadTenants();
+  }
+
+  Future<void> _loadTenants() async {
+    final tenants =
+        await TenantOptions.load(includeTenantId: TenantScope.selectedTenantId);
+    if (!mounted) return;
+
+    setState(() {
+      _tenants = tenants;
+      _loadingTenants = false;
+    });
   }
 
   @override
@@ -88,6 +105,10 @@ class _PageModelState extends State<PageModel>
       ),
       actions: [
         const Text("V21/05/2026"),
+        if (AccessControl.canBypassTenantFilter) ...[
+          const SizedBox(width: 12),
+          _buildTenantFilter(),
+        ],
         Sos(),
         const SizedBox(width: 16),
         _buildUserInfo(),
@@ -95,6 +116,51 @@ class _PageModelState extends State<PageModel>
         _buildLogoutButton(context),
         const SizedBox(width: 16),
       ],
+    );
+  }
+
+  Widget _buildTenantFilter() {
+    if (_loadingTenants) {
+      return const SizedBox(
+        width: 120,
+        child: LinearProgressIndicator(color: Colors.white),
+      );
+    }
+
+    return Container(
+      constraints: const BoxConstraints(maxWidth: 180),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withOpacity(0.12),
+        borderRadius: BorderRadius.circular(20),
+        border: Border.all(color: Colors.white.withOpacity(0.22)),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: TenantScope.selectedTenantId,
+          dropdownColor: AppConstants.primaryColor,
+          iconEnabledColor: Colors.white,
+          isExpanded: true,
+          style: const TextStyle(color: Colors.white, fontSize: 13),
+          items: [
+            const DropdownMenuItem<String?>(
+              value: null,
+              child: Text('Tous pays'),
+            ),
+            ..._tenants.map(
+              (tenant) => DropdownMenuItem<String?>(
+                value: tenant.id,
+                child: Text(tenant.label),
+              ),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              TenantScope.selectedTenantId = value;
+            });
+          },
+        ),
+      ),
     );
   }
 

@@ -9,6 +9,7 @@ import '../pdf/api/pdf_api.dart';
 import '../services/export.dart';
 import '../services/supervisor.dart';
 import '../services/site.dart';
+import '../services/tenant_scope.dart';
 import '../services/zone.dart';
 import '../model.dart';
 import '../pointage_redesign/providers/pointage_provider.dart';
@@ -1103,20 +1104,23 @@ class _PointageSiteListState extends State<PointageSiteList> {
   }) async {
     final collection = FirebaseFirestore.instance.collection('sitePointings');
     
-    Query query = collection
+    Query query = TenantScope.applyToQuery(collection)
         .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
         .where('datetimestamp', isLessThan: endDate)
         .orderBy('datetimestamp', descending: true);
 
     if (supervisorUID != null) {
-      query = collection
+      query = TenantScope.applyToQuery(collection)
           .where('supervisor.UID', isEqualTo: supervisorUID)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate)
           .orderBy('datetimestamp', descending: true);
     }
 
-    final snapshot = await query.get();
+    final snapshot = await TenantScope.getQuery(
+      'PointageSiteList.fetchPointagesForPeriod',
+      query,
+    );
     
     return snapshot.docs.map((doc) {
       final data = doc.data() as Map<String, dynamic>;

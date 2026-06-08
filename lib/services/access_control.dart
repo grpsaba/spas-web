@@ -1,18 +1,35 @@
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/authentication.dart';
 
-/// Centralise les règles de visibilité UI selon le profil du manager connecté.
+/// Centralise les regles de visibilite UI selon le profil du manager connecte.
 ///
-/// Cette classe ne remplace pas des règles de sécurité backend/Firestore :
-/// elle sert uniquement à masquer ou afficher les éléments de l'interface.
+/// Cette classe ne remplace pas les regles de securite backend/Firestore :
+/// elle sert uniquement a masquer ou afficher les elements de l'interface.
 class AccessControl {
   static const String administratorProfileName = 'Administrateur';
+  static const String generalDirectorProfileName = 'Directeur General';
 
   static Manager? get _manager => AuthService.currentManager;
 
+  static String get _normalizedProfileName =>
+      normalizeProfileNameForAccess(_manager?.profil?.name);
+
   static bool get isAdministrator {
-    final profileName = _manager?.profil?.name.trim().toLowerCase();
-    return profileName == administratorProfileName.toLowerCase();
+    return _normalizedProfileName ==
+        normalizeProfileNameForAccess(administratorProfileName);
+  }
+
+  static bool get isGeneralDirector {
+    return _normalizedProfileName ==
+        normalizeProfileNameForAccess(generalDirectorProfileName);
+  }
+
+  static bool get canBypassTenantFilter {
+    return isAdministrator || isGeneralDirector;
+  }
+
+  static String get currentTenantId {
+    return _manager?.tenantId ?? TenantDefaults.defaultTenantId;
   }
 
   static bool canView(ModuleName moduleName) {

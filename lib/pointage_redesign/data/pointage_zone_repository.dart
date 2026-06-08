@@ -5,6 +5,7 @@ import '../models/pagination_models.dart';
 import '../models/pointage_zone_stats.dart';
 import '../models/pointage_exception.dart';
 import '../../model.dart';
+import '../../services/tenant_scope.dart';
 
 /// Repository for accessing zone pointage data with server-side operations
 /// 
@@ -48,6 +49,7 @@ class PointageZoneRepository {
         fromFirestore: (snapshot, _) => snapshot.data() ?? {},
         toFirestore: (data, _) => data,
       );
+      query = TenantScope.applyToQuery(query);
 
       // Apply filters if provided
       if (filters != null && !filters.isEmpty) {
@@ -59,7 +61,10 @@ class PointageZoneRepository {
       query = query.orderBy(sort, descending: !sortAscending);
 
       // Get total count first (for pagination metadata)
-      final countSnapshot = await query.count().get();
+      final countSnapshot = await TenantScope.getCount(
+        'PointageZoneRepository.getPointages.count',
+        query.count(),
+      );
       final totalCount = countSnapshot.count ?? 0;
 
       // Generate cursor key for this query configuration
@@ -80,7 +85,10 @@ class PointageZoneRepository {
           if (offset > 0) {
             // Fetch documents up to the offset to get the cursor
             final tempQuery = query.limit(offset);
-            final tempSnapshot = await tempQuery.get();
+            final tempSnapshot = await TenantScope.getQuery(
+              'PointageZoneRepository.getPointages.cursor',
+              tempQuery,
+            );
             if (tempSnapshot.docs.isNotEmpty) {
               query = query.startAfterDocument(tempSnapshot.docs.last);
             }
@@ -92,7 +100,10 @@ class PointageZoneRepository {
       query = query.limit(pageSize);
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageZoneRepository.getPointages',
+        query,
+      );
 
       // Cache the last document as cursor for next page
       if (snapshot.docs.isNotEmpty) {
@@ -165,6 +176,7 @@ class PointageZoneRepository {
       'page_$page',
       'size_$pageSize',
       'sort_${sortField ?? 'date'}_${sortAscending ? 'asc' : 'desc'}',
+      'tenant_${TenantScope.shouldFilterTenant ? TenantScope.currentTenantId : 'all'}',
     ];
     
     if (filters != null && !filters.isEmpty) {
@@ -191,7 +203,7 @@ class PointageZoneRepository {
   }) async {
     try {
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
 
@@ -203,7 +215,10 @@ class PointageZoneRepository {
       }
 
       // Get all documents (we need to group by zone member)
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageZoneRepository.countPointagesByZoneMember',
+        query,
+      );
       
       // Count by zone member
       final Map<String, int> counts = {};
@@ -250,7 +265,7 @@ class PointageZoneRepository {
   }) async {
     try {
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
 
@@ -262,7 +277,10 @@ class PointageZoneRepository {
       }
 
       // Get all documents (we need to group by zone)
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageZoneRepository.countPointagesByZone',
+        query,
+      );
       
       // Count by zone
       final Map<String, int> counts = {};
@@ -311,12 +329,15 @@ class PointageZoneRepository {
   }) async {
     try {
       // Build query for date range
-      final query = _collectionReference
+      final query = TenantScope.applyToQuery(_collectionReference)
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
 
       // Get all documents for the period
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageZoneRepository.getStats',
+        query,
+      );
       
       // Calculate statistics
       final Set<String> uniqueZones = {};
@@ -401,13 +422,17 @@ class PointageZoneRepository {
       )
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
+      query = TenantScope.applyToQuery(query);
 
       // Apply additional filters if provided
       if (filters != null && !filters.isEmpty) {
         query = filters.applyToZoneQuery(query);
       }
 
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageZoneRepository.getAllPointages',
+        query,
+      );
       
       final List<PointingZone> pointages = [];
       for (var doc in snapshot.docs) {

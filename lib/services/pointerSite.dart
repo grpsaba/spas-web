@@ -4,12 +4,14 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class PointingSiteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("sitePointings");
   Future<void> add(PointingSite point) async {
     try {
+      TenantScope.applyTenantIdForWrite(point);
       // Utiliser un ID unique basé sur le superviseur, site et date
       String child =
           "${point.supervisor?.UID}_${point.site.UID}_${point.date.year}-${point.date.month}-${point.date.day}-${point.date.hour}";
@@ -25,16 +27,20 @@ class PointingSiteService {
     DateTime startOfDay = DateTime(now.year, now.month, now.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    return _collectionReference
-        .where('datetimestamp', isGreaterThanOrEqualTo: startOfDay)
-        .where('datetimestamp', isLessThan: endOfDay)
-        .snapshots();
+    return TenantScope.watchQuery(
+      'PointingSiteService.all',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('datetimestamp', isGreaterThanOrEqualTo: startOfDay)
+          .where('datetimestamp', isLessThan: endOfDay),
+    );
   }
 
   Stream<QuerySnapshot> allBySupervisor({required Supervisor supervisor}) {
-    return _collectionReference
-        .where('supervisor.UID', isEqualTo: supervisor.UID)
-        .snapshots();
+    return TenantScope.watchQuery(
+      'PointingSiteService.allBySupervisor',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('supervisor.UID', isEqualTo: supervisor.UID),
+    );
   }
 
   //Get For today made By BG
@@ -43,11 +49,13 @@ class PointingSiteService {
     DateTime startOfDay = DateTime(now.year, now.month, now.day);
     DateTime endOfDay = startOfDay.add(const Duration(days: 1));
 
-    return _collectionReference
-        .where('supervisor.UID', isEqualTo: supervisor.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: startOfDay)
-        .where('datetimestamp', isLessThan: endOfDay)
-        .snapshots();
+    return TenantScope.watchQuery(
+      'PointingSiteService.allTodayBySupervisor',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('supervisor.UID', isEqualTo: supervisor.UID)
+          .where('datetimestamp', isGreaterThanOrEqualTo: startOfDay)
+          .where('datetimestamp', isLessThan: endOfDay),
+    );
   }
 
   // Nouvelle méthode avec filtre de date personnalisé
@@ -56,12 +64,14 @@ class PointingSiteService {
     required DateTime startDate,
     required DateTime endDate,
   }) {
-    return _collectionReference
-        .where('supervisor.UID', isEqualTo: supervisor.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
-        .where('datetimestamp', isLessThan: endDate)
-        .orderBy('datetimestamp', descending: true)
-        .snapshots();
+    return TenantScope.watchQuery(
+      'PointingSiteService.allBySupervisorWithDateFilter',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('supervisor.UID', isEqualTo: supervisor.UID)
+          .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
+          .where('datetimestamp', isLessThan: endDate)
+          .orderBy('datetimestamp', descending: true),
+    );
   }
 
   // Méthode optimisée pour obtenir les statistiques directement depuis Firebase
@@ -76,11 +86,13 @@ class PointingSiteService {
       startDate = DateTime(now.year, now.month, 1);
       endDate = startDate.add(const Duration(days: 31));
     }
-    return _collectionReference
-        .where('supervisor.UID', isEqualTo: supervisor.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
-        .where('datetimestamp', isLessThan: endDate)
-        .snapshots();
+    return TenantScope.watchQuery(
+      'PointingSiteService.getPointingStatsBySupervisor',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('supervisor.UID', isEqualTo: supervisor.UID)
+          .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
+          .where('datetimestamp', isLessThan: endDate),
+    );
   }
 
   Future<DocumentSnapshot<Object?>> one(child) {
@@ -88,6 +100,7 @@ class PointingSiteService {
   }
 
   Future<void> update(PointingSite point) {
+    TenantScope.applyTenantIdForWrite(point);
     String child =
         "${point.site.UID}${point.date.year}${point.date.month}${point.date.day}";
     return _collectionReference.doc(child).update(point.toJson());
@@ -95,7 +108,10 @@ class PointingSiteService {
 
   Future<List<PointingSite>> allFuture() async {
     try {
-      var snpshot = await _collectionReference.get();
+      var snpshot = await TenantScope.getQuery(
+        'PointingSiteService.allFuture',
+        TenantScope.applyToQuery(_collectionReference),
+      );
       List<PointingSite> data = snpshot.docs
           .map((QueryDocumentSnapshot e) =>
               PointingSite.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -113,14 +129,17 @@ class PointingSiteService {
     try {
       final start = DateTime(date.year, date.month, date.day);
       final end = start.add(const Duration(days: 1));
-      final query = _collectionReference
+      final query = TenantScope.applyToQuery(_collectionReference)
           .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisorUID),
               Filter('supervisor_2.UID', isEqualTo: supervisorUID)))
           .where('datetimestamp',
               isGreaterThanOrEqualTo: Timestamp.fromDate(start))
           .where('datetimestamp', isLessThan: Timestamp.fromDate(end));
       // Aggregation count() — server computes the count, returns a single int.
-      final agg = await query.count().get();
+      final agg = await TenantScope.getCount(
+        'PointingSiteService.countForSupervisorOnDate',
+        query.count(),
+      );
       return agg.count;
     } catch (exception) {
       print(exception);
@@ -133,7 +152,10 @@ class PointingSiteService {
     try {
       DateTime _debut = DateTime.now().subtract(const Duration(days: 1));
       DateTime _fin = DateTime.now().add(const Duration(days: 1));
-      var snapshot = await _collectionReference.get();
+      var snapshot = await TenantScope.getQuery(
+        'PointingSiteService.nbSiteCheckedToDAyBySupervisor',
+        TenantScope.applyToQuery(_collectionReference),
+      );
       var collection = snapshot.docs.map((snap) {
         return PointingSite.fromJson(jsonDecode(jsonEncode(snap.data())));
       }).toList();

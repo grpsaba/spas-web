@@ -5,12 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spas_web/model.dart';
 
 import 'authentication.dart';
+import 'tenant_scope.dart';
 
 class SiteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Sites");
 
   Future<User?> add(Site site, password) async {
+    TenantScope.applyTenantIdForWrite(site);
     var user = await AuthService().createUserWithEmail(site.email, password);
     if (user != null) {
       site.UID = user.uid;
@@ -23,27 +25,38 @@ class SiteService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'SiteService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Stream<QuerySnapshot> allSos() {
-    return _collectionReference
-        .where(Filter.and(
-            Filter('sos', isEqualTo: true), Filter('actif', isEqualTo: true)))
-        .snapshots();
+    return TenantScope.watchQuery(
+      'SiteService.allSos',
+      TenantScope.applyToQuery(_collectionReference).where(Filter.and(
+          Filter('sos', isEqualTo: true), Filter('actif', isEqualTo: true))),
+    );
   }
   //  await _collectionReference.where('actif', isEqualTo: true,)
   //       .where(Filter.(Filter('supervisor.UID', isEqualTo: supervisor.UID),
   //        Filter('supervisor_2.UID', isEqualTo: supervisor.UID))).count().get();
 
   Stream<QuerySnapshot> allActifSite() {
-    return _collectionReference.where("actif", isEqualTo: true).snapshots();
+    return TenantScope.watchQuery(
+      'SiteService.allActifSite',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("actif", isEqualTo: true),
+    );
   }
 
   Future<List<Site>> allAsModel() async {
   try{
-      var snapshot =
-        await _collectionReference.where("actif", isEqualTo: true).get();
+      var snapshot = await TenantScope.getQuery(
+        'SiteService.allAsModel',
+        TenantScope.applyToQuery(_collectionReference)
+            .where("actif", isEqualTo: true),
+      );
     var collection = snapshot.docs.map((snap) {
       return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
@@ -55,8 +68,11 @@ class SiteService {
   }}
 
   Future<List<Site>> allActifAsModel() async {
-    var snapshot =
-        await _collectionReference.where("actif", isEqualTo: true).get();
+    var snapshot = await TenantScope.getQuery(
+      'SiteService.allActifAsModel',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("actif", isEqualTo: true),
+    );
     var collection = snapshot.docs.map((snap) {
       return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
@@ -65,10 +81,12 @@ class SiteService {
   }
 
   Future<List<Site>> allSitesByZone(Zone zone) async {
-    var s1 = await _collectionReference
-        .where("zone.codeZone", isEqualTo: zone.codeZone)
-        .where("actif", isEqualTo: true)
-        .get();
+    var s1 = await TenantScope.getQuery(
+      'SiteService.allSitesByZone',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("zone.codeZone", isEqualTo: zone.codeZone)
+          .where("actif", isEqualTo: true),
+    );
 
     var s1Future = s1.docs.map((snap) {
       return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
@@ -78,11 +96,13 @@ class SiteService {
   }
 
   Future<int?> allSitesCountByZone(Zone zone) async {
-    var s1 = await _collectionReference
-        .where("zone.codeZone", isEqualTo: zone.codeZone)
-        .where("actif", isEqualTo: true)
-        .count()
-        .get();
+    var s1 = await TenantScope.getCount(
+      'SiteService.allSitesCountByZone',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("zone.codeZone", isEqualTo: zone.codeZone)
+          .where("actif", isEqualTo: true)
+          .count(),
+    );
 
     return s1.count;
   }
@@ -91,15 +111,17 @@ class SiteService {
     if (supervisor.isSpecial && supervisor.zone != null) {
       return await allSitesCountByZone(supervisor.zone!);
     }
-    var snapshot = await _collectionReference
-        .where(
-          'actif',
-          isEqualTo: true,
-        )
-        .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisor.UID),
-            Filter('supervisor_2.UID', isEqualTo: supervisor.UID)))
-        .count()
-        .get();
+    var snapshot = await TenantScope.getCount(
+      'SiteService.allSitesCountBySupervisor',
+      TenantScope.applyToQuery(_collectionReference)
+          .where(
+            'actif',
+            isEqualTo: true,
+          )
+          .where(Filter.or(Filter('supervisor.UID', isEqualTo: supervisor.UID),
+              Filter('supervisor_2.UID', isEqualTo: supervisor.UID)))
+          .count(),
+    );
 
     return snapshot.count;
   }
@@ -108,8 +130,11 @@ class SiteService {
     if (supervisor.isSpecial && supervisor.zone != null) {
       return await allSitesByZone(supervisor.zone!);
     }
-    var snapshot =
-        await _collectionReference.where('actif', isEqualTo: true).get();
+    var snapshot = await TenantScope.getQuery(
+      'SiteService.allBySupervisor',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('actif', isEqualTo: true),
+    );
     var collection = snapshot.docs
         .map((snap) {
           return Site.fromJson(snap.data() as Map<String, dynamic>);
@@ -125,10 +150,12 @@ class SiteService {
   }
 
   Future<List<Site>> allByZone(Zone zone) async {
-    var snapshot = await _collectionReference
-        .where('zone.codeZone', isEqualTo: zone.codeZone)
-        .where('actif', isEqualTo: true)
-        .get();
+    var snapshot = await TenantScope.getQuery(
+      'SiteService.allByZone',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('zone.codeZone', isEqualTo: zone.codeZone)
+          .where('actif', isEqualTo: true),
+    );
     var collection = snapshot.docs.map((snap) {
       return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
     }).toList();
@@ -148,6 +175,7 @@ class SiteService {
 
   Future<void> update(Site site) async {
     try {
+      TenantScope.applyTenantIdForWrite(site);
       await _collectionReference.doc(site.UID).update(site.toJson());
     } catch (e) {
       print("Erreur lors de la mise à jour du site : $e");

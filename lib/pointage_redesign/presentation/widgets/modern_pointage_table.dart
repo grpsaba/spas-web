@@ -190,7 +190,6 @@ class ModernPointageTable extends StatelessWidget {
       final index = entry.key;
       final pointage = entry.value;
       final isEven = index % 2 == 0;
-      if (pointage.agentPhotoUrl != null) print(pointage.agentPhotoUrl);
       return DataRow(
         color: WidgetStateProperty.resolveWith<Color>(
           (Set<WidgetState> states) {

@@ -6,9 +6,11 @@ import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/home.dart';
 
 import '../model.dart';
+import '../services/access_control.dart';
 import '../services/loading.dart';
 import '../services/manager.dart';
 import '../services/profil.dart';
+import '../services/tenant_options.dart';
 
 class AddManager extends StatefulWidget {
   const AddManager({super.key, required this.manager});
@@ -29,6 +31,9 @@ class _AddSupervisorState extends State<AddManager> {
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
   bool _obscurePass = true;
   bool _adding = false;
+  bool _loadingTenants = true;
+  List<Tenant> _tenants = TenantOptions.fallback;
+  String? _selectedTenantId;
 
   @override
   void initState() {
@@ -39,6 +44,12 @@ class _AddSupervisorState extends State<AddManager> {
     _firstName_ctrl.text = widget.manager.firstName;
     _lastName_ctrl.text = widget.manager.lastName;
     _phone_ctrl.text = widget.manager.phone;
+    _selectedTenantId =
+        widget.manager.hasTenantId ? widget.manager.tenantId : null;
+    if (!AccessControl.canBypassTenantFilter) {
+      _selectedTenantId = AccessControl.currentTenantId;
+    }
+    _loadTenants();
   }
 
   @override
@@ -52,6 +63,91 @@ class _AddSupervisorState extends State<AddManager> {
 
     _email_ctrl.dispose();
     _pass_ctrl.dispose();
+  }
+
+  Future<void> _loadTenants() async {
+    final tenants = await TenantOptions.load(includeTenantId: _selectedTenantId);
+    if (!mounted) return;
+
+    setState(() {
+      _tenants = AccessControl.canBypassTenantFilter
+          ? tenants
+          : tenants
+              .where((tenant) => tenant.id == AccessControl.currentTenantId)
+              .toList();
+      if (_tenants.isEmpty) {
+        _tenants = [
+          Tenant(
+            id: AccessControl.currentTenantId,
+            label: AccessControl.currentTenantId.toUpperCase(),
+            countryCode: AccessControl.currentTenantId.toUpperCase(),
+          ),
+        ];
+      }
+      _loadingTenants = false;
+    });
+  }
+
+  bool get _selectedProfileCanBypassTenant {
+    return canBypassTenantForProfile(widget.manager.profil);
+  }
+
+  Widget _buildTenantField() {
+    if (_loadingTenants) {
+      return Loading(size: 28, inline: true);
+    }
+
+    final items = <DropdownMenuItem<String?>>[
+      if (_selectedProfileCanBypassTenant && AccessControl.canBypassTenantFilter)
+        const DropdownMenuItem<String?>(
+          value: null,
+          child: Text('Tous les pays'),
+        ),
+      ..._tenants.map(
+        (tenant) => DropdownMenuItem<String?>(
+          value: tenant.id,
+          child: Text(tenant.label),
+        ),
+      ),
+    ];
+
+    return DropdownButtonFormField<String?>(
+      value: _selectedTenantId,
+      hint: const Text('Pays'),
+      decoration: const InputDecoration(
+        hintText: 'Pays',
+        border: OutlineInputBorder(),
+        prefixIcon: Icon(Icons.public),
+      ),
+      validator: (value) {
+        if (_selectedProfileCanBypassTenant) return null;
+        return value != null && value.trim().isNotEmpty
+            ? null
+            : 'Pays obligatoir';
+      },
+      isExpanded: true,
+      items: items,
+      onChanged: AccessControl.canBypassTenantFilter
+          ? (value) {
+              setState(() {
+                _selectedTenantId = value;
+              });
+            }
+          : null,
+      onSaved: (value) {
+        _selectedTenantId = value;
+      },
+    );
+  }
+
+  void _applyTenantToManager() {
+    final tenantId = _selectedTenantId?.trim();
+    widget.manager.hasTenantId = tenantId != null && tenantId.isNotEmpty;
+    if (widget.manager.hasTenantId) {
+      widget.manager.tenantId = tenantId!;
+    } else {
+      widget.manager.tenantId = TenantDefaults.defaultTenantId;
+    }
   }
 
   @override
@@ -159,7 +255,17 @@ class _AddSupervisorState extends State<AddManager> {
                                   value: profil, child: Text(profil.name)))
                               .toList(),
                           onChanged: (value) {
-                            widget.manager.profil = value;
+                            setState(() {
+                              widget.manager.profil = value;
+                              if (canBypassTenantForProfile(value)) {
+                                _selectedTenantId = null;
+                              } else {
+                                _selectedTenantId ??=
+                                    AccessControl.canBypassTenantFilter
+                                        ? null
+                                        : AccessControl.currentTenantId;
+                              }
+                            });
                           },
                           onSaved: (value) {
                             widget.manager.profil = value;
@@ -170,6 +276,10 @@ class _AddSupervisorState extends State<AddManager> {
                             "Chargements des profils en cours...");
                       }
                     }),
+                const SizedBox(
+                  height: 20,
+                ),
+                _buildTenantField(),
                 const SizedBox(
                   height: 20,
                 ),
@@ -236,6 +346,7 @@ class _AddSupervisorState extends State<AddManager> {
                                 widget.manager.lastName = _lastName_ctrl.text;
                                 widget.manager.email = _email_ctrl.text;
                                 widget.manager.phone = _phone_ctrl.text;
+                                _applyTenantToManager();
 
                                 if (_key.currentState!.validate()) {
                                   setState(() {

@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/pointage_exception.dart';
+import '../../services/tenant_scope.dart';
 
 /// Service for optimized aggregation queries on pointage data
 ///
@@ -49,7 +50,7 @@ class AggregationService {
       }
 
       // Build query for all supervisors and date range
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -59,7 +60,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateBySupervisorAndDay',
+        query,
+      );
 
       // Process results and group by supervisor and day
       for (var doc in snapshot.docs) {
@@ -181,7 +185,7 @@ class AggregationService {
       }
 
       // Build query for all supervisors and date range
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -191,7 +195,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateUniqueSitesBySupervisorAndDay',
+        query,
+      );
 
       // Process results and deduplicate by site per supervisor/day
       for (var doc in snapshot.docs) {
@@ -299,7 +306,7 @@ class AggregationService {
   }) async {
     try {
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -309,7 +316,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateBySiteAndPeriod',
+        query,
+      );
 
       // Aggregate by site
       final Map<String, int> result = {};
@@ -368,12 +378,15 @@ class AggregationService {
   }) async {
     try {
       // Build query
-      final query = _collectionReference
+      final query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.getGlobalStats',
+        query,
+      );
 
       // Calculate statistics
       final Set<String> uniqueSites = {};
@@ -490,7 +503,7 @@ class AggregationService {
       final end = start.add(const Duration(days: 1));
 
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: start)
           .where('datetimestamp', isLessThan: end);
 
@@ -500,7 +513,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.batchCountBySupervisorOnDate',
+        query,
+      );
 
       // Count by supervisor
       final Map<String, int> counts = {};
@@ -582,7 +598,7 @@ class AggregationService {
       final zonePointingsRef =
           FirebaseFirestore.instance.collection("zonePointings");
 
-      Query query = zonePointingsRef
+      Query query = TenantScope.applyToQuery(zonePointingsRef)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -592,7 +608,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateByZoneMemberAndDay',
+        query,
+      );
 
       // Process results and group by zone member and day
       for (var doc in snapshot.docs) {
