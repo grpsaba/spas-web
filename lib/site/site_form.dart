@@ -56,6 +56,17 @@ class _AddSupervisorState extends State<AddSite> {
     }
   }
 
+  Zone? _findSelectedZone(List<Zone> zones) {
+    final selectedCode = widget.site.zone?.codeZone.trim();
+    if (selectedCode == null || selectedCode.isEmpty) return null;
+
+    for (final zone in zones) {
+      if (zone.codeZone == selectedCode) return zone;
+    }
+
+    return null;
+  }
+
   @override
   void initState() {
     // TODO: implement initState
@@ -155,36 +166,41 @@ class _AddSupervisorState extends State<AddSite> {
                               var docs = snapshot.data?.docs
                                   .map((e) => jsonDecode(jsonEncode(e.data())))
                                   .toList();
-                              List<Zone>? data =
-                                  docs?.map((e) => Zone.fromJson(e)).toList();
+                              final data =
+                                  docs?.map((e) => Zone.fromJson(e)).toList() ??
+                                      <Zone>[];
+                              final selectedZone = _findSelectedZone(data);
 
                               return DropdownButtonFormField<Zone>(
                                 hint: const Text("Zone"),
-                                decoration: const InputDecoration(
+                                decoration: InputDecoration(
                                     hintText: "Zone",
-                                    border: OutlineInputBorder(),
-                                    prefixIcon: Icon(Icons.apartment)),
+                                    helperText: data.isEmpty
+                                        ? "Aucune zone disponible pour ce pays"
+                                        : null,
+                                    border: const OutlineInputBorder(),
+                                    prefixIcon: const Icon(Icons.apartment)),
                                 validator: (value) {
+                                  if (data.isEmpty) {
+                                    return "Creez d'abord une zone";
+                                  }
                                   return value != null
                                       ? null
                                       : "Zone obligatoir";
                                 },
                                 isExpanded: true,
-                                value: data
-                                    ?.where((element) => element.codeZone
-                                        .contains(
-                                            widget.site.zone?.codeZone ?? ""))
-                                    .toList()
-                                    .first,
+                                value: selectedZone,
                                 items: data
-                                    ?.map((Zone zone) => DropdownMenuItem<Zone>(
+                                    .map((Zone zone) => DropdownMenuItem<Zone>(
                                         value: zone, child: Text(zone.name)))
                                     .toList(),
-                                onChanged: (value) {
-                                  widget.site.zone = value!;
-                                },
+                                onChanged: data.isEmpty
+                                    ? null
+                                    : (value) {
+                                        widget.site.zone = value;
+                                      },
                                 onSaved: (value) {
-                                  widget.site.zone = value!;
+                                  widget.site.zone = value;
                                 },
                               );
                             } else {

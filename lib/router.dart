@@ -29,6 +29,7 @@ import 'package:spas_web/supervisor/supervisor_list.dart';
 import 'package:spas_web/supervisor/supervisor_maps.dart';
 import 'package:spas_web/supervisor/supervisor_tracker.dart';
 import 'package:spas_web/supervisor/supervisors_location.dart';
+import 'package:spas_web/tenant/tenant_list.dart';
 import 'package:spas_web/tools/checklist.dart';
 import 'package:spas_web/tools/tool_form.dart';
 import 'package:spas_web/tools/tool_list.dart';
@@ -384,5 +385,10 @@ GoRouter routeConfig = GoRouter(
         name: "configuration mobile",
         path: "/mobile-config",
         builder: (context, state) => const MobileConfigPage(),
+      ),
+      GoRoute(
+        name: "gestion des pays",
+        path: "/tenants",
+        builder: (context, state) => const TenantListPage(),
       ),
     ]);

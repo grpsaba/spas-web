@@ -243,9 +243,10 @@ class _PageModelState extends State<PageModel>
     final isTablet = screenWidth > 768 && screenWidth <= 1200;
     final isLarge = isDesktop || isTablet;
 
-    final visibleMenuItems = MenuItemModel.menuItems
-        .where((item) => AccessControl.canView(item.moduleName))
-        .toList();
+    final visibleMenuItems = MenuItemModel.menuItems.where((item) {
+      if (item.adminOnly) return AccessControl.canBypassTenantFilter;
+      return AccessControl.canView(item.moduleName);
+    }).toList();
 
     return AnimatedBuilder(
       animation: _drawerAnimation,

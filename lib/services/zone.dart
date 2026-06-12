@@ -11,10 +11,7 @@ class ZoneService {
 
   Future<void> add(Zone zone) async {
     TenantScope.applyTenantIdForWrite(zone);
-    _collectionReference
-        .doc(zone.codeZone)
-        .set(zone.toJson())
-        .onError((error, stackTrace) => print(error));
+    await _collectionReference.doc(zone.codeZone).set(zone.toJson());
   }
 
   Stream<QuerySnapshot> all() {

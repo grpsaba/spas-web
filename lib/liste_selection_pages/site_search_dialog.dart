@@ -69,12 +69,10 @@ class _SupervisorListState extends State<SiteSearchDialog> {
                     }
                     if (snapshot.hasData) {
                       var docs = snapshot.data?.docs
-                          .map((e) => jsonDecode(jsonEncode(e.data())))
+                          .map((e) => e.data())
                           .toList();
-                      var lst = jsonDecode(jsonEncode(docs));
-                      //Map<String, dynamic> lstCast = Map<String, dynamic>.from(lst);
 
-                      var data = docs?.map((e) => Site.fromJson(e)).toList();
+                      var data = docs?.map((e) => Site.fromJson(e as Map<String, dynamic>)).toList();
                       data = data
                           ?.where((element) => element.name
                               .toLowerCase()

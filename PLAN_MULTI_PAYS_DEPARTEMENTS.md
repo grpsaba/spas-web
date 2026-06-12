@@ -48,9 +48,57 @@ tenants/{tenantId}
   label: "Mali"
   countryCode: "ML"
   active: true
+  pointageMode: "photo"
 ```
 
 Cette collection sert surtout a alimenter les listes de choix avant connexion mobile et backoffice.
+
+## Mode de pointage par tenant
+
+Decision validee:
+
+```txt
+pointageMode
+```
+
+est la seule source de verite pour choisir le comportement du pointage site.
+
+Valeurs autorisees:
+
+```txt
+photo
+geo
+```
+
+Le mode `photo` implique:
+
+```txt
+photoRequired: true
+distanceRequired: false
+backgroundTrackingEnabled: false
+```
+
+Le mode `geo` implique:
+
+```txt
+photoRequired: false
+distanceRequired: true
+backgroundTrackingEnabled: true
+```
+
+On ne stocke donc pas `photoRequired`, `distanceRequired` et `backgroundTrackingEnabled` comme options libres par tenant, afin d'eviter des combinaisons incoherentes.
+
+Exemples:
+
+```txt
+tenants/ml
+  pointageMode: "photo"
+
+tenants/bf
+  pointageMode: "geo"
+```
+
+Le document global `app_config/global` peut rester utilise pour les reglages techniques globaux, par exemple `pointingPhotoQuality`. Le demarrage du tracking GPS background doit etre derive du `pointageMode` du tenant connecte.
 
 Regle importante:
 

@@ -8,6 +8,17 @@ class TenantDefaults {
   static const String defaultTenantId = maliTenantId;
 }
 
+class TenantPointageMode {
+  static const String photo = 'photo';
+  static const String geo = 'geo';
+
+  static String normalize(String? value) {
+    final mode = value?.trim().toLowerCase();
+    if (mode == geo) return geo;
+    return photo;
+  }
+}
+
 String normalizeProfileNameForAccess(String? value) {
   return (value ?? '')
       .trim()
@@ -87,12 +98,14 @@ class Tenant extends Equatable {
   final String label;
   final String countryCode;
   final bool active;
+  final String pointageMode;
 
   const Tenant({
     required this.id,
     required this.label,
     required this.countryCode,
     this.active = true,
+    this.pointageMode = TenantPointageMode.photo,
   });
 
   factory Tenant.fromJson(Map<String, dynamic> json) {
@@ -101,6 +114,7 @@ class Tenant extends Equatable {
       label: json['label'] ?? '',
       countryCode: json['countryCode'] ?? '',
       active: json['active'] ?? true,
+      pointageMode: TenantPointageMode.normalize(json['pointageMode']),
     );
   }
 
@@ -110,8 +124,12 @@ class Tenant extends Equatable {
       'label': label,
       'countryCode': countryCode,
       'active': active,
+      'pointageMode': pointageMode,
     };
   }
+
+  bool get usesPhotoPointing => pointageMode == TenantPointageMode.photo;
+  bool get usesGeoPointing => pointageMode == TenantPointageMode.geo;
 
   @override
   List<Object?> get props => [id];

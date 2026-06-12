@@ -25,12 +25,14 @@ class _AddZoneState extends State<AddZone> {
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
 
   bool _adding = false;
+  late final bool _isCreateMode;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
 
+    _isCreateMode = widget.zone.codeZone.isEmpty;
     _code_ctrl.text = widget.zone.codeZone;
     _name_ctrl.text = widget.zone.name;
 
@@ -88,7 +90,7 @@ class _AddZoneState extends State<AddZone> {
                   height: 20,
                 ),
                 TextFormField(
-                  readOnly: widget.zone.codeZone.isNotEmpty,
+                  readOnly: !_isCreateMode,
                   controller: _code_ctrl,
                   onChanged: (value) {
                     widget.zone.codeZone = value;
@@ -125,7 +127,7 @@ class _AddZoneState extends State<AddZone> {
                                   setState(() {
                                     _adding = true;
                                   });
-                                  if (widget.zone.codeZone.isEmpty) {
+                                  if (_isCreateMode) {
                                     ZoneService()
                                         .add(widget.zone)
                                         .then((value) {

@@ -204,6 +204,77 @@ class AgentService {
     }).toList();
   }
 
+  Future<List<Agent>> searchByPrefix({
+    required String query,
+    int limit = 100,
+    bool? actif,
+    String? agentTypeLabel,
+    String? departmentLabel,
+  }) async {
+    final rawQuery = query.trim();
+    final normalizedQuery = rawQuery.toLowerCase();
+    if (rawQuery.isEmpty) return <Agent>[];
+
+    final searchPlans = <_AgentSearchPlan>[
+      _AgentSearchPlan('code', _queryVariants(rawQuery, includeTitle: false)),
+      _AgentSearchPlan('firstName', _queryVariants(rawQuery)),
+      _AgentSearchPlan('lastName', _queryVariants(rawQuery)),
+      _AgentSearchPlan('phone', <String>{rawQuery}),
+    ];
+
+    final snapshots = await Future.wait(
+      searchPlans.expand((plan) {
+        return plan.terms.map((term) {
+          Query searchQuery = TenantScope.applyToQuery(_collectionReference);
+
+          if (actif != null) {
+            searchQuery = searchQuery.where('actif', isEqualTo: actif);
+          }
+
+          if (agentTypeLabel != null && agentTypeLabel.trim().isNotEmpty) {
+            searchQuery = searchQuery.where(
+              'AgentType.label',
+              isEqualTo: agentTypeLabel.trim(),
+            );
+          }
+
+          if (departmentLabel != null && departmentLabel.trim().isNotEmpty) {
+            searchQuery = searchQuery.where(
+              'department.label',
+              isEqualTo: departmentLabel.trim(),
+            );
+          }
+
+          searchQuery = searchQuery
+              .orderBy(plan.field)
+              .startAt(<String>[term])
+              .endAt(<String>['$term\uf8ff'])
+              .limit(limit);
+
+          return TenantScope.getQuery(
+            'AgentService.searchByPrefix.${plan.field}',
+            searchQuery,
+          );
+        });
+      }),
+    );
+
+    final agentsByCode = <String, Agent>{};
+    for (final snapshot in snapshots) {
+      for (final doc in snapshot.docs) {
+        final agent = _mapSnapshotToAgent(doc);
+        if (_matchesSearch(agent, normalizedQuery)) {
+          agentsByCode[agent.code] = agent;
+        }
+      }
+    }
+
+    final agents = agentsByCode.values.toList()
+      ..sort((a, b) => a.code.compareTo(b.code));
+
+    return agents.take(limit).toList();
+  }
+
   bool _matchesSearch(Agent agent, String normalizedQuery) {
     final values = <String>[
       agent.code,
@@ -219,6 +290,31 @@ class AgentService {
     return values.any(
       (value) => value.toLowerCase().contains(normalizedQuery),
     );
+  }
+
+  Set<String> _queryVariants(String value, {bool includeTitle = true}) {
+    final trimmed = value.trim();
+    if (trimmed.isEmpty) return <String>{};
+
+    final variants = <String>{
+      trimmed,
+      trimmed.toUpperCase(),
+      trimmed.toLowerCase(),
+    };
+
+    if (includeTitle) {
+      variants.add(
+        trimmed
+            .split(RegExp(r'\s+'))
+            .map((part) {
+              if (part.isEmpty) return part;
+              return part[0].toUpperCase() + part.substring(1).toLowerCase();
+            })
+            .join(' '),
+      );
+    }
+
+    return variants.where((variant) => variant.trim().isNotEmpty).toSet();
   }
 
   Agent _mapSnapshotToAgent(QueryDocumentSnapshot snapshot) {
@@ -246,6 +342,13 @@ class AgentService {
 
     return jsonDecode(jsonEncode(rawData)) as Map<String, dynamic>;
   }
+}
+
+class _AgentSearchPlan {
+  const _AgentSearchPlan(this.field, this.terms);
+
+  final String field;
+  final Set<String> terms;
 }
 
 class PaginatedAgentResult {

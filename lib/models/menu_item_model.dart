@@ -10,6 +10,7 @@ class MenuItemModel {
   final int index;
   final ModuleName moduleName;
   final bool isAssetCached;
+  final bool adminOnly;
 
   const MenuItemModel({
     this.icon,
@@ -19,6 +20,7 @@ class MenuItemModel {
     required this.index,
     required this.moduleName,
     this.isAssetCached = false,
+    this.adminOnly = false,
   });
 
   // Cache statique pour les assets
@@ -174,6 +176,14 @@ class MenuItemModel {
       route: "/mobile-config",
       index: 19,
       moduleName: ModuleName.MOBILE_CONFIG,
+    ),
+    MenuItemModel(
+      icon: Icons.public_rounded,
+      title: "Pays",
+      route: "/tenants",
+      index: 20,
+      moduleName: ModuleName.MANAGER,
+      adminOnly: true,
     ),
   ];
 

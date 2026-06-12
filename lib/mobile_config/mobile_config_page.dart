@@ -252,7 +252,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
                 ),
                 SizedBox(height: 4),
                 Text(
-                  'Absent ou non configure: actif par defaut sur mobile.',
+                  'Pilote par le mode de pointage du pays: geo active, photo desactive.',
                   style: TextStyle(color: Colors.black54, fontSize: 13),
                 ),
               ],
@@ -260,13 +260,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
           ),
           Switch(
             value: _backgroundTrackingEnabled,
-            onChanged: canEdit && !_isSaving
-                ? (value) {
-                    setState(() {
-                      _backgroundTrackingEnabled = value;
-                    });
-                  }
-                : null,
+            onChanged: null,
           ),
         ],
       ),

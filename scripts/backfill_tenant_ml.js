@@ -49,7 +49,7 @@ const DEFAULT_COLLECTIONS = [
 const args = parseArgs(process.argv.slice(2));
 const execute = Boolean(args.execute);
 const tenantId = args.tenant || DEFAULT_TENANT_ID;
-const pageSize = Number(args.pageSize || 500);
+const pageSize = Number(args.pageSize || 1000);
 const maxDocs = args.maxDocs ? Number(args.maxDocs) : null;
 const projectId = args.project || process.env.GCLOUD_PROJECT || undefined;
 const credentialsPath = args.credentials || process.env.GOOGLE_APPLICATION_CREDENTIALS;
@@ -57,7 +57,7 @@ const collections = args.collections
   ? args.collections.split(',').map((value) => value.trim()).filter(Boolean)
   : DEFAULT_COLLECTIONS;
 
-if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1000) {
+if (!Number.isInteger(pageSize) || pageSize < 1 || pageSize > 1001) {
   fail('--page-size must be an integer between 1 and 1000.');
 }
 

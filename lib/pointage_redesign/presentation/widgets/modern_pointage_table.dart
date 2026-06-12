@@ -1,3 +1,5 @@
+import 'dart:html' as html;
+
 import 'package:flutter/material.dart';
 import '../../../model.dart';
 import '../design_system.dart';
@@ -20,6 +22,12 @@ class TableSortConfig {
   }
 }
 
+enum PointageEvidenceMode {
+  photo,
+  distance,
+  both,
+}
+
 /// Modern table component for displaying pointages with hover effects and sorting
 class ModernPointageTable extends StatelessWidget {
   final List<PointingSite> pointages;
@@ -28,6 +36,7 @@ class ModernPointageTable extends StatelessWidget {
   final bool isLoading;
   final int? loadingRowCount;
   final Function(PointingSite)? onRowTap;
+  final PointageEvidenceMode evidenceMode;
 
   const ModernPointageTable({
     Key? key,
@@ -37,6 +46,7 @@ class ModernPointageTable extends StatelessWidget {
     this.isLoading = false,
     this.loadingRowCount = 10,
     this.onRowTap,
+    this.evidenceMode = PointageEvidenceMode.photo,
   }) : super(key: key);
 
   @override
@@ -110,19 +120,28 @@ class ModernPointageTable extends StatelessWidget {
       // Date (sortable)
       _buildSortableColumn('Date', 'datetimestamp'),
       // Heure (sortable - uses same field as Date)
-    //  _buildSortableColumn('Heure', 'datetimestamp'),
-      // Photo Agent (non-sortable) - replaces Distance
-      DataColumn(
-        label: Text(
-          'Photo Agent',
-          style: PointageTextStyles.label,
+      _buildSortableColumn('Heure', 'datetimestamp'),
+      if (evidenceMode == PointageEvidenceMode.distance ||
+          evidenceMode == PointageEvidenceMode.both)
+        DataColumn(
+          label: Text(
+            'Distance',
+            style: PointageTextStyles.label,
+          ),
         ),
-      ),
+      if (evidenceMode == PointageEvidenceMode.photo ||
+          evidenceMode == PointageEvidenceMode.both)
+        DataColumn(
+          label: Text(
+            'Photo Agent',
+            style: PointageTextStyles.label,
+          ),
+        ),
     ];
   }
 
   /// Get the column index for a given sort field
-  /// New column order: Superviseur(0), Site(1), Zone(2), Date(3), Heure(4), Photo Agent(5)
+  /// Column order: Superviseur(0), Site(1), Zone(2), Date(3), Heure(4), evidence columns after.
   int? _getSortColumnIndex(String field) {
     switch (field) {
       case 'datetimestamp':
@@ -265,107 +284,139 @@ class ModernPointageTable extends StatelessWidget {
             _buildDateChip(pointage.date),
           ),
           // Heure (column 4) - with colored chip
-          // DataCell(
-          //   _buildTimeChip(pointage.date),
-          // ),
-          // Photo Agent (column 5) - replaces Distance
           DataCell(
-            pointage.agentPhotoUrl != null
-                ? MouseRegion(
-                    cursor: SystemMouseCursors.click,
-                    child: GestureDetector(
-                      onTap: () => _showPhotoLightbox(
-                        tableContext,
-                        pointage.agentPhotoUrl!,
-                        '${pointage.supervisor?.firstName ?? ''} ${pointage.supervisor?.lastName ?? ''}',
-                        pointage.site.name,
-                      ),
-                      child: Tooltip(
-                        message: 'Cliquer pour agrandir la photo',
-                        child: Container(
-                          width: 36,
-                          height: 36,
-                          decoration: BoxDecoration(
-                            shape: BoxShape.circle,
-                            border: Border.all(
-                              color:
-                                  PointageColors.primary.withValues(alpha: 0.3),
-                              width: 2,
-                            ),
-                            boxShadow: [
-                              BoxShadow(
-                                color: PointageColors.primary
-                                    .withValues(alpha: 0.1),
-                                blurRadius: 4,
-                                offset: const Offset(0, 2),
-                              ),
-                            ],
-                          ),
-                          child: ClipOval(
-                            child: Image.network(
-                              pointage.agentPhotoUrl!,
-                              width: 36,
-                              height: 36,
-                              fit: BoxFit.cover,
-                              loadingBuilder:
-                                  (context, child, loadingProgress) {
-                                if (loadingProgress == null) return child;
-                                return Center(
-                                  child: SizedBox(
-                                    width: 16,
-                                    height: 16,
-                                    child: CircularProgressIndicator(
-                                      strokeWidth: 2,
-                                      value:
-                                          loadingProgress.expectedTotalBytes !=
-                                                  null
-                                              ? loadingProgress
-                                                      .cumulativeBytesLoaded /
-                                                  loadingProgress
-                                                      .expectedTotalBytes!
-                                              : null,
-                                      color: PointageColors.primary,
-                                    ),
-                                  ),
-                                );
-                              },
-                              errorBuilder: (context, error, stackTrace) {
-                                return const Icon(
-                                  Icons.broken_image_outlined,
-                                  size: 18,
-                                  color: PointageColors.error,
-                                );
-                              },
-                            ),
-                          ),
-                        ),
-                      ),
-                    ),
-                  )
-                : Row(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      Icon(
-                        Icons.no_photography_outlined,
-                        size: 16,
-                        color:
-                            PointageColors.textSecondary.withValues(alpha: 0.5),
-                      ),
-                      const SizedBox(width: 4),
-                      Text(
-                        'Pas de photo',
-                        style: PointageTextStyles.caption.copyWith(
-                          color: PointageColors.textSecondary
-                              .withValues(alpha: 0.6),
-                          fontStyle: FontStyle.italic,
-                        ),
-                      ),
-                    ],
-                  ),
+            _buildTimeChip(pointage.date),
           ),
+          if (evidenceMode == PointageEvidenceMode.distance ||
+              evidenceMode == PointageEvidenceMode.both)
+            DataCell(_buildDistanceCell(pointage.distance)),
+          if (evidenceMode == PointageEvidenceMode.photo ||
+              evidenceMode == PointageEvidenceMode.both)
+            DataCell(_buildPhotoCell(tableContext, pointage)),
         ],
       );
     }).toList();
+  }
+
+  Widget _buildDistanceCell(double distance) {
+    final roundedDistance = distance.isFinite ? distance.round() : 0;
+    final color = roundedDistance <= 500
+        ? PointageColors.success
+        : PointageColors.warning;
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.sm,
+        vertical: PointageSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: PointageBorderRadius.small,
+        border: Border.all(color: color.withValues(alpha: 0.25)),
+      ),
+      child: Text(
+        '$roundedDistance m',
+        style: PointageTextStyles.body2.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  Widget _buildPhotoCell(BuildContext tableContext, PointingSite pointage) {
+    return pointage.agentPhotoUrl != null
+        ? MouseRegion(
+            cursor: SystemMouseCursors.click,
+            child: GestureDetector(
+              onTap: () => _showPhotoLightbox(
+                tableContext,
+                pointage.agentPhotoUrl!,
+                '${pointage.supervisor?.firstName ?? ''} ${pointage.supervisor?.lastName ?? ''}',
+                pointage.site.name,
+              ),
+              child: Tooltip(
+                message: 'Cliquer pour agrandir la photo',
+                child: Container(
+                  width: 36,
+                  height: 36,
+                  decoration: BoxDecoration(
+                    shape: BoxShape.circle,
+                    border: Border.all(
+                      color: PointageColors.primary.withValues(alpha: 0.3),
+                      width: 2,
+                    ),
+                    boxShadow: [
+                      BoxShadow(
+                        color: PointageColors.primary.withValues(alpha: 0.1),
+                        blurRadius: 4,
+                        offset: const Offset(0, 2),
+                      ),
+                    ],
+                  ),
+                  child: ClipOval(
+                    child: Image.network(
+                      pointage.agentPhotoUrl!,
+                      width: 36,
+                      height: 36,
+                      fit: BoxFit.cover,
+                      loadingBuilder: (context, child, loadingProgress) {
+                        if (loadingProgress == null) return child;
+                        return Center(
+                          child: SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(
+                              strokeWidth: 2,
+                              value: loadingProgress.expectedTotalBytes != null
+                                  ? loadingProgress.cumulativeBytesLoaded /
+                                      loadingProgress.expectedTotalBytes!
+                                  : null,
+                              color: PointageColors.primary,
+                            ),
+                          ),
+                        );
+                      },
+                      errorBuilder: (context, error, stackTrace) {
+                        return Tooltip(
+                          message: 'Photo illisible ici. Ouvrir l original.',
+                          child: InkWell(
+                            onTap: () => html.window.open(
+                              pointage.agentPhotoUrl!,
+                              '_blank',
+                            ),
+                            child: const Icon(
+                              Icons.open_in_new,
+                              size: 18,
+                              color: PointageColors.error,
+                            ),
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          )
+        : Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.no_photography_outlined,
+                size: 16,
+                color: PointageColors.textSecondary.withValues(alpha: 0.5),
+              ),
+              const SizedBox(width: 4),
+              Text(
+                'Pas de photo',
+                style: PointageTextStyles.caption.copyWith(
+                  color: PointageColors.textSecondary.withValues(alpha: 0.6),
+                  fontStyle: FontStyle.italic,
+                ),
+              ),
+            ],
+          );
   }
 
   /// Build a colored chip for displaying the date
@@ -698,7 +749,7 @@ class _PhotoLightboxDialog extends StatelessWidget {
                       loadingBuilder: (context, child, loadingProgress) {
                         if (loadingProgress == null) return child;
                         return SizedBox(
-                          width: 300,
+                          width: 360,
                           height: 400,
                           child: Center(
                             child: Column(
@@ -726,7 +777,7 @@ class _PhotoLightboxDialog extends StatelessWidget {
                       },
                       errorBuilder: (context, error, stackTrace) {
                         return SizedBox(
-                          width: 300,
+                          width: 360,
                           height: 300,
                           child: Center(
                             child: Column(
@@ -739,7 +790,7 @@ class _PhotoLightboxDialog extends StatelessWidget {
                                 ),
                                 const SizedBox(height: PointageSpacing.md),
                                 Text(
-                                  'Impossible de charger la photo',
+                                  'Photo illisible dans l application',
                                   style: PointageTextStyles.body2.copyWith(
                                     color: Colors.white70,
                                   ),
@@ -750,6 +801,13 @@ class _PhotoLightboxDialog extends StatelessWidget {
                                   style: PointageTextStyles.caption.copyWith(
                                     color: Colors.white54,
                                   ),
+                                ),
+                                const SizedBox(height: PointageSpacing.md),
+                                ElevatedButton.icon(
+                                  onPressed: () =>
+                                      html.window.open(imageUrl, '_blank'),
+                                  icon: const Icon(Icons.open_in_new),
+                                  label: const Text('Ouvrir l original'),
                                 ),
                               ],
                             ),

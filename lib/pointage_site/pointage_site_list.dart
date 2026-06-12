@@ -9,6 +9,7 @@ import '../pdf/api/pdf_api.dart';
 import '../services/export.dart';
 import '../services/supervisor.dart';
 import '../services/site.dart';
+import '../services/tenant.dart';
 import '../services/tenant_scope.dart';
 import '../services/zone.dart';
 import '../model.dart';
@@ -39,6 +40,8 @@ class _PointageSiteListState extends State<PointageSiteList> {
   bool _isExporting = false;
   bool _isExportingExcel = false;
   bool _showStats = false;
+  PointageEvidenceMode _evidenceMode = PointageEvidenceMode.photo;
+  String? _loadedEvidenceTenantId;
   
   // Filter data
   List<Supervisor>? _availableSupervisors;
@@ -58,7 +61,35 @@ class _PointageSiteListState extends State<PointageSiteList> {
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _provider.loadPointages();
       _loadFilterData();
+      _loadEvidenceMode();
     });
+  }
+
+  Future<void> _loadEvidenceMode() async {
+    final tenantId = TenantScope.activeTenantFilterId;
+    _loadedEvidenceTenantId = tenantId;
+
+    if (tenantId == null || tenantId.trim().isEmpty) {
+      if (mounted) {
+        setState(() => _evidenceMode = PointageEvidenceMode.both);
+      }
+      return;
+    }
+
+    try {
+      final tenant = await TenantService().one(tenantId);
+      if (!mounted || _loadedEvidenceTenantId != tenantId) return;
+
+      setState(() {
+        _evidenceMode = tenant?.usesGeoPointing == true
+            ? PointageEvidenceMode.distance
+            : PointageEvidenceMode.photo;
+      });
+    } catch (error) {
+      debugPrint('Error loading tenant pointage mode: $error');
+      if (!mounted || _loadedEvidenceTenantId != tenantId) return;
+      setState(() => _evidenceMode = PointageEvidenceMode.photo);
+    }
   }
   
   /// Load available supervisors, sites, and zones for filtering
@@ -97,6 +128,13 @@ class _PointageSiteListState extends State<PointageSiteList> {
         title: "Pointages des sites",
         child: Consumer<PointageProvider>(
           builder: (context, provider, child) {
+            final activeTenantId = TenantScope.activeTenantFilterId;
+            if (activeTenantId != _loadedEvidenceTenantId) {
+              WidgetsBinding.instance.addPostFrameCallback((_) {
+                if (mounted) _loadEvidenceMode();
+              });
+            }
+
             return SingleChildScrollView(
               padding: const EdgeInsets.all(PointageSpacing.lg),
               child: Column(
@@ -133,14 +171,20 @@ class _PointageSiteListState extends State<PointageSiteList> {
                       child: ErrorDisplay(
                         customMessage: provider.error,
                         onRetry: () => provider.refreshData(),
-                        compact: true,
+                        compact: provider.pointages.isNotEmpty,
                       ),
                     ),
+
+                  if (provider.isLoading && provider.pointages.isNotEmpty) ...[
+                    const LinearProgressIndicator(minHeight: 3),
+                    const SizedBox(height: PointageSpacing.md),
+                  ],
                   
                   // Pointage Table
                   ModernPointageTable(
                     pointages: provider.pointages,
-                    isLoading: provider.isLoading,
+                    isLoading: provider.isLoading && provider.pointages.isEmpty,
+                    evidenceMode: _evidenceMode,
                     sortConfig: TableSortConfig(
                       field: provider.sortField,
                       ascending: provider.sortAscending,
