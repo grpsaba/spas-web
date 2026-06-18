@@ -135,7 +135,7 @@ class _PageModelState extends State<PageModel>
         ),
       ),
       actions: [
-        const Text("V21/05/2026"),
+        const Text("V18/06/2026 11:59"),
         if (AccessControl.canBypassTenantFilter) ...[
           const SizedBox(width: 12),
           _buildTenantFilter(),
