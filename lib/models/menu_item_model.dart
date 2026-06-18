@@ -1,24 +1,53 @@
 import 'package:flutter/material.dart';
-import 'package:spas_web/generated/assets.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:spas_web/model.dart';
+
+enum MenuSection {
+  main,
+  management,
+  pointage,
+  organization,
+  configuration,
+}
+
+extension MenuSectionLabel on MenuSection {
+  String get label {
+    switch (this) {
+      case MenuSection.main:
+        return 'Principal';
+      case MenuSection.management:
+        return 'Gestion';
+      case MenuSection.pointage:
+        return 'Pointages';
+      case MenuSection.organization:
+        return 'Organisation';
+      case MenuSection.configuration:
+        return 'Configuration';
+    }
+  }
+}
 
 class MenuItemModel {
   final IconData? icon;
   final String? assetIcon;
+  final String configKey;
   final String title;
   final String route;
   final int index;
   final ModuleName moduleName;
+  final MenuSection section;
   final bool isAssetCached;
   final bool adminOnly;
 
   const MenuItemModel({
     this.icon,
     this.assetIcon,
+    required this.configKey,
     required this.title,
     required this.route,
     required this.index,
     required this.moduleName,
+    this.section = MenuSection.management,
     this.isAssetCached = false,
     this.adminOnly = false,
   });
@@ -38,151 +67,186 @@ class MenuItemModel {
   // Configuration centralisée du menu
   static const List<MenuItemModel> menuItems = [
     MenuItemModel(
-      icon: Icons.home_rounded,
+      icon: HugeIcons.strokeRoundedDashboardSquare01,
+      configKey: 'home',
       title: "Accueil",
       route: "/home",
       index: 0,
       moduleName: ModuleName.TABLEAU_DE_BORD,
+      section: MenuSection.main,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconManager,
+      icon: HugeIcons.strokeRoundedComputerUser,
+      configKey: 'pc',
       title: "PC",
       route: "/users",
       index: 1,
       moduleName: ModuleName.MANAGER,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconSite,
+      icon: HugeIcons.strokeRoundedBuilding03,
+      configKey: 'sites',
       title: "Sites",
       route: "/sites",
       index: 2,
       moduleName: ModuleName.SITE,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconAgent,
+      icon: HugeIcons.strokeRoundedUserGroup,
+      configKey: 'agents',
       title: "Agents",
       route: "/agents",
       index: 3,
       moduleName: ModuleName.AGENT,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsAgent,
+      icon: HugeIcons.strokeRoundedManager,
+      configKey: 'superviseurs',
       title: "Superviseurs",
       route: "/superviseurs",
       index: 4,
       moduleName: ModuleName.SUPERVISEUR,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconTools,
+      icon: HugeIcons.strokeRoundedTools,
+      configKey: 'materiaux',
       title: "Matériaux",
       route: "/tools",
       index: 5,
       moduleName: ModuleName.TOOL,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconScansite,
+      icon: HugeIcons.strokeRoundedCheckList,
+      configKey: 'pointage_sites',
       title: "Pointage Sites",
       route: "/pointages",
       index: 6,
       moduleName: ModuleName.POINTAGE_SITE,
+      section: MenuSection.pointage,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconScanAgent,
+      icon: HugeIcons.strokeRoundedUserCheck01,
+      configKey: 'pointage_agents',
       title: "Pointage Agents",
       route: "/pointageagents",
       index: 7,
       moduleName: ModuleName.POINTAGE_AGENT,
+      section: MenuSection.pointage,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconScanAgent,
+      icon: HugeIcons.strokeRoundedRoute03,
+      configKey: 'pointage_rondiers',
       title: "Pointage Rondiers",
       route: "/pointagesrondiers",
       index: 17,
       moduleName: ModuleName.POINTAGE_RONDIER,
+      section: MenuSection.pointage,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconScanTools,
+      icon: HugeIcons.strokeRoundedPackage,
+      configKey: 'pointage_materiel',
       title: "Pointage Matériel",
       route: "/checklist",
       index: 8,
       moduleName: ModuleName.POINTAGE_TOOL,
+      section: MenuSection.pointage,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconNote2,
+      icon: HugeIcons.strokeRoundedNoteEdit,
+      configKey: 'observations',
       title: "Observations",
       route: "/notes",
       index: 9,
       moduleName: ModuleName.NOTE,
     ),
     MenuItemModel(
-      assetIcon: Assets.assetsIconMap,
+      icon: HugeIcons.strokeRoundedMapsLocation01,
+      configKey: 'cartes_sites',
       title: "Cartes Sites",
       route: "/sites/maps",
       index: 10,
       moduleName: ModuleName.SITE,
     ),
     MenuItemModel(
-      icon: Icons.category_rounded,
+      icon: HugeIcons.strokeRoundedPackageSearch,
+      configKey: 'equipements',
       title: "Équipements",
       route: "/equipements",
       index: 11,
       moduleName: ModuleName.CATEGORIE_TOOL,
+      section: MenuSection.configuration,
     ),
     MenuItemModel(
-      icon: Icons.apartment_rounded,
+      icon: HugeIcons.strokeRoundedOffice,
+      configKey: 'departements',
       title: "Départements",
       route: "/departements",
       index: 12,
       moduleName: ModuleName.DEPARTMENT,
+      section: MenuSection.organization,
     ),
     MenuItemModel(
-      icon: Icons.supervised_user_circle_rounded,
+      icon: HugeIcons.strokeRoundedUserIdVerification,
+      configKey: 'types_agent',
       title: "Types Agent",
       route: "/typesagent",
       index: 13,
       moduleName: ModuleName.AGENT_TYPE,
+      section: MenuSection.organization,
     ),
     MenuItemModel(
-      icon: Icons.map_rounded,
+      icon: HugeIcons.strokeRoundedMapsCircle01,
+      configKey: 'zones',
       title: "Zones",
       route: "/zones",
       index: 14,
       moduleName: ModuleName.ZONE,
+      section: MenuSection.organization,
     ),
     MenuItemModel(
-      icon: Icons.qr_code_scanner_rounded,
+      icon: HugeIcons.strokeRoundedQrCode,
+      configKey: 'pointage_zones',
       title: "Pointage Zones",
       route: "/pointagezones",
       index: 15,
       moduleName: ModuleName.POINTAGE_ZONE,
+      section: MenuSection.pointage,
     ),
     MenuItemModel(
-      icon: Icons.person_pin_circle_rounded,
+      icon: HugeIcons.strokeRoundedLocationUser01,
+      configKey: 'chefs_zone',
       title: "Chefs de Zone",
       route: "/chefszone",
       index: 16,
       moduleName: ModuleName.ZONE_MEMBER,
+      section: MenuSection.organization,
     ),
     MenuItemModel(
-      icon: Icons.warning_amber_rounded,
+      icon: HugeIcons.strokeRoundedAlertCircle,
+      configKey: 'erreurs_pointage',
       title: "Erreurs Pointage",
       route: "/errorlogs",
       index: 18,
       moduleName: ModuleName.ERROR_LOG,
+      section: MenuSection.pointage,
     ),
     MenuItemModel(
-      icon: Icons.settings_cell_rounded,
+      icon: HugeIcons.strokeRoundedMobileSecurity,
+      configKey: 'config_mobile',
       title: "Config Mobile",
       route: "/mobile-config",
       index: 19,
       moduleName: ModuleName.MOBILE_CONFIG,
+      section: MenuSection.configuration,
     ),
     MenuItemModel(
-      icon: Icons.public_rounded,
+      icon: HugeIcons.strokeRoundedGlobal,
+      configKey: 'pays',
       title: "Pays",
       route: "/tenants",
       index: 20,
       moduleName: ModuleName.MANAGER,
+      section: MenuSection.configuration,
       adminOnly: true,
     ),
   ];
