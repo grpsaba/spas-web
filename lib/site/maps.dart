@@ -1,7 +1,6 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:spas_web/accueil/site_status.dart';
 import 'package:spas_web/administration/home.dart';
 
@@ -17,7 +16,7 @@ class Maps extends StatefulWidget {
   const Maps({super.key});
 
   @override
-  _MapsState createState() => _MapsState();
+  State<Maps> createState() => _MapsState();
 }
 
 class _MapsState extends State<Maps> {
@@ -25,24 +24,27 @@ class _MapsState extends State<Maps> {
   final SiteService _siteService = SiteService();
   final Map<String, Marker> _markers = {};
   late List<Site> _sites;
-  late List<Site> _Sidesites;
+  late List<Site> _sideSites;
   MapType _mapType = MapType.hybrid;
   String _keyword = "";
 
 //variable de test de recherche de site dans le maps
   bool _searchSite = true;
-  bool _polyLines = false;
-  bool _trafficEnabled = true;
+  final bool _polyLines = false;
+  final bool _trafficEnabled = true;
 
   BitmapDescriptor markerIcon = AppConstants.defaultMarkerIcon;
 
   void setCustomIcon() {
-    BitmapDescriptor.fromAssetImage(
-            const ImageConfiguration(size: Size(28, 28)), Assets.assetsGeopin3)
-        .then((value) {
+    BitmapDescriptor.asset(
+      const ImageConfiguration(size: Size(28, 28)),
+      Assets.assetsGeopin3,
+      width: 28,
+      height: 28,
+    ).then((value) {
       markerIcon = value;
     }).onError((error, stackTrace) {
-      print("errur : ${error.toString()}");
+      debugPrint("errur : ${error.toString()}");
     });
   }
 
@@ -102,16 +104,14 @@ class _MapsState extends State<Maps> {
           builder: (context, snapshot) {
             if (snapshot.hasData) {
               try {
-                var docs = snapshot.data?.docs
-                    .map((e) => e.data())
-                    .toList();
+                var docs = snapshot.data?.docs.map((e) => e.data()).toList();
 
                 _sites = docs!
                     .map((e) => Site.fromJson(e as Map<String, dynamic>))
                     .toList()
                     .where((element) => element.actif == true)
                     .toList();
-                _Sidesites = _sites
+                _sideSites = _sites
                     .where((element) => element.name
                         .toLowerCase()
                         .contains(_keyword.toLowerCase()))
@@ -122,64 +122,65 @@ class _MapsState extends State<Maps> {
                   children: [
                     !_searchSite
                         ? const SizedBox.shrink()
-                        : Column(
-                            children: [
-                              Padding(
-                                padding: const EdgeInsets.all(8.0),
-                                child: SearchTextField(
-                                    onSearch: (value) {
-                                      setState(() {
-                                        _keyword = value;
-                                      });
-                                    },
-                                    onPress: () {}),
-                              ),
-                              SizedBox(
-                                width: 150,
-                                height: MediaQuery.of(context).size.height -
-                                    (MediaQuery.of(context).size.height - 620),
-                                child: ListView.builder(
-                                    padding: EdgeInsets.zero,
-                                    itemCount: _Sidesites.length,
-                                    itemBuilder: (context, index) {
-                                      Site? site = _Sidesites[index];
-                                      return ListTile(
-                                        leading: SizedBox(
-                                            width: 15,
-                                            height: 15,
-                                            child: SiteStatus(
-                                              site: site,
-                                            )),
-                                        onTap: () {
-                                          setState(() {
-                                            _searchSite = false;
-                                            _mapType = MapType.hybrid;
-                                            _mapController.showMarkerInfoWindow(
-                                                MarkerId(site.UID));
-                                          });
+                        : SizedBox(
+                            width: 166,
+                            child: Column(
+                              children: [
+                                Padding(
+                                  padding: const EdgeInsets.all(8.0),
+                                  child: SearchTextField(
+                                      onSearch: (value) {
+                                        setState(() {
+                                          _keyword = value;
+                                        });
+                                      },
+                                      onPress: () {}),
+                                ),
+                                Expanded(
+                                  child: ListView.builder(
+                                      padding: EdgeInsets.zero,
+                                      itemCount: _sideSites.length,
+                                      itemBuilder: (context, index) {
+                                        Site? site = _sideSites[index];
+                                        return ListTile(
+                                          leading: SizedBox(
+                                              width: 15,
+                                              height: 15,
+                                              child: SiteStatus(
+                                                site: site,
+                                              )),
+                                          onTap: () {
+                                            setState(() {
+                                              _searchSite = false;
+                                              _mapType = MapType.hybrid;
+                                              _mapController
+                                                  .showMarkerInfoWindow(
+                                                      MarkerId(site.UID));
+                                            });
 
-                                          CameraUpdate cameraUpdate =
-                                              CameraUpdate.newCameraPosition(
-                                                  CameraPosition(
-                                                      target: LatLng(
-                                                          site.latLng.lat,
-                                                          site.latLng.lng),
-                                                      zoom: 17));
+                                            CameraUpdate cameraUpdate =
+                                                CameraUpdate.newCameraPosition(
+                                                    CameraPosition(
+                                                        target: LatLng(
+                                                            site.latLng.lat,
+                                                            site.latLng.lng),
+                                                        zoom: 17));
 
-                                          _mapController
-                                              .animateCamera(cameraUpdate);
-                                        },
-                                        title: Text(
-                                          site.name,
-                                          style: TextStyle(
-                                              fontSize: 12,
-                                              color: Theme.of(context)
-                                                  .primaryColor),
-                                        ),
-                                      );
-                                    }),
-                              ),
-                            ],
+                                            _mapController
+                                                .animateCamera(cameraUpdate);
+                                          },
+                                          title: Text(
+                                            site.name,
+                                            style: TextStyle(
+                                                fontSize: 12,
+                                                color: Theme.of(context)
+                                                    .primaryColor),
+                                          ),
+                                        );
+                                      }),
+                                ),
+                              ],
+                            ),
                           ),
                     Expanded(
                       child: GoogleMap(
@@ -215,7 +216,7 @@ class _MapsState extends State<Maps> {
                       mainAxisAlignment: MainAxisAlignment.center,
                       children: [
                         Icon(
-                          Icons.cloud_upload_rounded,
+                          HugeIcons.strokeRoundedCloudUpload,
                           size: 64,
                           color: Theme.of(context).primaryColor,
                         ),
@@ -223,7 +224,7 @@ class _MapsState extends State<Maps> {
                         const SizedBox(height: 8),
                         Text(
                           "Erreur: ${error.toString()}",
-                          style: TextStyle(color: Colors.red),
+                          style: const TextStyle(color: Colors.red),
                         ),
                       ]),
                 );

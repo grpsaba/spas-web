@@ -5,6 +5,7 @@ import '../models/pagination_models.dart';
 import '../models/pointage_stats.dart';
 import '../models/pointage_exception.dart';
 import '../../model.dart';
+import '../../services/tenant_scope.dart';
 
 /// Repository for accessing pointage data with server-side operations
 /// 
@@ -48,6 +49,7 @@ class PointageRepository {
         fromFirestore: (snapshot, _) => snapshot.data() ?? {},
         toFirestore: (data, _) => data,
       );
+      query = TenantScope.applyToQuery(query);
 
       // Apply filters if provided
       if (filters != null && !filters.isEmpty) {
@@ -60,7 +62,10 @@ class PointageRepository {
 
       // Get total count first (for pagination metadata)
       // Note: This is cached by Firebase for a short time
-      final countSnapshot = await query.count().get();
+      final countSnapshot = await TenantScope.getCount(
+        'PointageRepository.getPointages.count',
+        query.count(),
+      );
       final totalCount = countSnapshot.count ?? 0;
 
       // Generate cursor key for this query configuration
@@ -82,7 +87,10 @@ class PointageRepository {
           if (offset > 0) {
             // Fetch documents up to the offset to get the cursor
             final tempQuery = query.limit(offset);
-            final tempSnapshot = await tempQuery.get();
+            final tempSnapshot = await TenantScope.getQuery(
+              'PointageRepository.getPointages.cursor',
+              tempQuery,
+            );
             if (tempSnapshot.docs.isNotEmpty) {
               query = query.startAfterDocument(tempSnapshot.docs.last);
             }
@@ -94,7 +102,10 @@ class PointageRepository {
       query = query.limit(pageSize);
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageRepository.getPointages',
+        query,
+      );
 
       // Cache the last document as cursor for next page
       if (snapshot.docs.isNotEmpty) {
@@ -167,6 +178,7 @@ class PointageRepository {
       'page_$page',
       'size_$pageSize',
       'sort_${sortField ?? 'datetimestamp'}_${sortAscending ? 'asc' : 'desc'}',
+      'tenant_${TenantScope.shouldFilterTenant ? TenantScope.currentTenantId : 'all'}',
     ];
     
     if (filters != null && !filters.isEmpty) {
@@ -193,7 +205,7 @@ class PointageRepository {
   }) async {
     try {
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -205,7 +217,10 @@ class PointageRepository {
       }
 
       // Get all documents (we need to group by supervisor)
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageRepository.countPointagesBySupervisor',
+        query,
+      );
       
       // Count by supervisor
       final Map<String, int> counts = {};
@@ -252,7 +267,7 @@ class PointageRepository {
   }) async {
     try {
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -264,7 +279,10 @@ class PointageRepository {
       }
 
       // Get all documents (we need to group by site)
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageRepository.countPointagesBySite',
+        query,
+      );
       
       // Count by site
       final Map<String, int> counts = {};
@@ -310,12 +328,15 @@ class PointageRepository {
   }) async {
     try {
       // Build query for date range
-      final query = _collectionReference
+      final query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
       // Get all documents for the period
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageRepository.getStats',
+        query,
+      );
       
       // Calculate statistics
       final Set<String> uniqueSites = {};
@@ -394,12 +415,15 @@ class PointageRepository {
       final start = DateTime(date.year, date.month, date.day);
       final end = start.add(const Duration(days: 1));
       
-      final query = _collectionReference
+      final query = TenantScope.applyToQuery(_collectionReference)
           .where('supervisor.UID', isEqualTo: supervisorUID)
           .where('datetimestamp', isGreaterThanOrEqualTo: start)
           .where('datetimestamp', isLessThan: end);
       
-      final countSnapshot = await query.count().get();
+      final countSnapshot = await TenantScope.getCount(
+        'PointageRepository.countForSupervisorOnDate',
+        query.count(),
+      );
       return countSnapshot.count ?? 0;
     } on FirebaseException catch (e, stackTrace) {
       debugPrint('Firebase error in countForSupervisorOnDate: ${e.code}');
@@ -433,13 +457,17 @@ class PointageRepository {
       )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
+      query = TenantScope.applyToQuery(query);
 
       // Apply additional filters if provided
       if (filters != null && !filters.isEmpty) {
         query = filters.applyToQuery(query);
       }
 
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'PointageRepository.getAllPointages',
+        query,
+      );
       
       final List<PointingSite> pointages = [];
       for (var doc in snapshot.docs) {

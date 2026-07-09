@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../services/tenant_scope.dart';
 import '../models/error_log_model.dart';
 
 /// Provider for managing error logs with Firestore pagination
@@ -48,7 +49,10 @@ class ErrorLogProvider extends ChangeNotifier {
 
     try {
       final query = _buildQuery();
-      final snapshot = await query.limit(_pageSize).get();
+      final snapshot = await TenantScope.getQuery(
+        'ErrorLogProvider.loadLogs',
+        query.limit(_pageSize),
+      );
 
       _logs = snapshot.docs.map((doc) => ErrorLog.fromFirestore(doc)).toList();
       _sortBySeverity();
@@ -75,8 +79,10 @@ class ErrorLogProvider extends ChangeNotifier {
 
     try {
       final query = _buildQuery();
-      final snapshot =
-          await query.startAfterDocument(_lastDocument!).limit(_pageSize).get();
+      final snapshot = await TenantScope.getQuery(
+        'ErrorLogProvider.loadMore',
+        query.startAfterDocument(_lastDocument!).limit(_pageSize),
+      );
 
       final newLogs =
           snapshot.docs.map((doc) => ErrorLog.fromFirestore(doc)).toList();
@@ -98,7 +104,8 @@ class ErrorLogProvider extends ChangeNotifier {
 
   /// Build Firestore query based on filters
   Query<Map<String, dynamic>> _buildQuery() {
-    Query<Map<String, dynamic>> query = _firestore.collection('error_logs');
+    Query<Map<String, dynamic>> query =
+        TenantScope.applyToQuery(_firestore.collection('error_logs'));
 
     // Filter by resolved status
     if (_filters.isResolved != null) {
@@ -152,24 +159,28 @@ class ErrorLogProvider extends ChangeNotifier {
   Future<void> loadStats() async {
     try {
       // Get total count
-      final totalSnapshot =
-          await _firestore.collection('error_logs').count().get();
+      final totalSnapshot = await TenantScope.getCount(
+        'ErrorLogProvider.totalCount',
+        TenantScope.applyToQuery(_firestore.collection('error_logs')).count(),
+      );
       final total = totalSnapshot.count ?? 0;
 
       // Get unresolved count
-      final unresolvedSnapshot = await _firestore
-          .collection('error_logs')
-          .where('isResolved', isEqualTo: false)
-          .count()
-          .get();
+      final unresolvedSnapshot = await TenantScope.getCount(
+        'ErrorLogProvider.unresolvedCount',
+        TenantScope.applyToQuery(_firestore.collection('error_logs'))
+            .where('isResolved', isEqualTo: false)
+            .count(),
+      );
       final unresolved = unresolvedSnapshot.count ?? 0;
 
       // Get counts by error type (limited query for performance)
-      final recentLogs = await _firestore
-          .collection('error_logs')
-          .orderBy('timestamp', descending: true)
-          .limit(500)
-          .get();
+      final recentLogs = await TenantScope.getQuery(
+        'ErrorLogProvider.recentLogs',
+        TenantScope.applyToQuery(_firestore.collection('error_logs'))
+            .orderBy('timestamp', descending: true)
+            .limit(500),
+      );
 
       final byErrorType = <String, int>{};
       final byType = <String, int>{};

@@ -3,6 +3,8 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/agent/providers/agent_list_provider.dart';
+import 'package:spas_web/pointage_redesign/models/pointage_exception.dart';
+import 'package:spas_web/pointage_redesign/presentation/widgets/error_display.dart';
 import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
@@ -306,7 +308,7 @@ class _AgentListView extends StatelessWidget {
   }
 
   Widget _buildBody(BuildContext context, AgentListProvider provider) {
-    if (provider.isInitialLoading) {
+    if (provider.isInitialLoading && provider.agents.isEmpty) {
       return SizedBox(
         height: 320,
         child: Center(
@@ -318,7 +320,20 @@ class _AgentListView extends StatelessWidget {
       );
     }
 
-    if (provider.errorMessage != null) {
+    if (provider.errorMessage != null && provider.agents.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.all(16.0),
+        child: ErrorDisplay(
+          exception: PointageException.query(),
+          customMessage: provider.errorMessage!,
+          onRetry: provider.refresh,
+        ),
+      );
+    }
+
+    if (provider.errorMessage != null &&
+        provider.agents.isEmpty &&
+        provider.isRefreshing) {
       return _AgentListMessageCard(
         icon: Icons.error_outline_rounded,
         title: 'Erreur de chargement',
@@ -352,6 +367,19 @@ class _AgentListView extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
+        if (provider.isRefreshing) ...[
+          const LinearProgressIndicator(minHeight: 3),
+          const SizedBox(height: 12),
+        ],
+        if (provider.errorMessage != null) ...[
+          ErrorDisplay(
+            exception: PointageException.query(),
+            customMessage: provider.errorMessage!,
+            onRetry: provider.refresh,
+            compact: true,
+          ),
+          const SizedBox(height: 12),
+        ],
         _buildTableCard(context, provider),
         const SizedBox(height: 16),
         _buildFooterControls(context, provider),
@@ -442,13 +470,9 @@ class _AgentListView extends StatelessWidget {
                       child: PaginatedDataTable(
                         header: const SizedBox.shrink(),
                         showFirstLastButtons: true,
-                        rowsPerPage: provider.filteredAgents.isEmpty
-                            ? 1
-                            : (provider.filteredAgents.length <
-                                    provider.rowsPerPage
-                                ? provider.filteredAgents.length
-                                : provider.rowsPerPage),
+                        rowsPerPage: provider.rowsPerPage,
                         availableRowsPerPage: const <int>[10, 20, 30, 50, 100],
+                        showEmptyRows: false,
                         onRowsPerPageChanged: (value) {
                           if (value != null) {
                             provider.setRowsPerPage(value);

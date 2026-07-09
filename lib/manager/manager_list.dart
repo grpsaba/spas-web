@@ -141,6 +141,7 @@ class _SupervisorListState extends State<ManagerList> {
                     DataColumn(label: Text("Email")),
                     DataColumn(label: Text("Poste")),
                     DataColumn(label: Text("Profil")),
+                    DataColumn(label: Text("Pays")),
                     DataColumn(label: Text("Action")),
                   ],
                   source: _DataSource(
@@ -188,6 +189,7 @@ class _DataSource extends DataTableSource {
         DataCell(Text("")),
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     Manager manager = data[index];
@@ -214,6 +216,9 @@ class _DataSource extends DataTableSource {
               );
             }
           })),
+      DataCell(Text(
+        manager.hasTenantId ? manager.tenantId.toUpperCase() : 'Non affecte',
+      )),
       DataCell(Row(
         children: [
           managerLoged.profil!.getModule(ModuleName.MANAGER)!.add

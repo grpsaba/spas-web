@@ -100,9 +100,11 @@ class ReportGenerator {
       _checkCancellation();
 
       final Map<String, int> siteCounts = {};
+      final Map<String, List<String>> activeSitesBySupervisor = {};
       for (var supervisor in supervisors) {
-        final count = await _siteService.allSitesCountBySupervisor(supervisor);
-        siteCounts[supervisor.UID] = count ?? 0;
+        final activeSites = await _siteService.allBySupervisor(supervisor);
+        siteCounts[supervisor.UID] = activeSites.length;
+        activeSitesBySupervisor[supervisor.UID] = activeSites.map((s) => s.UID!).toList();
       }
 
       // Step 4: Aggregate pointages by supervisor and day (60% progress)
@@ -113,6 +115,7 @@ class ReportGenerator {
           await _aggregationService.aggregateUniqueSitesBySupervisorAndDay(
         supervisorIds: supervisorUids,
         days: days,
+        activeSitesBySupervisor: activeSitesBySupervisor,
       );
 
       // Step 5: Build report data structure (75% progress)
@@ -1471,9 +1474,11 @@ class ReportGenerator {
       _checkCancellation();
 
       final Map<String, int> siteCounts = {};
+      final Map<String, List<String>> activeSitesBySupervisor = {};
       for (var supervisor in supervisors) {
-        final count = await _siteService.allSitesCountBySupervisor(supervisor);
-        siteCounts[supervisor.UID] = count ?? 0;
+        final activeSites = await _siteService.allBySupervisor(supervisor);
+        siteCounts[supervisor.UID] = activeSites.length;
+        activeSitesBySupervisor[supervisor.UID] = activeSites.map((s) => s.UID!).toList();
       }
 
       // Step 4: Aggregate pointages by supervisor and day (60% progress)
@@ -1484,6 +1489,7 @@ class ReportGenerator {
           await _aggregationService.aggregateUniqueSitesBySupervisorAndDay(
         supervisorIds: supervisorUids,
         days: days,
+        activeSitesBySupervisor: activeSitesBySupervisor,
       );
 
       // Step 5: Build HR summary data (75% progress)
@@ -1510,6 +1516,8 @@ class ReportGenerator {
             assignedSites > 0 ? (difference / assignedSites).floor() : 0;
         final int daysBehindClamped = daysBehind < 0 ? 0 : daysBehind;
 
+        final double performance = expected == 0 ? 0.0 : (completedVisits * 100.0) / expected;
+
         // Generate comment
         String comment;
         if (difference <= 0) {
@@ -1531,6 +1539,7 @@ class ReportGenerator {
           'difference': difference,
           'missedVisits': missedVisits,
           'daysBehind': daysBehindClamped,
+          'performance': performance,
           'comment': comment,
         });
       }
@@ -1669,6 +1678,7 @@ class ReportGenerator {
         'Attendu',
         'Diff',
         'Nbre visites non effectués',
+        'Pourcentage',
         'Commentaire'
       ];
 
@@ -1676,7 +1686,7 @@ class ReportGenerator {
         sheet.getRangeByIndex(3, i + 1).setText(headers[i]);
         sheet.getRangeByIndex(3, i + 1).cellStyle = headerStyle;
         // Set column widths
-        if (i == 0 || i == 7) {
+        if (i == 0 || i == 8) {
           sheet.getRangeByIndex(3, i + 1).columnWidth = 22;
         } else if (i == 6) {
           sheet.getRangeByIndex(3, i + 1).columnWidth = 20;
@@ -1751,9 +1761,15 @@ class ReportGenerator {
         sheet.getRangeByIndex(rowIndex, 7).cellStyle = rowStyle;
         sheet.getRangeByIndex(rowIndex, 7).cellStyle.hAlign = HAlignType.center;
 
-        // Commentaire
-        sheet.getRangeByIndex(rowIndex, 8).setText(data['comment'] as String);
+        // Pourcentage
+        final double performance = data['performance'] as double;
+        sheet.getRangeByIndex(rowIndex, 8).setValue("${performance.toStringAsFixed(2)}%");
         sheet.getRangeByIndex(rowIndex, 8).cellStyle = rowStyle;
+        sheet.getRangeByIndex(rowIndex, 8).cellStyle.hAlign = HAlignType.center;
+
+        // Commentaire
+        sheet.getRangeByIndex(rowIndex, 9).setText(data['comment'] as String);
+        sheet.getRangeByIndex(rowIndex, 9).cellStyle = rowStyle;
       }
 
       // Save to bytes

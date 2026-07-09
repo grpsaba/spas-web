@@ -8,9 +8,11 @@ import 'package:spas_web/services/authentication.dart';
 
 import '../model.dart';
 import '../pointage_redesign/presentation/design_system.dart';
+import '../services/access_control.dart';
 import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/supervisor.dart';
+import '../services/tenant_options.dart';
 
 class AddSupervisor extends StatefulWidget {
   const AddSupervisor({
@@ -41,6 +43,9 @@ class _AddSupervisorState extends State<AddSupervisor> {
 
   bool _obscurePass = true;
   bool _adding = false;
+  bool _loadingTenants = true;
+  List<Tenant> _tenants = TenantOptions.fallback;
+  String? _selectedTenantId;
 
   @override
   void initState() {
@@ -51,6 +56,35 @@ class _AddSupervisorState extends State<AddSupervisor> {
     _lastNameCtrl.text = widget.supervisor.lastName;
     _phoneCtrl.text = widget.supervisor.phone;
     _passCtrl.text = widget.supervisor.code;
+    _selectedTenantId =
+        widget.supervisor.hasTenantId ? widget.supervisor.tenantId : null;
+    if (!AccessControl.canBypassTenantFilter) {
+      _selectedTenantId = AccessControl.currentTenantId;
+    }
+    _loadTenants();
+  }
+
+  Future<void> _loadTenants() async {
+    final tenants = await TenantOptions.load(includeTenantId: _selectedTenantId);
+    if (!mounted) return;
+
+    setState(() {
+      _tenants = AccessControl.canBypassTenantFilter
+          ? tenants
+          : tenants
+              .where((tenant) => tenant.id == AccessControl.currentTenantId)
+              .toList();
+      if (_tenants.isEmpty) {
+        _tenants = [
+          Tenant(
+            id: AccessControl.currentTenantId,
+            label: AccessControl.currentTenantId.toUpperCase(),
+            countryCode: AccessControl.currentTenantId.toUpperCase(),
+          ),
+        ];
+      }
+      _loadingTenants = false;
+    });
   }
 
   @override
@@ -82,6 +116,11 @@ class _AddSupervisorState extends State<AddSupervisor> {
     widget.supervisor.lastName = _lastNameCtrl.text;
     widget.supervisor.email = _emailCtrl.text;
     widget.supervisor.phone = _phoneCtrl.text;
+    final tenantId = _selectedTenantId?.trim();
+    widget.supervisor.hasTenantId = tenantId != null && tenantId.isNotEmpty;
+    if (widget.supervisor.hasTenantId) {
+      widget.supervisor.tenantId = tenantId!;
+    }
   }
 
   Future<void> _submit() async {
@@ -254,6 +293,42 @@ class _AddSupervisorState extends State<AddSupervisor> {
     );
   }
 
+  Widget _buildTenantField() {
+    if (_loadingTenants) {
+      return Loading(size: 28, inline: true);
+    }
+
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedTenantId,
+      hint: const Text('Pays'),
+      decoration: _decoration(hintText: 'Pays', icon: Icons.public),
+      validator: (value) {
+        return value != null && value.trim().isNotEmpty
+            ? null
+            : 'Pays obligatoir';
+      },
+      isExpanded: true,
+      items: _tenants
+          .map(
+            (tenant) => DropdownMenuItem<String>(
+              value: tenant.id,
+              child: Text(tenant.label),
+            ),
+          )
+          .toList(),
+      onChanged: AccessControl.canBypassTenantFilter
+          ? (value) {
+              setState(() {
+                _selectedTenantId = value;
+              });
+            }
+          : null,
+      onSaved: (value) {
+        _selectedTenantId = value;
+      },
+    );
+  }
+
   Widget _buildActionButtons() {
     final canDelete = widget.supervisor.UID.isNotEmpty &&
         AuthService.currentManager!.profil!
@@ -332,6 +407,8 @@ class _AddSupervisorState extends State<AddSupervisor> {
             child: Column(
               children: [
                 _buildDepartmentField(),
+                const SizedBox(height: PointageSpacing.md),
+                _buildTenantField(),
                 const SizedBox(height: PointageSpacing.md),
                 TextFormField(
                   readOnly: widget.supervisor.code.isNotEmpty,

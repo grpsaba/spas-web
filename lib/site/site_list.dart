@@ -4,6 +4,8 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/pdf/api/pdf_api.dart';
+import 'package:spas_web/pointage_redesign/models/pointage_exception.dart';
+import 'package:spas_web/pointage_redesign/presentation/widgets/error_display.dart';
 import 'package:spas_web/search_textField.dart';
 import 'package:spas_web/services/authentication.dart';
 import 'package:spas_web/services/site.dart';
@@ -64,6 +66,17 @@ class _SupervisorListState extends State<SiteList> {
           child: StreamBuilder(
               stream: _service.all(),
               builder: (context, snapshot) {
+                if (snapshot.hasError) {
+                  return Padding(
+                    padding: const EdgeInsets.all(16.0),
+                    child: ErrorDisplay(
+                      exception: PointageException.query(),
+                      customMessage: snapshot.error.toString(),
+                      onRetry: () => setState(() {}),
+                    ),
+                  );
+                }
+
                 if (snapshot.hasData) {
                   var docs = snapshot.data?.docs
                       .map((e) => e.data())
@@ -282,7 +295,10 @@ class _SupervisorListState extends State<SiteList> {
                                             },
                                           )
                                         : const SizedBox(),
-                                    _buildActionButton(
+                                    AuthService.currentManager!.profil!
+                                            .getModule(ModuleName.SITE)!
+                                            .add
+                                        ? _buildActionButton(
                                       context,
                                       "Pointage en lot",
                                       Icons.checklist,
@@ -291,7 +307,7 @@ class _SupervisorListState extends State<SiteList> {
                                         _showBulkPointingDialog(
                                             context, _DataSource.dataToprint);
                                       },
-                                    ),
+                                    ) : const SizedBox(),
                                     AuthService.currentManager!.profil!
                                             .getModule(ModuleName.SITE)!
                                             .print

@@ -7,11 +7,16 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../model.dart';
 import 'authentication.dart';
+import 'tenant_scope.dart';
 
 class SupervisorService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Supervisors");
   Future<User?> add(Supervisor supervisor, password) async {
+    if (TenantScope.shouldFilterTenant) {
+      supervisor.tenantId = TenantScope.currentTenantId;
+      supervisor.hasTenantId = true;
+    }
     var user =
         await AuthService().createUserWithEmail(supervisor.email, password);
     if (user != null) {
@@ -24,13 +29,19 @@ class SupervisorService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'SupervisorService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Future<List<Supervisor>> allActifFuture(String filter) async {
     try {
-      var snpshot =
-          await _collectionReference.where('actif', isEqualTo: true).get();
+      var snpshot = await TenantScope.getQuery(
+        'SupervisorService.allActifFuture',
+        TenantScope.applyToQuery(_collectionReference)
+            .where('actif', isEqualTo: true),
+      );
       List<Supervisor> data = snpshot.docs
           .map((QueryDocumentSnapshot e) =>
               Supervisor.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -45,8 +56,11 @@ class SupervisorService {
 
   Future<List<Supervisor>> allFuture() async {
     try {
-      var snpshot =
-          await _collectionReference.where("actif", isEqualTo: true).get();
+      var snpshot = await TenantScope.getQuery(
+        'SupervisorService.allFuture',
+        TenantScope.applyToQuery(_collectionReference)
+            .where("actif", isEqualTo: true),
+      );
       List<Supervisor> data = snpshot.docs
           .map((QueryDocumentSnapshot e) =>
               Supervisor.fromJson(e.data() as dynamic))
@@ -70,6 +84,10 @@ class SupervisorService {
   }
 
   Future<void> update(Supervisor supervisor) {
+    if (TenantScope.shouldFilterTenant) {
+      supervisor.tenantId = TenantScope.currentTenantId;
+      supervisor.hasTenantId = true;
+    }
     return _collectionReference.doc(supervisor.UID).update(supervisor.toJson());
   }
 

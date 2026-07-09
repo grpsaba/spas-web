@@ -38,6 +38,7 @@ class AgentListProvider extends ChangeNotifier {
   bool _isInitialLoading = false;
   bool _isLoadingMore = false;
   bool _isLoadingDepartments = false;
+  bool _isRefreshing = false;
   bool _hasMore = true;
   String? _errorMessage;
 
@@ -45,6 +46,7 @@ class AgentListProvider extends ChangeNotifier {
 
   DocumentSnapshot? _lastDocument;
   Timer? _searchDebounce;
+  int _searchRequestId = 0;
 
   List<Agent> get agents => List<Agent>.unmodifiable(_agents);
   List<Agent> get filteredAgents => List<Agent>.unmodifiable(_filteredAgents);
@@ -59,6 +61,7 @@ class AgentListProvider extends ChangeNotifier {
   bool get isInitialLoading => _isInitialLoading;
   bool get isLoadingMore => _isLoadingMore;
   bool get isLoadingDepartments => _isLoadingDepartments;
+  bool get isRefreshing => _isRefreshing;
   bool get hasMore => _hasMore;
   String? get errorMessage => _errorMessage;
   int get rowsPerPage => _rowsPerPage;
@@ -99,16 +102,26 @@ class AgentListProvider extends ChangeNotifier {
   }
 
   Future<void> refresh() async {
+    if (_searchQuery.trim().isNotEmpty) {
+      await _loadSearchResults();
+      return;
+    }
+
     await loadInitialData();
   }
 
   Future<void> loadInitialData() async {
-    _isInitialLoading = true;
+    final requestId = ++_searchRequestId;
+    final hasExistingData = _agents.isNotEmpty;
+    _isInitialLoading = !hasExistingData;
+    _isRefreshing = hasExistingData;
     _errorMessage = null;
-    _agents.clear();
-    _filteredAgents = <Agent>[];
     _lastDocument = null;
     _hasMore = true;
+    if (!hasExistingData) {
+      _agents.clear();
+      _filteredAgents = <Agent>[];
+    }
     notifyListeners();
 
     try {
@@ -120,6 +133,8 @@ class AgentListProvider extends ChangeNotifier {
             _selectedDepartment == 'Tous' ? null : _selectedDepartment.trim(),
       );
 
+      if (requestId != _searchRequestId) return;
+
       _agents
         ..clear()
         ..addAll(result.agents);
@@ -128,15 +143,20 @@ class AgentListProvider extends ChangeNotifier {
 
       _applyFilters(notify: false);
     } catch (error) {
+      if (requestId != _searchRequestId) return;
+      _hasMore = false;
       _errorMessage = error.toString();
     } finally {
-      _isInitialLoading = false;
-      notifyListeners();
+      if (requestId == _searchRequestId) {
+        _isInitialLoading = false;
+        _isRefreshing = false;
+        notifyListeners();
+      }
     }
   }
 
   Future<void> loadMoreAgents() async {
-    if (_isLoadingMore || !_hasMore) return;
+    if (_searchQuery.trim().isNotEmpty || _isLoadingMore || !_hasMore) return;
 
     _isLoadingMore = true;
     notifyListeners();
@@ -191,28 +211,33 @@ class AgentListProvider extends ChangeNotifier {
     }
 
     _searchDebounce?.cancel();
-    _searchDebounce = Timer(const Duration(milliseconds: 300), () {
+    _searchDebounce = Timer(const Duration(milliseconds: 300), () async {
       _searchQuery = value;
-      _applyFilters();
+
+      if (_searchQuery.trim().isEmpty) {
+        await loadInitialData();
+      } else {
+        await _loadSearchResults();
+      }
     });
   }
 
   Future<void> setType(String? value) async {
     if (value == null || value == _selectedType) return;
     _selectedType = value;
-    await loadInitialData();
+    await _reloadCurrentMode();
   }
 
   Future<void> setDepartment(String? value) async {
     if (value == null || value == _selectedDepartment) return;
     _selectedDepartment = value;
-    await loadInitialData();
+    await _reloadCurrentMode();
   }
 
   Future<void> setStatus(bool? value) async {
     if (value == _selectedActif) return;
     _selectedActif = value;
-    await loadInitialData();
+    await _reloadCurrentMode();
   }
 
   Future<void> resetFilters() async {
@@ -240,7 +265,7 @@ class AgentListProvider extends ChangeNotifier {
   Future<void> setRowsPerPage(int value) async {
     if (value <= 0 || value == _rowsPerPage) return;
     _rowsPerPage = value;
-    await loadInitialData();
+    await _reloadCurrentMode();
   }
 
   void clearError() {
@@ -318,6 +343,65 @@ class AgentListProvider extends ChangeNotifier {
 
     if (notify) {
       notifyListeners();
+    }
+  }
+
+  Future<void> _reloadCurrentMode() async {
+    if (_searchQuery.trim().isNotEmpty) {
+      await _loadSearchResults();
+      return;
+    }
+
+    await loadInitialData();
+  }
+
+  Future<void> _loadSearchResults() async {
+    final query = _searchQuery.trim();
+    if (query.isEmpty) {
+      await loadInitialData();
+      return;
+    }
+
+    final requestId = ++_searchRequestId;
+    final hasExistingData = _agents.isNotEmpty;
+    _isInitialLoading = !hasExistingData;
+    _isRefreshing = hasExistingData;
+    _errorMessage = null;
+    _lastDocument = null;
+    _hasMore = false;
+    if (!hasExistingData) {
+      _agents.clear();
+      _filteredAgents = <Agent>[];
+    }
+    notifyListeners();
+
+    try {
+      final agents = await _agentService.searchByPrefix(
+        query: query,
+        limit: 100,
+        actif: _selectedActif,
+        agentTypeLabel: _selectedType == 'Tous' ? null : _selectedType.trim(),
+        departmentLabel:
+            _selectedDepartment == 'Tous' ? null : _selectedDepartment.trim(),
+      );
+
+      if (requestId != _searchRequestId) return;
+
+      _agents
+        ..clear()
+        ..addAll(agents);
+      _filteredAgents = List<Agent>.from(agents);
+      _hasMore = false;
+    } catch (error) {
+      if (requestId != _searchRequestId) return;
+      _hasMore = false;
+      _errorMessage = error.toString();
+    } finally {
+      if (requestId == _searchRequestId) {
+        _isInitialLoading = false;
+        _isRefreshing = false;
+        notifyListeners();
+      }
     }
   }
 

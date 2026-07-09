@@ -13,15 +13,7 @@ class ModuleList extends StatefulWidget {
 class _ModuleListState extends State<ModuleList> {
   final TextEditingController _texController = TextEditingController();
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
-  final List<ModuleName> _moduleNames = [
-    ModuleName.AGENT,
-    ModuleName.MANAGER,
-    ModuleName.NOTE,
-    ModuleName.SITE,
-    ModuleName.SUPERVISEUR,
-    ModuleName.TABLEAU_DE_BORD,
-    ModuleName.TOOL
-  ];
+  final List<ModuleName> _moduleNames = ModuleName.values;
   final Module _module = Module(
       moduleName: ModuleName.MANAGER,
       add: true,
@@ -41,6 +33,23 @@ class _ModuleListState extends State<ModuleList> {
     // TODO: implement dispose
     super.dispose();
     _texController.dispose();
+  }
+
+  List<Module> _completeModules(List<Module> existingModules) {
+    return ModuleName.values.map((moduleName) {
+      return existingModules.firstWhere(
+        (module) => module.moduleName == moduleName,
+        orElse: () => Module(
+          moduleName: moduleName,
+          add: false,
+          delete: false,
+          validation: false,
+          view: false,
+          print: false,
+          generBadge: false,
+        ),
+      );
+    }).toList();
   }
 
   @override
@@ -223,12 +232,16 @@ class _ModuleListState extends State<ModuleList> {
             builder: (context, snapshot) {
               if (snapshot.hasData) {
                 var profil = snapshot.data;
+                if (profil == null) return const SizedBox.shrink();
+                final modules = _completeModules(profil.modules);
+                profil.modules = modules;
+
                 return SizedBox(
                   height: MediaQuery.of(context).size.height - 160,
                   child: ListView.builder(
-                      itemCount: profil?.modules.length,
+                      itemCount: modules.length,
                       itemBuilder: (context, index) {
-                        Module? module = profil?.modules[index];
+                        Module? module = modules[index];
                         return Card(
                           child: ListTile(
                             onTap: () {},

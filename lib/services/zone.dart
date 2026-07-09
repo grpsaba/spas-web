@@ -3,24 +3,29 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class ZoneService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Zones");
 
   Future<void> add(Zone zone) async {
-    _collectionReference
-        .doc(zone.codeZone)
-        .set(zone.toJson())
-        .onError((error, stackTrace) => print(error));
+    TenantScope.applyTenantIdForWrite(zone);
+    await _collectionReference.doc(zone.codeZone).set(zone.toJson());
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'ZoneService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Future<List<Zone>> allAsModel() async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await TenantScope.getQuery(
+      'ZoneService.allAsModel',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     var collection = snapshot.docs.map((snap) {
       return Zone.fromJson(jsonDecode(jsonEncode(snap.data())));
     }).toList();
@@ -39,6 +44,7 @@ class ZoneService {
   }
 
   Future<void> update(Zone zone) {
+    TenantScope.applyTenantIdForWrite(zone);
     return _collectionReference.doc(zone.codeZone).update(zone.toJson());
   }
 }

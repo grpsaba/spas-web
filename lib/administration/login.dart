@@ -6,9 +6,12 @@ import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/model.dart';
+import 'package:spas_web/widgets/app_version_label.dart';
 
 import '../services/authentication.dart';
 import '../services/player.dart';
+import '../services/tenant.dart';
+import '../services/tenant_scope.dart';
 
 class Login extends StatefulWidget {
   const Login({super.key});
@@ -22,12 +25,15 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   final TextEditingController _passwordController = TextEditingController();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final AuthService _authService = AuthService();
-  final FocusNode _passwordFocusNode = FocusNode(); // Added FocusNode for password field
-  
+  final FocusNode _passwordFocusNode = FocusNode();
+
   String _message = "";
   bool _isLoading = false;
+  bool _isLoadingTenants = false;
   bool _obscurePassword = true;
   bool _enableTTS = false;
+  String _selectedTenantId = TenantDefaults.defaultTenantId;
+  List<Tenant> _tenants = [];
   late Consigne_model _consigne;
   late AnimationController _animationController;
   late Animation<double> _fadeAnimation;
@@ -36,8 +42,10 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   @override
   void initState() {
     super.initState();
+    TenantScope.selectedTenantId = null;
     _initializeAnimations();
-    if(kDebugMode){
+    _loadTenants();
+    if (kDebugMode) {
       _emailController.text = 'bgaledou@groupesaba.com';
     }
     _consigne = _getConsigneOfTheDay();
@@ -48,7 +56,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -56,7 +64,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -64,7 +72,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -73,9 +81,39 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
     _animationController.dispose();
     _emailController.dispose();
     _passwordController.dispose();
-    _passwordFocusNode.dispose(); // Dispose the FocusNode
+    _passwordFocusNode.dispose();
     super.dispose();
   }
+
+  Future<void> _loadTenants() async {
+    setState(() {
+      _isLoadingTenants = true;
+    });
+
+    try {
+      final tenants = await TenantService().allActive();
+      if (!mounted) return;
+      setState(() {
+        _tenants = tenants.isEmpty ? _fallbackTenants : tenants;
+        if (!_tenants.any((tenant) => tenant.id == _selectedTenantId)) {
+          _selectedTenantId = _tenants.first.id;
+        }
+        _isLoadingTenants = false;
+      });
+    } catch (_) {
+      if (!mounted) return;
+      setState(() {
+        _tenants = _fallbackTenants;
+        _selectedTenantId = TenantDefaults.defaultTenantId;
+        _isLoadingTenants = false;
+      });
+    }
+  }
+
+  List<Tenant> get _fallbackTenants => const [
+        Tenant(
+            id: TenantDefaults.maliTenantId, label: 'Mali', countryCode: 'ML'),
+      ];
 
   Consigne_model _getConsigneOfTheDay() {
     final random = Random();
@@ -144,6 +182,12 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
 
                         // Login Form
                         _buildLoginForm(),
+                        const SizedBox(height: 10),
+                        const AppVersionLabel(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),
@@ -231,7 +275,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                     _enableTTS ? Icons.volume_up : Icons.volume_off,
                     color: AppConstants.primaryColor,
                   ),
-                  tooltip: _enableTTS ? "Désactiver l'audio" : "Activer l'audio",
+                  tooltip:
+                      _enableTTS ? "Désactiver l'audio" : "Activer l'audio",
                 ),
               ],
             ),
@@ -288,6 +333,9 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
               ),
               const SizedBox(height: 20),
 
+              _buildTenantDropdown(),
+              const SizedBox(height: 16),
+
               // Email Field
               _buildTextField(
                 controller: _emailController,
@@ -296,7 +344,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                 keyboardType: TextInputType.emailAddress,
                 validator: _validateEmail,
                 onFieldSubmitted: (_) {
-                  FocusScope.of(context).requestFocus(_passwordFocusNode); // Move focus to password field
+                  FocusScope.of(context).requestFocus(_passwordFocusNode);
                 },
               ),
               const SizedBox(height: 16),
@@ -319,8 +367,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                   ),
                 ),
                 validator: _validatePassword,
-                focusNode: _passwordFocusNode, // Assign FocusNode to password field
-                onFieldSubmitted: (_) => _login(), // Trigger login on Enter
+                focusNode: _passwordFocusNode,
+                onFieldSubmitted: (_) => _login(),
               ),
               const SizedBox(height: 24),
 
@@ -344,7 +392,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : const Text(
@@ -365,11 +414,13 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    border:
+                        Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -386,6 +437,45 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
             ],
           ),
         ),
+      ),
+    );
+  }
+
+  Widget _buildTenantDropdown() {
+    final tenants = _tenants.isEmpty ? _fallbackTenants : _tenants;
+    return DropdownButtonFormField<String>(
+      initialValue: _selectedTenantId,
+      items: tenants
+          .map(
+            (tenant) => DropdownMenuItem<String>(
+              value: tenant.id,
+              child: Text(tenant.label),
+            ),
+          )
+          .toList(),
+      onChanged: _isLoadingTenants
+          ? null
+          : (value) {
+              if (value == null) return;
+              setState(() {
+                _selectedTenantId = value;
+              });
+            },
+      decoration: InputDecoration(
+        hintText: _isLoadingTenants ? 'Chargement des pays...' : 'Pays',
+        prefixIcon: const Icon(Icons.public, color: Colors.grey),
+        filled: true,
+        fillColor: Colors.grey.withValues(alpha: 0.1),
+        border: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide.none,
+        ),
+        focusedBorder: const OutlineInputBorder(
+          borderRadius: BorderRadius.all(Radius.circular(12)),
+          borderSide: BorderSide(color: AppConstants.primaryColor, width: 2),
+        ),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
@@ -426,7 +516,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
           borderRadius: BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide(color: Colors.red, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
@@ -461,13 +552,22 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
     });
 
     try {
-      await _authService.loginWithEmail(
+      final user = await _authService.loginWithEmail(
         _emailController.text.trim(),
         _passwordController.text,
       );
-      
-      await _authService.authState();
-      
+
+      if (user == null) {
+        throw Exception('login-failed');
+      }
+
+      final manager =
+          await _authService.authState(selectedTenantId: _selectedTenantId);
+
+      if (manager == null) {
+        throw Exception('manager-profile-not-found');
+      }
+
       if (mounted) {
         context.go('/home');
       }
@@ -482,6 +582,10 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   }
 
   String _getErrorMessage(dynamic error) {
+    if (error is TenantAssignmentRequiredException) {
+      return "Votre compte n'est pas encore rattaché a un pays. Contactez un administrateur.";
+    }
+
     switch (error.hashCode) {
       case 495537990:
         return "Vérifiez votre connexion internet.";
