@@ -1,0 +1,13 @@
+{
+  "name": "spas-firestore-migrations",
+  "private": true,
+  "version": "1.0.0",
+  "description": "Firestore migration helpers for SPAS",
+  "scripts": {
+    "backfill:tenant:dry-run": "node backfill_tenant_ml.js",
+    "backfill:tenant:execute": "node backfill_tenant_ml.js --execute"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.0"
+  }
+}

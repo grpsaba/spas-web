@@ -47,11 +47,11 @@ class PointageSiteCard extends StatelessWidget {
                   );
                 }
                 if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs.map((e) => e.data()).toList();
-                  var collection = docs
-                      ?.map((e) =>
-                          PointingSite.fromJson(e as Map<String, dynamic>))
-                      .toList();
+                 // var docs = snapshot.data?.docs.map((e) => e.data()).toList();
+                  // var collection = docs
+                  //     ?.map((e) =>
+                  //         PointingSite.fromJson(e as Map<String, dynamic>))
+                  //     .toList();
 
                   return Padding(
                     padding: const EdgeInsets.all(8.0),

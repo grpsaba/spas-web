@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/agent_bulk_config.dart';
+import 'package:spas_web/services/tenant_scope.dart';
 
 class AgentBulkService {
   AgentBulkService({
@@ -54,6 +55,7 @@ class AgentBulkService {
         actif: actif,
         tracking: tracking,
       );
+      TenantScope.applyTenantIdForWrite(agent);
 
       final docRef = collection.doc(agent.code);
       batch.set(docRef, agent.toJson());

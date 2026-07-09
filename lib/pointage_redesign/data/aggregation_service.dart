@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/pointage_exception.dart';
+import '../../services/tenant_scope.dart';
 
 /// Service for optimized aggregation queries on pointage data
 ///
@@ -18,6 +19,7 @@ class AggregationService {
   Future<Map<String, Map<DateTime, int>>> aggregateBySupervisorAndDay({
     required List<String> supervisorIds,
     required List<DateTime> days,
+    Map<String, List<String>>? activeSitesBySupervisor,
   }) async {
     try {
       if (supervisorIds.isEmpty || days.isEmpty) {
@@ -48,7 +50,7 @@ class AggregationService {
       }
 
       // Build query for all supervisors and date range
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -58,7 +60,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateBySupervisorAndDay',
+        query,
+      );
 
       // Process results and group by supervisor and day
       for (var doc in snapshot.docs) {
@@ -72,6 +77,19 @@ class AggregationService {
           final supervisorUID = supervisorData['UID'] as String?;
           if (supervisorUID == null || !supervisorIds.contains(supervisorUID)) {
             continue;
+          }
+
+          // If filtering by active sites, check if the site is in the supervisor's active sites
+          if (activeSitesBySupervisor != null) {
+            final siteData = data['site'] as Map<String, dynamic>?;
+            final siteUID = siteData?['UID'] as String?;
+            
+            if (siteUID == null || siteUID.isEmpty) continue;
+            
+            final activeSites = activeSitesBySupervisor[supervisorUID];
+            if (activeSites == null || !activeSites.contains(siteUID)) {
+              continue; // Skip pointage for inactive/unassigned site
+            }
           }
 
           // Extract and normalize date
@@ -133,6 +151,7 @@ class AggregationService {
       aggregateUniqueSitesBySupervisorAndDay({
     required List<String> supervisorIds,
     required List<DateTime> days,
+    Map<String, List<String>>? activeSitesBySupervisor,
   }) async {
     try {
       if (supervisorIds.isEmpty || days.isEmpty) {
@@ -166,7 +185,7 @@ class AggregationService {
       }
 
       // Build query for all supervisors and date range
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -176,7 +195,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateUniqueSitesBySupervisorAndDay',
+        query,
+      );
 
       // Process results and deduplicate by site per supervisor/day
       for (var doc in snapshot.docs) {
@@ -198,6 +220,14 @@ class AggregationService {
 
           final siteUID = siteData['UID'] as String?;
           if (siteUID == null || siteUID.isEmpty) continue;
+
+          // Check if site is currently active for this supervisor
+          if (activeSitesBySupervisor != null) {
+            final activeSites = activeSitesBySupervisor[supervisorUID];
+            if (activeSites == null || !activeSites.contains(siteUID)) {
+              continue; // Skip pointage for inactive/unassigned site
+            }
+          }
 
           // Extract and normalize date
           final timestamp = data['datetimestamp'];
@@ -276,7 +306,7 @@ class AggregationService {
   }) async {
     try {
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -286,7 +316,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateBySiteAndPeriod',
+        query,
+      );
 
       // Aggregate by site
       final Map<String, int> result = {};
@@ -345,12 +378,15 @@ class AggregationService {
   }) async {
     try {
       // Build query
-      final query = _collectionReference
+      final query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.getGlobalStats',
+        query,
+      );
 
       // Calculate statistics
       final Set<String> uniqueSites = {};
@@ -467,7 +503,7 @@ class AggregationService {
       final end = start.add(const Duration(days: 1));
 
       // Build query
-      Query query = _collectionReference
+      Query query = TenantScope.applyToQuery(_collectionReference)
           .where('datetimestamp', isGreaterThanOrEqualTo: start)
           .where('datetimestamp', isLessThan: end);
 
@@ -477,7 +513,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.batchCountBySupervisorOnDate',
+        query,
+      );
 
       // Count by supervisor
       final Map<String, int> counts = {};
@@ -559,7 +598,7 @@ class AggregationService {
       final zonePointingsRef =
           FirebaseFirestore.instance.collection("zonePointings");
 
-      Query query = zonePointingsRef
+      Query query = TenantScope.applyToQuery(zonePointingsRef)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -569,7 +608,10 @@ class AggregationService {
       }
 
       // Execute query
-      final snapshot = await query.get();
+      final snapshot = await TenantScope.getQuery(
+        'AggregationService.aggregateByZoneMemberAndDay',
+        query,
+      );
 
       // Process results and group by zone member and day
       for (var doc in snapshot.docs) {

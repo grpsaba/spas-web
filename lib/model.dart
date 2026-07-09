@@ -3,6 +3,138 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
+class TenantDefaults {
+  static const String maliTenantId = 'ml';
+  static const String defaultTenantId = maliTenantId;
+}
+
+class TenantPointageMode {
+  static const String photo = 'photo';
+  static const String geo = 'geo';
+
+  static String normalize(String? value) {
+    final mode = value?.trim().toLowerCase();
+    if (mode == geo) return geo;
+    return photo;
+  }
+}
+
+String normalizeProfileNameForAccess(String? value) {
+  return (value ?? '')
+      .trim()
+      .toLowerCase()
+      .replaceAll('\u00e0', 'a')
+      .replaceAll('\u00e2', 'a')
+      .replaceAll('\u00e7', 'c')
+      .replaceAll('\u00e9', 'e')
+      .replaceAll('\u00e8', 'e')
+      .replaceAll('\u00ea', 'e')
+      .replaceAll('\u00eb', 'e')
+      .replaceAll('\u00ee', 'i')
+      .replaceAll('\u00ef', 'i')
+      .replaceAll('\u00f4', 'o')
+      .replaceAll('\u00f9', 'u')
+      .replaceAll('\u00fb', 'u')
+      .replaceAll('\u00fc', 'u');
+}
+
+bool canBypassTenantForProfile(Profil? profil) {
+  final profileName = normalizeProfileNameForAccess(profil?.name);
+  return profileName == 'administrateur' ||
+      profileName == 'directeur general';
+}
+
+String tenantIdFromJson(Map<String, dynamic> json) {
+  final value = json['tenantId'];
+  if (value is String && value.trim().isNotEmpty) return value.trim();
+  return TenantDefaults.defaultTenantId;
+}
+
+bool hasTenantIdInJson(Map<String, dynamic> json) {
+  final value = json['tenantId'];
+  return value is String && value.trim().isNotEmpty;
+}
+
+String? departmentIdFromJson(Map<String, dynamic> json) {
+  final value = json['departmentId'];
+  if (value is String && value.trim().isNotEmpty) return value.trim();
+
+  final department = json['department'];
+  if (department is Map) {
+    final id = department['id'];
+    if (id is String && id.trim().isNotEmpty) return id.trim();
+
+    final label = department['label'];
+    if (label is String && label.trim().isNotEmpty) return label.trim();
+  }
+
+  return null;
+}
+
+String effectiveTenantId(
+  String tenantId,
+  Iterable<String?> candidates,
+) {
+  if (tenantId.trim().isNotEmpty &&
+      tenantId != TenantDefaults.defaultTenantId) {
+    return tenantId;
+  }
+
+  for (final candidate in candidates) {
+    if (candidate != null &&
+        candidate.trim().isNotEmpty &&
+        candidate != TenantDefaults.defaultTenantId) {
+      return candidate.trim();
+    }
+  }
+
+  return tenantId.trim().isNotEmpty
+      ? tenantId.trim()
+      : TenantDefaults.defaultTenantId;
+}
+
+class Tenant extends Equatable {
+  final String id;
+  final String label;
+  final String countryCode;
+  final bool active;
+  final String pointageMode;
+
+  const Tenant({
+    required this.id,
+    required this.label,
+    required this.countryCode,
+    this.active = true,
+    this.pointageMode = TenantPointageMode.photo,
+  });
+
+  factory Tenant.fromJson(Map<String, dynamic> json) {
+    return Tenant(
+      id: json['id'] ?? '',
+      label: json['label'] ?? '',
+      countryCode: json['countryCode'] ?? '',
+      active: json['active'] ?? true,
+      pointageMode: TenantPointageMode.normalize(json['pointageMode']),
+    );
+  }
+
+  Map<String, dynamic> toJson() {
+    return {
+      'id': id,
+      'label': label,
+      'countryCode': countryCode,
+      'active': active,
+      'pointageMode': pointageMode,
+    };
+  }
+
+  bool get usesPhotoPointing => pointageMode == TenantPointageMode.photo;
+  bool get usesGeoPointing => pointageMode == TenantPointageMode.geo;
+
+  @override
+  List<Object?> get props => [id];
+}
+
 class LatLngModel {
   double lat;
   double lng;
@@ -32,11 +164,15 @@ class SuperviseurLocaion {
   DateTime date;
   LatLngModel latlng;
   Supervisor? supervisor;
+  String tenantId;
+  String? departmentId;
 
   SuperviseurLocaion({
     required this.latlng,
     required this.date,
     required this.supervisor,
+    this.tenantId = TenantDefaults.defaultTenantId,
+    this.departmentId,
   });
 
   factory SuperviseurLocaion.fromJson(Map<String, dynamic> json) {
@@ -44,6 +180,8 @@ class SuperviseurLocaion {
       date: DateTime.parse(json["date"]),
       latlng: LatLngModel.fromJson(json["latlng"]),
       supervisor: Supervisor.fromJson(json["supervisor"]),
+      tenantId: tenantIdFromJson(json),
+      departmentId: departmentIdFromJson(json),
     );
   }
 
@@ -52,6 +190,8 @@ class SuperviseurLocaion {
       "date": date.toIso8601String(),
       "latlng": latlng.toJson(),
       "supervisor": supervisor?.toJson(),
+      "tenantId": effectiveTenantId(tenantId, [supervisor?.tenantId]),
+      "departmentId": departmentId ?? supervisor?.departmentId,
     };
   }
 
@@ -74,6 +214,9 @@ class Supervisor {
   LatLngModel? latlng;
   String token;
   bool? actif;
+  String tenantId;
+  String? departmentId;
+  bool hasTenantId;
   final bool isSpecial;
   Department? department;
   Zone? zone;
@@ -88,6 +231,9 @@ class Supervisor {
       required this.tracking,
       required this.latlng,
       required this.actif,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId,
+      this.hasTenantId = false,
       this.isSpecial = false,
       this.zone,
       required this.department});
@@ -113,6 +259,9 @@ class Supervisor {
       token: json['token'] ?? "",
       zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
       actif: json['actif'] ?? true,
+      tenantId: tenantIdFromJson(json),
+      departmentId: departmentIdFromJson(json),
+      hasTenantId: hasTenantIdInJson(json),
       isSpecial: json['isSpecial'] ?? false,
       tracking: json["tracking"] ?? true,
       department: json['department'] == null
@@ -134,6 +283,8 @@ class Supervisor {
       'token': token,
       "tracking": tracking,
       'actif': actif,
+      "tenantId": tenantId,
+      "departmentId": departmentId ?? department?.id,
       "latlng": latlng?.toJson(),
       "isSpecial": isSpecial,
       "zone": zone?.toJson(),
@@ -201,6 +352,8 @@ class Agent extends Equatable {
   String email;
   bool tracking;
   Department? department;
+  String tenantId;
+  String? departmentId;
   Site? site;
   AgentType? typeAgent;
   bool? actif;
@@ -218,6 +371,8 @@ class Agent extends Equatable {
       required this.tracking,
       required this.site,
       required this.department,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId,
       required this.typeAgent,
       required this.actif,
       required this.docs,
@@ -248,6 +403,8 @@ class Agent extends Equatable {
           : AgentType.fromJson(json["AgentType"]),
       site: json["site"] == null ? null : Site.fromJson(json["site"]),
       actif: json["actif"] ?? true,
+      tenantId: tenantIdFromJson(json),
+      departmentId: departmentIdFromJson(json),
       department: json["department"] == null
           ? null
           : Department.fromJson(json["department"]),
@@ -266,6 +423,8 @@ class Agent extends Equatable {
       "tracking": tracking,
       "site": site?.toJson(),
       "actif": actif,
+      "tenantId": effectiveTenantId(tenantId, [site?.tenantId]),
+      "departmentId": departmentId ?? department?.id,
       "department": department?.toJson(),
       "AgentType": typeAgent?.toJson(),
       "dateEmbauche": dateEmbauche?.toIso8601String(),
@@ -306,6 +465,8 @@ class Site extends Equatable {
   bool? actif;
   bool sos;
   Zone? zone;
+  String tenantId;
+  List<String> departmentIds;
   int? nbRonde;
   DateTime? dateContrat;
   String pointageType;
@@ -324,9 +485,12 @@ class Site extends Equatable {
       this.sos = false,
       required this.actif,
       required this.zone,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      List<String>? departmentIds,
       required this.dateContrat,
       required this.nbRonde,
-      this.pointageType = 'jour'});
+      this.pointageType = 'jour'})
+      : departmentIds = departmentIds ?? <String>[];
 
   factory Site.fromJson(Map<String, dynamic> json) {
     //verifier si une valeuir est null avant de la parser
@@ -341,6 +505,11 @@ class Site extends Equatable {
         actif: json['actif'] ?? true,
         nbRonde: json['nbRonde'] ?? 1,
         nbAgent: json['nbAgent'] ?? 0,
+        tenantId: tenantIdFromJson(json),
+        departmentIds: (json['departmentIds'] as List?)
+                ?.whereType<String>()
+                .toList() ??
+            <String>[],
         dateContrat: json['dateContrat'] != null
             ? DateTime.tryParse(json['dateContrat'])
             : DateTime.now(),
@@ -371,6 +540,8 @@ class Site extends Equatable {
       'phone': phone,
       'nbAgent': nbAgent,
       'actif': actif,
+      'tenantId': tenantId,
+      'departmentIds': departmentIds,
       'nbRonde': nbRonde ?? 1,
       'pointageType': pointageType,
       'dateContrat': dateContrat != null
@@ -392,9 +563,11 @@ class Site extends Equatable {
 class Zone extends Equatable {
   String codeZone;
   String name;
+  String tenantId;
   Zone({
     required this.codeZone,
     required this.name,
+    this.tenantId = TenantDefaults.defaultTenantId,
   });
 
   factory Zone.fromJson(Map<String, dynamic> json) {
@@ -404,6 +577,7 @@ class Zone extends Equatable {
     return Zone(
       codeZone: json["codeZone"],
       name: json["name"],
+      tenantId: tenantIdFromJson(json),
     );
   }
 
@@ -411,6 +585,7 @@ class Zone extends Equatable {
     return {
       "codeZone": codeZone,
       "name": name,
+      "tenantId": tenantId,
     };
   }
 
@@ -435,6 +610,8 @@ class ZoneMember extends Equatable {
   String? poste;
   Zone? zone;
   String token;
+  String tenantId;
+  String? departmentId;
   ZoneMember(
       {required this.UID,
       required this.code,
@@ -445,6 +622,8 @@ class ZoneMember extends Equatable {
       required this.actif,
       required this.poste,
       required this.zone,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId,
       this.token = ""});
 
   factory ZoneMember.fromJson(Map<String, dynamic> json) {
@@ -457,6 +636,8 @@ class ZoneMember extends Equatable {
       email: json["email"],
       token: json["token"],
       actif: json['actif'] ?? true,
+      tenantId: tenantIdFromJson(json),
+      departmentId: departmentIdFromJson(json),
       poste: json['poste'],
       zone: Zone.fromJson(json['zone']),
     );
@@ -472,6 +653,8 @@ class ZoneMember extends Equatable {
       "email": email,
       "token": token,
       "zone": zone?.toJson(),
+      "tenantId": effectiveTenantId(tenantId, [zone?.tenantId]),
+      "departmentId": departmentId,
       'actif': actif,
       "poste": poste
     };
@@ -485,16 +668,20 @@ class ZoneMember extends Equatable {
 
 class PointingZone {
   DateTime date;
-  LatLngModel latlng;
+  LatLngModel? latlng;
   Site site;
   ZoneMember? zoneMember;
   double distance;
+  String tenantId;
+  String? departmentId;
   PointingZone(
       {required this.site,
       required this.latlng,
       required this.date,
       required this.distance,
-      required this.zoneMember});
+      required this.zoneMember,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId});
 
   factory PointingZone.fromJson(Map<String, dynamic> json) {
     DateTime? parsedDate;
@@ -511,17 +698,22 @@ class PointingZone {
         latlng: LatLngModel.fromJson(json["latlng"]),
         site: Site.fromJson(json["site"]),
         zoneMember: ZoneMember.fromJson(json["zoneMember"]),
-        distance: json["distance"]);
+        distance: json["distance"],
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json));
   }
 
   Map<String, dynamic> toJson() {
     return {
       "date": date.toIso8601String(),
-      "latlng": latlng.toJson(),
+      "latlng": latlng?.toJson(),
       "site": site.toJson(),
       "distance": distance,
       "zoneMember": zoneMember?.toJson(),
       "datetimestamp": date,
+      "tenantId":
+          effectiveTenantId(tenantId, [site.tenantId, zoneMember?.tenantId]),
+      "departmentId": departmentId ?? zoneMember?.departmentId,
     };
   }
 
@@ -535,36 +727,61 @@ class PointingZone {
 
 class PointingSite {
   DateTime date;
-  LatLngModel latlng;
+  LatLngModel? latlng;
   Site site;
   Supervisor? supervisor;
   double distance;
+  String? agentPhotoUrl;
+  String tenantId;
+  String? departmentId;
   PointingSite(
       {required this.site,
       required this.latlng,
       required this.date,
       required this.distance,
-      required this.supervisor});
+      required this.supervisor,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId,
+      this.agentPhotoUrl});
 
   factory PointingSite.fromJson(Map<String, dynamic> json) {
+    DateTime? parsedDate;
+    if (json["datetimestamp"] != null) {
+      if (json["datetimestamp"] is Timestamp) {
+        parsedDate = (json["datetimestamp"] as Timestamp).toDate();
+      } else if (json["datetimestamp"] is String) {
+        parsedDate = DateTime.tryParse(json["datetimestamp"]);
+      }
+    }
+    if (parsedDate == null && json["date"] != null) {
+      if (json["date"] is String) {
+        parsedDate = DateTime.tryParse(json["date"]);
+      }
+    }
+    parsedDate ??= DateTime.now();
     return PointingSite(
-        date: json["date"] != null
-            ? DateTime.parse(json["date"])
-            : DateTime.now(),
-        latlng: LatLngModel.fromJson(json["latlng"]),
+        date: parsedDate,
+        latlng: json['latlng'] != null ? LatLngModel.fromJson(json["latlng"]) : null,
         site: Site.fromJson(json["site"]),
         supervisor: Supervisor.fromJson(json["supervisor"]),
-        distance: json["distance"]);
+        distance: json["distance"],
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json),
+        agentPhotoUrl: json["agentPhotoUrl"] as String?);
   }
 
   Map<String, dynamic> toJson() {
     return {
       "date": date.toIso8601String(),
-      "latlng": latlng.toJson(),
+      "latlng": latlng?.toJson(),
       "site": site.toJson(),
       "datetimestamp": date,
       "distance": distance,
-      "supervisor": supervisor?.toJson()
+      "supervisor": supervisor?.toJson(),
+      "agentPhotoUrl": agentPhotoUrl,
+      "tenantId":
+          effectiveTenantId(tenantId, [site.tenantId, supervisor?.tenantId]),
+      "departmentId": departmentId ?? supervisor?.departmentId,
     };
   }
 
@@ -582,12 +799,16 @@ class PointingAgent extends Equatable {
   Agent agent;
   double distance;
   bool confirmed;
+  String tenantId;
+  String? departmentId;
   PointingAgent(
       {required this.agent,
       required this.latlng,
       required this.date,
       required this.distance,
-      required this.confirmed});
+      required this.confirmed,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId});
 
   factory PointingAgent.fromJson(Map<String, dynamic> json) {
     return PointingAgent(
@@ -595,7 +816,9 @@ class PointingAgent extends Equatable {
         latlng: LatLngModel.fromJson(json["latlng"]),
         agent: Agent.fromJson(json["agent"]),
         distance: json["distance"],
-        confirmed: json["confirmed"]);
+        confirmed: json["confirmed"],
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json));
   }
 
   Map<String, dynamic> toJson() {
@@ -604,7 +827,9 @@ class PointingAgent extends Equatable {
       "latlng": latlng.toJson(),
       "agent": agent.toJson(),
       "distance": distance,
-      "confirmed": confirmed
+      "confirmed": confirmed,
+      "tenantId": effectiveTenantId(tenantId, [agent.tenantId]),
+      "departmentId": departmentId ?? agent.departmentId,
     };
   }
 
@@ -627,13 +852,17 @@ class PointingRondier extends Equatable {
   Site site;
   double distance;
   bool confirmed;
+  String tenantId;
+  String? departmentId;
   PointingRondier(
       {required this.agent,
       required this.latlng,
       required this.date,
       required this.distance,
       required this.confirmed,
-      required this.site});
+      required this.site,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId});
 
   factory PointingRondier.fromJson(Map<String, dynamic> json) {
     return PointingRondier(
@@ -642,7 +871,9 @@ class PointingRondier extends Equatable {
         agent: Agent.fromJson(json["agent"]),
         site: Site.fromJson(json["site"]),
         distance: json["distance"],
-        confirmed: json["confirmed"]);
+        confirmed: json["confirmed"],
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json));
   }
 
   Map<String, dynamic> toJson() {
@@ -652,7 +883,9 @@ class PointingRondier extends Equatable {
       "agent": agent.toJson(),
       "site": site.toJson(),
       "distance": distance,
-      "confirmed": confirmed
+      "confirmed": confirmed,
+      "tenantId": effectiveTenantId(tenantId, [agent.tenantId, site.tenantId]),
+      "departmentId": departmentId ?? agent.departmentId,
     };
   }
 
@@ -677,6 +910,8 @@ class Note extends Equatable {
   String note;
   bool viewed;
   Department? department;
+  String tenantId;
+  String? departmentId;
   List<Comment>? comments;
   Note(
       {required this.site,
@@ -687,6 +922,8 @@ class Note extends Equatable {
       required this.title,
       required this.id,
       required this.department,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId,
       required this.comments});
 
   factory Note.fromJson(Map<String, dynamic> json) {
@@ -698,6 +935,8 @@ class Note extends Equatable {
         department: json["department"] == null
             ? null
             : Department.fromJson(json["department"]),
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json),
         note: json["note"],
         viewed: json["viewed"],
         source: json["source"],
@@ -717,6 +956,8 @@ class Note extends Equatable {
       "title": title,
       "source": source,
       "id": id,
+      "tenantId": effectiveTenantId(tenantId, [site?.tenantId]),
+      "departmentId": departmentId ?? department?.id,
       "department": department?.toJson(),
       "comments": comments?.map((e) => e.toJson()).toList()
     };
@@ -760,6 +1001,8 @@ class Manager {
   String email;
   String token;
   String poste;
+  String tenantId;
+  bool hasTenantId;
   Profil? profil;
   Manager(
       {required this.UID,
@@ -769,6 +1012,8 @@ class Manager {
       required this.lastName,
       required this.poste,
       required this.token,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.hasTenantId = false,
       required this.profil});
 
   factory Manager.fromJson(Map<String, dynamic> json) {
@@ -780,6 +1025,8 @@ class Manager {
         email: json["email"],
         poste: json["poste"],
         token: json["token"],
+        tenantId: tenantIdFromJson(json),
+        hasTenantId: hasTenantIdInJson(json),
         profil: json["profil"] == null
             ? Profil(name: "Inconnu", modules: [
                 Module(
@@ -803,6 +1050,7 @@ class Manager {
       "email": email,
       "token": token,
       "poste": poste,
+      "tenantId": tenantId,
       "profil": profil?.toJson()
     };
   }
@@ -814,11 +1062,15 @@ class Tool {
   String serialNumber;
   Site? site;
   CategorieTool? catTool;
+  String tenantId;
+  String? departmentId;
   Tool(
       {required this.label,
       required this.serialNumber,
       required this.site,
-      required this.catTool});
+      required this.catTool,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId});
 
   factory Tool.fromJson(Map<String, dynamic> json) {
     return Tool(
@@ -828,6 +1080,8 @@ class Tool {
       catTool: json["catTool"] == null
           ? null
           : CategorieTool.fromJson(json["catTool"]),
+      tenantId: tenantIdFromJson(json),
+      departmentId: departmentIdFromJson(json),
     );
   }
 
@@ -837,6 +1091,8 @@ class Tool {
       "serialNumber": serialNumber,
       "site": site?.toJson(),
       "catTool": catTool?.toJson(),
+      "tenantId": effectiveTenantId(tenantId, [site?.tenantId]),
+      "departmentId": departmentId ?? catTool?.departmentId,
     };
   }
 //
@@ -845,15 +1101,28 @@ class Tool {
 class CategorieTool extends Equatable {
   String label;
   Department? department;
-  CategorieTool({required this.label, required this.department});
+  String? departmentId;
+  CategorieTool({
+    required this.label,
+    required this.department,
+    this.departmentId,
+  });
   factory CategorieTool.fromJson(Map<String, dynamic> json) {
     return CategorieTool(
-        label: json["label"],
-        department: Department.fromJson(json["department"]));
+      label: json["label"],
+      department: json["department"] == null
+          ? null
+          : Department.fromJson(json["department"]),
+      departmentId: departmentIdFromJson(json),
+    );
   }
 
   Map<String, dynamic> toJson() {
-    return {"label": label, "department": department?.toJson()};
+    return {
+      "label": label,
+      "departmentId": departmentId ?? department?.id,
+      "department": department?.toJson(),
+    };
   }
 
   @override
@@ -863,16 +1132,19 @@ class CategorieTool extends Equatable {
 }
 
 class Department extends Equatable {
+  String id;
   String label;
-  Department({required this.label});
+  Department({String? id, required this.label}) : id = id ?? label;
   factory Department.fromJson(Map<String, dynamic> json) {
     return Department(
+      id: json["id"] ?? json["label"],
       label: json["label"],
     );
   }
 
   Map<String, dynamic> toJson() {
     return {
+      "id": id,
       "label": label,
     };
   }
@@ -912,13 +1184,17 @@ class PointingTools {
   double distance;
   String status;
   bool supported;
+  String tenantId;
+  String? departmentId;
   PointingTools(
       {required this.tool,
       required this.latlng,
       required this.date,
       required this.distance,
       required this.status,
-      required this.supported});
+      required this.supported,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId});
 
   factory PointingTools.fromJson(Map<String, dynamic> json) {
     return PointingTools(
@@ -927,7 +1203,9 @@ class PointingTools {
         tool: Tool.fromJson(json["tool"]),
         distance: json["distance"],
         status: json["status"],
-        supported: json["supported"]);
+        supported: json["supported"],
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json));
   }
 
   Map<String, dynamic> toJson() {
@@ -937,7 +1215,9 @@ class PointingTools {
       "tool": tool.toJson(),
       "distance": distance,
       "status": status,
-      "supported": supported
+      "supported": supported,
+      "tenantId": effectiveTenantId(tenantId, [tool.tenantId]),
+      "departmentId": departmentId ?? tool.departmentId,
     };
   }
 }
@@ -948,12 +1228,16 @@ class CheckList {
   String status;
   Supervisor? supervisor;
   DateTime date;
+  String tenantId;
+  String? departmentId;
   CheckList(
       {required this.cattool,
       required this.status,
       required this.site,
       required this.supervisor,
-      required this.date});
+      required this.date,
+      this.tenantId = TenantDefaults.defaultTenantId,
+      this.departmentId});
 
   factory CheckList.fromJson(Map<String, dynamic> json) {
     return CheckList(
@@ -961,7 +1245,9 @@ class CheckList {
         cattool: CategorieTool.fromJson(json["cattool"]),
         status: json["status"],
         date: DateTime.parse(json["date"]),
-        supervisor: Supervisor.fromJson(json["supervisor"]));
+        supervisor: Supervisor.fromJson(json["supervisor"]),
+        tenantId: tenantIdFromJson(json),
+        departmentId: departmentIdFromJson(json));
   }
 
   Map<String, dynamic> toJson() {
@@ -970,7 +1256,11 @@ class CheckList {
       "site": site.toJson(),
       "cattool": cattool.toJson(),
       "status": status,
-      "supervisor": supervisor?.toJson()
+      "supervisor": supervisor?.toJson(),
+      "tenantId":
+          effectiveTenantId(tenantId, [site.tenantId, supervisor?.tenantId]),
+      "departmentId":
+          departmentId ?? cattool.departmentId ?? supervisor?.departmentId,
     };
   }
 }
@@ -1001,13 +1291,13 @@ class Profil extends Equatable {
     if (modules.isEmpty) return null;
     return modules.firstWhere((element) => element.moduleName == name,
         orElse: () => Module(
-            moduleName: ModuleName.MANAGER,
-            add: true,
+            moduleName: name,
+            add: false,
             delete: false,
             validation: false,
             view: false,
-            print: true,
-            generBadge: true));
+            print: false,
+            generBadge: false));
   }
 }
 
@@ -1061,17 +1351,44 @@ class Module {
       case "AGENT_TYPE":
         moduleName = ModuleName.AGENT_TYPE;
         break;
+      case "ZONE":
+        moduleName = ModuleName.ZONE;
+        break;
+      case "ZONE_MEMBER":
+        moduleName = ModuleName.ZONE_MEMBER;
+        break;
+      case "POINTAGE_SITE":
+        moduleName = ModuleName.POINTAGE_SITE;
+        break;
+      case "POINTAGE_AGENT":
+        moduleName = ModuleName.POINTAGE_AGENT;
+        break;
+      case "POINTAGE_RONDIER":
+        moduleName = ModuleName.POINTAGE_RONDIER;
+        break;
+      case "POINTAGE_TOOL":
+        moduleName = ModuleName.POINTAGE_TOOL;
+        break;
+      case "POINTAGE_ZONE":
+        moduleName = ModuleName.POINTAGE_ZONE;
+        break;
+      case "ERROR_LOG":
+        moduleName = ModuleName.ERROR_LOG;
+        break;
+      case "MOBILE_CONFIG":
+        moduleName = ModuleName.MOBILE_CONFIG;
+        break;
       default:
         moduleName = ModuleName.MANAGER;
     }
     return Module(
         moduleName: moduleName,
-        validation: json['validation'],
-        delete: json['delete'],
-        add: json['add'],
-        print: json['print'],
-        generBadge: json['generBadge'],
-        view: json['view']);
+        validation: json['validation'] ?? false,
+        delete: json['delete'] ?? false,
+        add: json['add'] ?? false,
+        print: json['print'] ?? false,
+        generBadge: json['generBadge'] ?? false,
+        view: json['view'] ?? false);
   }
 
   Map<String, dynamic> toJson() => {
@@ -1097,7 +1414,16 @@ enum ModuleName {
   MANAGER,
   CATEGORIE_TOOL,
   DEPARTMENT,
-  AGENT_TYPE
+  AGENT_TYPE,
+  ZONE,
+  ZONE_MEMBER,
+  POINTAGE_SITE,
+  POINTAGE_AGENT,
+  POINTAGE_RONDIER,
+  POINTAGE_TOOL,
+  POINTAGE_ZONE,
+  ERROR_LOG,
+  MOBILE_CONFIG
 }
 
 class PushNotification {

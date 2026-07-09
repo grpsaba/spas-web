@@ -6,15 +6,20 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../model.dart';
 import 'authentication.dart';
+import 'tenant_scope.dart';
 
 class ManagerService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Managers");
   Future<User?> add(Manager manager, password) async {
+    if (TenantScope.shouldFilterTenant) {
+      manager.tenantId = TenantScope.currentTenantId;
+      manager.hasTenantId = true;
+    }
     var user = await AuthService().createUserWithEmail(manager.email, password);
     if (user != null) {
       manager.UID = user.uid;
-      _collectionReference.doc(manager.UID).set(manager.toJson());
+      _collectionReference.doc(manager.UID).set(_toFirestore(manager));
 
       //database.child(user.uid).set(supervisor.toJson());
     }
@@ -22,11 +27,17 @@ class ManagerService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'ManagerService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Future<List<Manager>> allFuture() async {
-    var snpshot = await _collectionReference.get();
+    var snpshot = await TenantScope.getQuery(
+      'ManagerService.allFuture',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     List<Manager> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>
             Manager.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -70,15 +81,42 @@ class ManagerService {
   Future<Manager?> one(uid) async {
     try {
       var dataSnapshot = await _collectionReference.doc(uid).get();
-      var data = jsonEncode(dataSnapshot.data());
-      return Manager.fromJson(jsonDecode(data));
+      final rawData = dataSnapshot.data();
+      if (rawData == null) return null;
+
+      final data = jsonDecode(jsonEncode(rawData)) as Map<String, dynamic>;
+      return Manager.fromJson(data);
     } catch (error) {
       return null;
     }
   }
 
+  Future<bool> hasAssignedTenant(Manager manager) async {
+    try {
+      final dataSnapshot = await _collectionReference.doc(manager.UID).get();
+      final rawData = dataSnapshot.data();
+      if (rawData == null) return false;
+
+      final data = jsonDecode(jsonEncode(rawData)) as Map<String, dynamic>;
+      final storedTenantId = data['tenantId'];
+      final hasTenantId =
+          storedTenantId is String && storedTenantId.trim().isNotEmpty;
+      manager.hasTenantId = hasTenantId;
+      if (hasTenantId) {
+        manager.tenantId = storedTenantId.trim();
+      }
+      return hasTenantId;
+    } catch (error) {
+      return false;
+    }
+  }
+
   Future<void> update(Manager manager) {
-    return _collectionReference.doc(manager.UID).update(manager.toJson());
+    if (TenantScope.shouldFilterTenant) {
+      manager.tenantId = TenantScope.currentTenantId;
+      manager.hasTenantId = true;
+    }
+    return _collectionReference.doc(manager.UID).update(_toFirestore(manager));
   }
 
   Future<void> saveToken(String? token, String UID) {
@@ -87,5 +125,14 @@ class ManagerService {
 
   Future<void> delete(Manager manager) async {
     return _collectionReference.doc(manager.UID).delete();
+  }
+
+  Map<String, dynamic> _toFirestore(Manager manager) {
+    final data = manager.toJson();
+    if (canBypassTenantForProfile(manager.profil) &&
+        !manager.hasTenantId) {
+      data.remove('tenantId');
+    }
+    return data;
   }
 }

@@ -12,6 +12,7 @@ import 'package:spas_web/pointage_redesign/presentation/widgets/error_display.da
 import 'package:spas_web/pointage_redesign/presentation/widgets/success_snackbar.dart';
 import 'package:spas_web/pointage_redesign/models/pointage_exception.dart';
 import 'package:spas_web/services/site.dart';
+import 'package:spas_web/services/tenant_scope.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/utilsClass.dart';
 import 'package:spas_web/zone_member/zone_rapport_pointage_generator.dart';
@@ -110,11 +111,14 @@ class _ZoneSiteMonthlyPointageState extends State<ZoneSiteMonthlyPointage> {
       final endDate = _selectedDateRange!.end.add(const Duration(days: 1));
       
       // Query zone pointings
-      final snapshot = await FirebaseFirestore.instance
-          .collection('zonePointings')
-          .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
-          .where('datetimestamp', isLessThan: endDate)
-          .get();
+      final snapshot = await TenantScope.getQuery(
+        'ZoneSiteMonthlyPointage.loadData',
+        TenantScope.applyToQuery(
+          FirebaseFirestore.instance.collection('zonePointings'),
+        )
+            .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
+            .where('datetimestamp', isLessThan: endDate),
+      );
       
       if (!mounted) return;
       

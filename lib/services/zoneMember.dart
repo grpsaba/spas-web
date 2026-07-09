@@ -5,12 +5,14 @@ import 'package:firebase_auth/firebase_auth.dart';
 
 import '../model.dart';
 import 'authentication.dart';
+import 'tenant_scope.dart';
 
 class ZoneMemberService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("ZoneMembers");
 
   Future<User?> add(ZoneMember zoneMember, password) async {
+    TenantScope.applyTenantIdForWrite(zoneMember);
     var user =
         await AuthService().createUserWithEmail(zoneMember.email, password);
     if (user != null) {
@@ -24,11 +26,17 @@ class ZoneMemberService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'ZoneMemberService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Future<List<ZoneMember>> allAsModel() async {
-    var snapshot = await _collectionReference.get();
+    var snapshot = await TenantScope.getQuery(
+      'ZoneMemberService.allAsModel',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     var collection = snapshot.docs.map((snap) {
       return ZoneMember.fromJson(jsonDecode(jsonEncode(snap.data())));
     }).toList();
@@ -36,7 +44,11 @@ class ZoneMemberService {
     return collection;
   }
   Future<List<ZoneMember>> allActifAsModel() async {
-    var snapshot = await _collectionReference.where('actif',isEqualTo: true).get();
+    var snapshot = await TenantScope.getQuery(
+      'ZoneMemberService.allActifAsModel',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('actif', isEqualTo: true),
+    );
     var collection = snapshot.docs.map((snap) {
       return ZoneMember.fromJson(jsonDecode(jsonEncode(snap.data())));
     }).toList();
@@ -55,6 +67,7 @@ class ZoneMemberService {
   }
 
   Future<void> update(ZoneMember zoneMember) {
+    TenantScope.applyTenantIdForWrite(zoneMember);
     return _collectionReference.doc(zoneMember.UID).update(zoneMember.toJson());
   }
 

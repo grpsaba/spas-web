@@ -3,12 +3,14 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class NoteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Notes");
 
   Future<void> add(Note note) async {
+    TenantScope.applyTenantIdForWrite(note);
     var reference =
         '${note.date.hour}${note.date.minute}${note.date.second}${note.date.microsecond}';
     note.id = reference;
@@ -16,10 +18,19 @@ class NoteService {
   }
 
   Stream<QuerySnapshot> all() {
-    return _collectionReference.orderBy('date',descending: true).snapshots();
+    return TenantScope.watchQuery(
+      'NoteService.all',
+      TenantScope.applyToQuery(_collectionReference)
+          .orderBy('date', descending: true),
+    );
   }
   Stream<QuerySnapshot> allNoViewedNote() {
-    return _collectionReference.where("viewed",isEqualTo: false).orderBy('date',descending: true).snapshots();
+    return TenantScope.watchQuery(
+      'NoteService.allNoViewedNote',
+      TenantScope.applyToQuery(_collectionReference)
+          .where("viewed", isEqualTo: false)
+          .orderBy('date', descending: true),
+    );
   }
 
   Future<void> delete(Note note) async {
@@ -34,11 +45,16 @@ class NoteService {
   }
 
   Future<void> update(Note note) {
+    TenantScope.applyTenantIdForWrite(note);
     return _collectionReference.doc(note.id).update(note.toJson());
   }
 
   Future<List<Note>> allFuture() async {
-    var snpshot = await _collectionReference.orderBy('date',descending: true).get();
+    var snpshot = await TenantScope.getQuery(
+      'NoteService.allFuture',
+      TenantScope.applyToQuery(_collectionReference)
+          .orderBy('date', descending: true),
+    );
     List<Note> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>
             Note.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -47,8 +63,13 @@ class NoteService {
   }
 
   Future<List<Note>> allBySource(String source) async {
-    var query = await _collectionReference.where("source", isEqualTo: source).orderBy('date',descending: true);
-    var snpshot = await query.get();
+    var query = TenantScope.applyToQuery(_collectionReference)
+        .where("source", isEqualTo: source)
+        .orderBy('date', descending: true);
+    var snpshot = await TenantScope.getQuery(
+      'NoteService.allBySource',
+      query,
+    );
     List<Note> data = snpshot.docs
         .map((QueryDocumentSnapshot e) =>
             Note.fromJson(jsonDecode(jsonEncode(e.data()))))

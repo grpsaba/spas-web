@@ -3,11 +3,13 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'tenant_scope.dart';
 
 class PointingZoneService {
   final CollectionReference<Map<String, dynamic>> _collectionReference =
       FirebaseFirestore.instance.collection("zonePointings");
   Future<void> add(PointingZone point) async {
+    TenantScope.applyTenantIdForWrite(point);
     String child =
         "${point.site.UID} ${point.date.year}-${point.date.month}-${point.date.day}";
     dynamic data = point.toJson();
@@ -16,21 +18,25 @@ class PointingZoneService {
   }
 
   Stream<QuerySnapshot<Map<String, dynamic>>> all() {
-    return _collectionReference.snapshots();
+    return TenantScope.watchQuery(
+      'PointingZoneService.all',
+      TenantScope.applyToQuery(_collectionReference),
+    );
   }
 
   Stream<List<PointingZone>> allByZoneMember(
       {required ZoneMember zoneMember, DateTime? month}) {
     final range = _monthRange(month ?? DateTime.now());
-    return _collectionReference
-        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
-        .where('datetimestamp',
-            isGreaterThanOrEqualTo: Timestamp.fromDate(range.start))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(range.end))
-        .snapshots()
-        .map((snapshot) => snapshot.docs
-            .map((e) => PointingZone.fromJson(e.data() as Map<String, dynamic>))
-            .toList());
+    return TenantScope.watchQuery(
+      'PointingZoneService.allByZoneMember',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('zoneMember.UID', isEqualTo: zoneMember.UID)
+          .where('datetimestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(range.start))
+          .where('datetimestamp', isLessThan: Timestamp.fromDate(range.end)),
+    ).map((snapshot) => snapshot.docs
+        .map((e) => PointingZone.fromJson(e.data() as Map<String, dynamic>))
+        .toList());
   }
 
   Future<DocumentSnapshot<Object?>> one(child) {
@@ -38,13 +44,17 @@ class PointingZoneService {
   }
 
   Future<void> update(PointingZone point) {
+    TenantScope.applyTenantIdForWrite(point);
     String child =
         "${point.site.UID}${point.date.year}${point.date.month}${point.date.day}";
     return _collectionReference.doc(child).update(point.toJson());
   }
 
   Future<List<PointingZone>> allFuture() async {
-    var snpshot = await _collectionReference.get();
+    var snpshot = await TenantScope.getQuery(
+      'PointingZoneService.allFuture',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     List<PointingZone> data = snpshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> e) =>
             PointingZone.fromJson(jsonDecode(jsonEncode(e.data()))))
@@ -55,7 +65,10 @@ class PointingZoneService {
   Future<List<Map<String, dynamic>>> nbSiteCheckedToDAyByZone(Zone zone) async {
     //DateTime _debut = DateTime.now().subtract(const Duration(days: 1));
     // DateTime _fin = DateTime.now().add(const Duration(days: 1));
-    var snapshot = await _collectionReference.get();
+    var snapshot = await TenantScope.getQuery(
+      'PointingZoneService.nbSiteCheckedToDAyByZone',
+      TenantScope.applyToQuery(_collectionReference),
+    );
     var collection = snapshot.docs.map((snap) {
       return PointingZone.fromJson(jsonDecode(jsonEncode(snap.data())));
     }).toList();
