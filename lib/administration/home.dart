@@ -5,6 +5,7 @@ import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/models/menu_item_model.dart';
 import 'package:spas_web/services/access_control.dart';
 import 'package:spas_web/services/drawer_menu_config.dart';
+import 'package:spas_web/widgets/app_version_label.dart';
 import '../const.dart';
 import '../model.dart';
 import '../services/authentication.dart';
@@ -135,7 +136,7 @@ class _PageModelState extends State<PageModel>
         ),
       ),
       actions: [
-        const Text("V18/06/2026 11:59"),
+        const AppVersionLabel(color: Colors.white),
         if (AccessControl.canBypassTenantFilter) ...[
           const SizedBox(width: 12),
           _buildTenantFilter(),

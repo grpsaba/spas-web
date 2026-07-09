@@ -7,6 +7,41 @@ import 'package:spas_web/model.dart';
 import 'authentication.dart';
 import 'tenant_scope.dart';
 
+enum SiteSupervisorSlot {
+  primary,
+  secondary,
+}
+
+extension SiteSupervisorSlotLabel on SiteSupervisorSlot {
+  String get label {
+    switch (this) {
+      case SiteSupervisorSlot.primary:
+        return 'Superviseur 1';
+      case SiteSupervisorSlot.secondary:
+        return 'Superviseur 2';
+    }
+  }
+
+  String get firestoreField {
+    switch (this) {
+      case SiteSupervisorSlot.primary:
+        return 'supervisor';
+      case SiteSupervisorSlot.secondary:
+        return 'supervisor_2';
+    }
+  }
+}
+
+class SiteSupervisorMigration {
+  const SiteSupervisorMigration({
+    required this.site,
+    required this.slot,
+  });
+
+  final Site site;
+  final SiteSupervisorSlot slot;
+}
+
 class SiteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Sites");
@@ -51,21 +86,22 @@ class SiteService {
   }
 
   Future<List<Site>> allAsModel() async {
-  try{
+    try {
       var snapshot = await TenantScope.getQuery(
         'SiteService.allAsModel',
         TenantScope.applyToQuery(_collectionReference)
             .where("actif", isEqualTo: true),
       );
-    var collection = snapshot.docs.map((snap) {
-      return Site.fromJson(snap.data() as Map<String, dynamic>);
-    }).toList();
+      var collection = snapshot.docs.map((snap) {
+        return Site.fromJson(snap.data() as Map<String, dynamic>);
+      }).toList();
 
-    return collection;
-  }catch(e){
-    print("Erreur lors de la récupération des sites : $e");
-    return [];
-  }}
+      return collection;
+    } catch (e) {
+      print("Erreur lors de la récupération des sites : $e");
+      return [];
+    }
+  }
 
   Future<List<Site>> allActifAsModel() async {
     var snapshot = await TenantScope.getQuery(
@@ -147,6 +183,45 @@ class SiteService {
         .toList();
 
     return collection;
+  }
+
+  Future<List<Site>> allAssignedToSupervisor(Supervisor supervisor) async {
+    var snapshot = await TenantScope.getQuery(
+      'SiteService.allAssignedToSupervisor',
+      TenantScope.applyToQuery(_collectionReference)
+          .where('actif', isEqualTo: true),
+    );
+
+    return snapshot.docs.map((snap) {
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
+    }).where((site) {
+      return site.supervisor?.UID == supervisor.UID ||
+          site.supervisor_2?.UID == supervisor.UID;
+    }).toList();
+  }
+
+  Future<void> migrateSupervisorSites({
+    required Supervisor targetSupervisor,
+    required List<SiteSupervisorMigration> migrations,
+  }) async {
+    if (migrations.isEmpty) return;
+
+    final batch = FirebaseFirestore.instance.batch();
+    final supervisorData = targetSupervisor.toJson();
+    final updatesBySite = <String, Map<String, dynamic>>{};
+
+    for (final migration in migrations) {
+      updatesBySite.putIfAbsent(
+        migration.site.UID,
+        () => <String, dynamic>{},
+      )[migration.slot.firestoreField] = supervisorData;
+    }
+
+    for (final entry in updatesBySite.entries) {
+      batch.update(_collectionReference.doc(entry.key), entry.value);
+    }
+
+    await batch.commit();
   }
 
   Future<List<Site>> allByZone(Zone zone) async {

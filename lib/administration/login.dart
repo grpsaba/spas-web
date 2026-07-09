@@ -6,6 +6,7 @@ import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/sos_wiget.dart';
 import 'package:spas_web/const.dart';
 import 'package:spas_web/model.dart';
+import 'package:spas_web/widgets/app_version_label.dart';
 
 import '../services/authentication.dart';
 import '../services/player.dart';
@@ -55,7 +56,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
-    
+
     _fadeAnimation = Tween<double>(
       begin: 0.0,
       end: 1.0,
@@ -63,7 +64,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       parent: _animationController,
       curve: Curves.easeInOut,
     ));
-    
+
     _slideAnimation = Tween<Offset>(
       begin: const Offset(0, 0.3),
       end: Offset.zero,
@@ -71,7 +72,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
       parent: _animationController,
       curve: Curves.easeOutCubic,
     ));
-    
+
     _animationController.forward();
   }
 
@@ -110,7 +111,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   }
 
   List<Tenant> get _fallbackTenants => const [
-        Tenant(id: TenantDefaults.maliTenantId, label: 'Mali', countryCode: 'ML'),
+        Tenant(
+            id: TenantDefaults.maliTenantId, label: 'Mali', countryCode: 'ML'),
       ];
 
   Consigne_model _getConsigneOfTheDay() {
@@ -180,6 +182,12 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
 
                         // Login Form
                         _buildLoginForm(),
+                        const SizedBox(height: 10),
+                        const AppVersionLabel(
+                          color: Colors.white70,
+                          fontSize: 12,
+                          textAlign: TextAlign.center,
+                        ),
                       ],
                     ),
                   ),
@@ -267,7 +275,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                     _enableTTS ? Icons.volume_up : Icons.volume_off,
                     color: AppConstants.primaryColor,
                   ),
-                  tooltip: _enableTTS ? "Désactiver l'audio" : "Activer l'audio",
+                  tooltip:
+                      _enableTTS ? "Désactiver l'audio" : "Activer l'audio",
                 ),
               ],
             ),
@@ -383,7 +392,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                           width: 20,
                           child: CircularProgressIndicator(
                             strokeWidth: 2,
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            valueColor:
+                                AlwaysStoppedAnimation<Color>(Colors.white),
                           ),
                         )
                       : const Text(
@@ -404,11 +414,13 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
                   decoration: BoxDecoration(
                     color: Colors.red.withValues(alpha: 0.1),
                     borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.red.withValues(alpha: 0.3)),
+                    border:
+                        Border.all(color: Colors.red.withValues(alpha: 0.3)),
                   ),
                   child: Row(
                     children: [
-                      const Icon(Icons.error_outline, color: Colors.red, size: 20),
+                      const Icon(Icons.error_outline,
+                          color: Colors.red, size: 20),
                       const SizedBox(width: 8),
                       Expanded(
                         child: Text(
@@ -432,7 +444,7 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
   Widget _buildTenantDropdown() {
     final tenants = _tenants.isEmpty ? _fallbackTenants : _tenants;
     return DropdownButtonFormField<String>(
-      value: _selectedTenantId,
+      initialValue: _selectedTenantId,
       items: tenants
           .map(
             (tenant) => DropdownMenuItem<String>(
@@ -462,7 +474,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
           borderRadius: BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide(color: AppConstants.primaryColor, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
@@ -503,7 +516,8 @@ class _LoginState extends State<Login> with SingleTickerProviderStateMixin {
           borderRadius: BorderRadius.all(Radius.circular(12)),
           borderSide: BorderSide(color: Colors.red, width: 2),
         ),
-        contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
+        contentPadding:
+            const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
       ),
     );
   }
