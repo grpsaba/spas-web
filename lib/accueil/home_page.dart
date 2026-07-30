@@ -17,7 +17,6 @@ import 'package:spas_web/services/agentType.dart';
 import 'package:spas_web/services/authentication.dart';
 
 import '../zone/progression_pointage_zone.dart';
-import 'absenceAgent.dart';
 import 'agent_card.dart';
 import 'note_card.dart';
 
@@ -30,53 +29,59 @@ class HomePage extends StatefulWidget {
 
 class _HomePageState extends State<HomePage> {
   late HomeProvider homeProvider;
-  
+  final manager = AuthService.currentManager;
+
+  bool isStatsHiden = false;
+  List<AgentType> _agentTypes = [];
+  bool _isLoadingAgentTypes = true;
+
   @override
   void initState() {
     super.initState();
     homeProvider = Provider.of<HomeProvider>(context, listen: false);
-   WidgetsBinding.instance.addPostFrameCallback((_) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
       _initializeData();
     });
   }
-  bool isStatsHiden = false;
-  List<AgentType> _agentTypes = []; // Store fetched AgentType data
-  bool _isLoadingAgentTypes = true; // Track loading state
+
   Future<void> _initializeData() async {
     if (homeProvider.needsRefresh) {
       await homeProvider.loadData();
     }
     _fetchAgentTypes();
-    // Load error logs stats
-    if(mounted){
+    if (mounted) {
       context.read<ErrorLogProvider>().loadStats();
     }
   }
+
   Future<void> _fetchAgentTypes() async {
     try {
       final agentTypes = await AgentTypeService().allFuture();
+      if (!mounted) return;
       setState(() {
         _agentTypes = agentTypes;
         _isLoadingAgentTypes = false;
       });
     } catch (e) {
+      if (!mounted) return;
       setState(() {
         _isLoadingAgentTypes = false;
       });
     }
   }
-  final manager = AuthService.currentManager;
-void hideStats(){
-  setState(() {
-    isStatsHiden = !isStatsHiden;
-  });
-}
+
+  void hideStats() {
+    setState(() {
+      isStatsHiden = !isStatsHiden;
+    });
+  }
+
   @override
   Widget build(BuildContext context) {
     return Consumer<HomeProvider>(
       builder: (context, provider, child) {
         return PageModel(
-          title: "SPAS GROUPE SABA",
+          title: 'SPAS GROUPE SABA',
           pageIndex: 0,
           child: RefreshIndicator(
             onRefresh: () => provider.refresh(),
@@ -143,7 +148,10 @@ void hideStats(){
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.red.shade600,
                 foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 24,
+                  vertical: 12,
+                ),
               ),
             ),
           ],
@@ -167,7 +175,7 @@ void hideStats(){
                 border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
               ),
               child: Text(
-                "Bienvenue ${manager!.lastName}",
+                'Bienvenue ${manager!.lastName}',
                 style: const TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.w800,
@@ -195,7 +203,7 @@ void hideStats(){
                 ),
                 SizedBox(height: 24),
                 Text(
-                  "Chargement du tableau de bord...",
+                  'Chargement du tableau de bord...',
                   style: TextStyle(
                     color: Colors.white,
                     fontWeight: FontWeight.w600,
@@ -214,202 +222,310 @@ void hideStats(){
     final screenWidth = MediaQuery.of(context).size.width;
     final isDesktop = screenWidth > 1200;
     final isTablet = screenWidth > 768 && screenWidth <= 1200;
-    final isMobile = screenWidth <= 768;
-    
-    return ListView(
-      padding: const EdgeInsets.all(16),
-      children: [
-           Row(
+    final pagePadding = isDesktop ? 24.0 : 16.0;
 
-          children: [const Spacer(),
-             _buildHideButton(),
-             SizedBox(width: 10,),
-          _buildRefreshButton(provider),
-          ],
-         ),
-      isStatsHiden? const SizedBox.shrink() :  _buildStatsCards(context, provider, isDesktop, isTablet, isMobile),
-        const SizedBox(height: 24),
-        _buildDataGrids(context, provider, isDesktop, isTablet, isMobile),
+    return ListView(
+      padding: EdgeInsets.all(pagePadding),
+      children: [
+        _buildDashboardHeader(context, provider),
+        const SizedBox(height: 18),
+        AnimatedSwitcher(
+          duration: const Duration(milliseconds: 200),
+          child: isStatsHiden
+              ? _buildHiddenStatsNotice()
+              : _buildStatsCards(context, provider, isDesktop, isTablet),
+        ),
+        const SizedBox(height: 22),
+        _buildSectionHeader(
+          title: 'Suivi opérationnel',
+          subtitle: 'Sites, superviseurs et chefs de zone',
+          icon: Icons.monitor_heart_outlined,
+          onDark: true,
+        ),
+        const SizedBox(height: 12),
+        _buildDataGrids(context, provider, isDesktop, isTablet),
       ],
     );
   }
 
-  Widget _buildStatsCards(BuildContext context, HomeProvider provider, bool isDesktop, bool isTablet, bool isMobile) {
+  Widget _buildDashboardHeader(BuildContext context, HomeProvider provider) {
+    final managerName = manager == null
+        ? 'Tableau de bord'
+        : 'Bonjour ${manager!.lastName}'.trim();
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(20),
       decoration: BoxDecoration(
-        gradient: LinearGradient(
+        gradient: const LinearGradient(
           colors: [
-            AppConstants.bgColor,
-            AppConstants.bgColor.withValues(alpha: 0.8),
+            AppConstants.primaryColor,
+            Color(0xFF303236),
           ],
           begin: Alignment.topLeft,
           end: Alignment.bottomRight,
         ),
-        borderRadius: BorderRadius.circular(20),
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.1),
-            blurRadius: 10,
-            offset: const Offset(0, 4),
+            color: Colors.black.withValues(alpha: 0.18),
+            blurRadius: 20,
+            offset: const Offset(0, 10),
           ),
         ],
       ),
-      child: Column(
+      child: Wrap(
+        spacing: 18,
+        runSpacing: 16,
+        alignment: WrapAlignment.spaceBetween,
+        crossAxisAlignment: WrapCrossAlignment.center,
         children: [
-      
-          _buildStatsRow(context, provider, isDesktop, isTablet, isMobile),
-        ],
-      ),
-    );
-  }
-  Widget _buildHideButton() {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: InkWell(
-        radius: 0,
-        splashColor: Colors.transparent,
-        onTap: ()=> hideStats(),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.1),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-          ),
-          child:    Icon(isStatsHiden? Icons.visibility:Icons.visibility_off,color: Colors.white,size: 20,)
-           
-        ),
-      ),
-    );
-  }
-  Widget _buildRefreshButton(HomeProvider provider,{bool stats = false}) {
-    return Align(
-      alignment: Alignment.centerRight,
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: provider.isLoading ? null : () => provider.refresh(),
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-            ),
-            child: stats? GestureDetector(onTap: ()=>hideStats(),child:  Icon(isStatsHiden? Icons.visibility:Icons.visibility_off,color: Colors.white,size: 20,),)
-             :   Row(
-              mainAxisSize: MainAxisSize.min,
+          ConstrainedBox(
+            constraints: const BoxConstraints(maxWidth: 560),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                if (provider.isLoading)
-                  const SizedBox(
-                    width: 16,
-                    height: 16,
-                    child: CircularProgressIndicator(
-                      strokeWidth: 2,
-                      valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                    ),
-                  )
-                else
-                  const Icon(
-                    Icons.refresh_rounded,
-                    size: 20,
-                    color: Colors.white,
-                  ),
-                const SizedBox(width: 8),
                 Text(
-                  provider.isLoading ? "Actualisation..." : "Actualiser",
-                  style: const TextStyle(
-                    color: Colors.white,
-                    fontSize: 14,
-                    fontWeight: FontWeight.w600,
-                  ),
+                  managerName,
+                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
+                        color: Colors.white,
+                        fontWeight: FontWeight.w800,
+                      ),
+                ),
+                const SizedBox(height: 6),
+                Text(
+                  'SPAS GROUPE SABA',
+                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                        color: Colors.white.withValues(alpha: 0.72),
+                        fontWeight: FontWeight.w600,
+                      ),
                 ),
               ],
             ),
           ),
+          Wrap(
+            spacing: 10,
+            runSpacing: 10,
+            crossAxisAlignment: WrapCrossAlignment.center,
+            children: [
+              _DashboardMetricChip(
+                icon: Icons.location_city_rounded,
+                label: 'Sites actifs',
+                value: provider.nbSite.toString(),
+                color: const Color(0xFFB8C7FF),
+              ),
+              _DashboardMetricChip(
+                icon: Icons.supervisor_account_rounded,
+                label: 'Superviseurs',
+                value: provider.supervisors.length.toString(),
+                color: const Color(0xFF9FE7DD),
+              ),
+              _buildHideButton(),
+              _buildRefreshButton(provider),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildStatsCards(
+    BuildContext context,
+    HomeProvider provider,
+    bool isDesktop,
+    bool isTablet,
+  ) {
+    return Container(
+      key: const ValueKey('stats-visible'),
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(18),
+        border: Border.all(color: const Color(0xFFE7ECF3)),
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 18,
+            offset: const Offset(0, 8),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildSectionHeader(
+            title: 'Indicateurs clés',
+            subtitle: 'Activité et alertes',
+            icon: Icons.dashboard_customize_outlined,
+            onDark: false,
+            compact: true,
+          ),
+          const SizedBox(height: 14),
+          _buildStatsGrid(context, provider, isDesktop, isTablet),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHiddenStatsNotice() {
+    return Container(
+      key: const ValueKey('stats-hidden'),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.08),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
+      ),
+      child: Row(
+        children: [
+          const Icon(
+            Icons.visibility_off_outlined,
+            color: Colors.white70,
+            size: 18,
+          ),
+          const SizedBox(width: 10),
+          const Expanded(
+            child: Text(
+              'Indicateurs masqués',
+              style: TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          TextButton.icon(
+            onPressed: hideStats,
+            icon: const Icon(Icons.visibility_outlined, size: 18),
+            label: const Text('Afficher'),
+            style: TextButton.styleFrom(foregroundColor: Colors.white),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildHideButton() {
+    return Tooltip(
+      message:
+          isStatsHiden ? 'Afficher les indicateurs' : 'Masquer les indicateurs',
+      child: Material(
+        color: Colors.transparent,
+        child: InkWell(
+          onTap: hideStats,
+          borderRadius: BorderRadius.circular(12),
+          child: Container(
+            padding: const EdgeInsets.all(11),
+            decoration: BoxDecoration(
+              color: Colors.white.withValues(alpha: 0.12),
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+            ),
+            child: Icon(
+              isStatsHiden ? Icons.visibility : Icons.visibility_off,
+              color: Colors.white,
+              size: 20,
+            ),
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildStatsRow(BuildContext context, HomeProvider provider, bool isDesktop, bool isTablet, bool isMobile) {
-    final statsWidgets = _buildStatsWidgets(provider);
-    
-    if (isDesktop) {
-      // Desktop: Tous les éléments sur une ligne avec scroll horizontal si nécessaire
-      return SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(
-          children: statsWidgets,
+  Widget _buildRefreshButton(HomeProvider provider) {
+    return Material(
+      color: Colors.transparent,
+      child: InkWell(
+        onTap: provider.isLoading ? null : () => provider.refresh(),
+        borderRadius: BorderRadius.circular(12),
+        child: Container(
+          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(12),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              if (provider.isLoading)
+                const SizedBox(
+                  width: 16,
+                  height: 16,
+                  child: CircularProgressIndicator(
+                    strokeWidth: 2,
+                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  ),
+                )
+              else
+                const Icon(
+                  Icons.refresh_rounded,
+                  size: 20,
+                  color: Colors.white,
+                ),
+              const SizedBox(width: 8),
+              Text(
+                provider.isLoading ? 'Actualisation...' : 'Actualiser',
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
         ),
-      );
-    } else if (isTablet) {
-      // Tablette: 2 éléments par ligne
-      return _buildGridLayout(statsWidgets, 2);
-    } else {
-      // Mobile: 1 élément par ligne (vertical)
-      return Column(
-        children: statsWidgets.where((widget) => widget is! SizedBox).map((widget) {
-          return Padding(
-            padding: const EdgeInsets.only(bottom: 12),
-            child: widget,
-          );
-        }).toList(),
-      );
-    }
+      ),
+    );
   }
 
-  Widget _buildGridLayout(List<Widget> widgets, int itemsPerRow) {
-    final rows = <Widget>[];
-    final filteredWidgets = widgets.where((widget) => widget is! SizedBox).toList();
-    
-    for (int i = 0; i < filteredWidgets.length; i += itemsPerRow) {
-      final rowWidgets = <Widget>[];
-      
-      for (int j = 0; j < itemsPerRow && i + j < filteredWidgets.length; j++) {
-        rowWidgets.add(Expanded(child: filteredWidgets[i + j]));
-        if (j < itemsPerRow - 1 && i + j + 1 < filteredWidgets.length) {
-          rowWidgets.add(const SizedBox(width: 12));
-        }
-      }
-      
-      // Remplir les espaces vides si nécessaire
-      while (rowWidgets.length < itemsPerRow * 2 - 1) {
-        rowWidgets.add(const Expanded(child: SizedBox()));
-        if (rowWidgets.length < itemsPerRow * 2 - 1) {
-          rowWidgets.add(const SizedBox(width: 12));
-        }
-      }
-      
-      rows.add(Row(children: rowWidgets));
-      if (i + itemsPerRow < filteredWidgets.length) {
-        rows.add(const SizedBox(height: 12));
-      }
-    }
-    
-    return Column(children: rows);
+  Widget _buildStatsGrid(
+    BuildContext context,
+    HomeProvider provider,
+    bool isDesktop,
+    bool isTablet,
+  ) {
+    final statsWidgets = _buildStatsWidgets(provider);
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final availableWidth = constraints.maxWidth;
+        final columns = isDesktop
+            ? 4
+            : isTablet
+                ? 3
+                : 1;
+        final rawWidth = (availableWidth - (columns - 1) * 12) / columns;
+        final cardWidth = availableWidth < 210
+            ? availableWidth
+            : rawWidth.clamp(210.0, 260.0).toDouble();
+
+        return Wrap(
+          spacing: 12,
+          runSpacing: 12,
+          children: statsWidgets
+              .map(
+                (widget) => SizedBox(
+                  width: cardWidth,
+                  child: widget,
+                ),
+              )
+              .toList(),
+        );
+      },
+    );
   }
 
   List<Widget> _buildStatsWidgets(HomeProvider provider) {
     return [
       PointageSiteCard(nombreSite: provider.nbSite),
-      const SizedBox(width: 12),
       SiteCard(nombreSites: provider.nbSite),
-      const SizedBox(width: 12),
       Skeletonizer(
         enabled: provider.supervisors.isEmpty && provider.isLoading,
         child: SupervisorCard(superviseur: provider.supervisors),
       ),
-      const SizedBox(width: 12),
       ..._buildAgentCards(),
-      const SizedBox(width: 12),
       NoteCard(),
-      const SizedBox(width: 12),
       const ToolStatusCard(),
-      const SizedBox(width: 12),
       Consumer<ErrorLogProvider>(
         builder: (context, errorProvider, _) => ErrorStatsCard(
           stats: errorProvider.stats,
@@ -422,49 +538,39 @@ void hideStats(){
   List<Widget> _buildAgentCards() {
     if (_isLoadingAgentTypes) {
       return [
-        Skeletonizer(
+        const Skeletonizer(
           enabled: true,
-          child: SupervisorCard(superviseur: []), // Use empty list for fallback
+          child: SupervisorCard(superviseur: []),
         ),
       ];
     }
 
     if (_agentTypes.isEmpty) {
-      return [
-        const Text(
-          "Aucun type d'agent disponible",
-          style: TextStyle(color: Colors.grey),
-        ),
+      return const [
+        _DashboardPlaceholderTile(label: "Aucun type d'agent"),
       ];
     }
 
     return _agentTypes
-        .asMap()
-        .entries
-        .expand((entry) {
-          final type = entry.value;
-          final isLast = entry.key == _agentTypes.length - 1;
-          return [
-            Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 4),
-              child: AgentCard(domaine: type.label),
-            ),
-            if (!isLast) const SizedBox(width: 8), // Add spacing between cards
-          ];
-        })
+        .map(
+          (type) => AgentCard(domaine: type.label),
+        )
         .toList();
   }
 
-  Widget _buildDataGrids(BuildContext context, HomeProvider provider, bool isDesktop, bool isTablet, bool isMobile) {
+  Widget _buildDataGrids(
+    BuildContext context,
+    HomeProvider provider,
+    bool isDesktop,
+    bool isTablet,
+  ) {
     final dataWidgets = [
       SiteListWithStatus(sites: provider.sites),
       SitePointingListWithStatus(supList: provider.supervisors),
       const ZonePointageProgressionList(),
-      const ListAbsenceAgent(),
     ];
 
     if (isDesktop) {
-      // Desktop: 4 colonnes
       return Row(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
@@ -473,12 +579,11 @@ void hideStats(){
           Expanded(child: dataWidgets[1]),
           const SizedBox(width: 16),
           Expanded(child: dataWidgets[2]),
-          const SizedBox(width: 16),
-          Expanded(child: dataWidgets[3]),
         ],
       );
-    } else if (isTablet) {
-      // Tablette: 2 colonnes, 2 lignes
+    }
+
+    if (isTablet) {
       return Column(
         children: [
           Row(
@@ -490,29 +595,162 @@ void hideStats(){
             ],
           ),
           const SizedBox(height: 16),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: dataWidgets[2]),
-              const SizedBox(width: 16),
-              Expanded(child: dataWidgets[3]),
-            ],
-          ),
-        ],
-      );
-    } else {
-      // Mobile: 1 colonne
-      return Column(
-        children: [
-          dataWidgets[0],
-          const SizedBox(height: 16),
-          dataWidgets[1],
-          const SizedBox(height: 16),
           dataWidgets[2],
-          const SizedBox(height: 16),
-          dataWidgets[3],
         ],
       );
     }
+
+    return Column(
+      children: [
+        dataWidgets[0],
+        const SizedBox(height: 16),
+        dataWidgets[1],
+        const SizedBox(height: 16),
+        dataWidgets[2],
+      ],
+    );
+  }
+
+  Widget _buildSectionHeader({
+    required String title,
+    required String subtitle,
+    required IconData icon,
+    required bool onDark,
+    bool compact = false,
+  }) {
+    final foreground = onDark ? Colors.white : const Color(0xFF152033);
+    final muted =
+        onDark ? Colors.white.withValues(alpha: 0.68) : const Color(0xFF697586);
+    final iconBackground = onDark
+        ? Colors.white.withValues(alpha: 0.1)
+        : AppConstants.primaryColor.withValues(alpha: 0.1);
+    final iconColor = onDark ? Colors.white : AppConstants.primaryColor;
+
+    return Row(
+      children: [
+        Container(
+          width: compact ? 32 : 38,
+          height: compact ? 32 : 38,
+          decoration: BoxDecoration(
+            color: iconBackground,
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(
+              color: onDark
+                  ? Colors.white.withValues(alpha: 0.12)
+                  : const Color(0xFFE7ECF3),
+            ),
+          ),
+          child: Icon(
+            icon,
+            color: iconColor,
+            size: compact ? 18 : 21,
+          ),
+        ),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                title,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: compact ? 16 : 18,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              const SizedBox(height: 2),
+              Text(
+                subtitle,
+                style: TextStyle(
+                  color: muted,
+                  fontSize: 13,
+                  fontWeight: FontWeight.w500,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ],
+    );
+  }
+}
+
+class _DashboardMetricChip extends StatelessWidget {
+  const _DashboardMetricChip({
+    required this.icon,
+    required this.label,
+    required this.value,
+    required this.color,
+  });
+
+  final IconData icon;
+  final String label;
+  final String value;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+      decoration: BoxDecoration(
+        color: Colors.white.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(14),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+      ),
+      child: Row(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          Icon(icon, color: color, size: 20),
+          const SizedBox(width: 10),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                value,
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontSize: 17,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              Text(
+                label,
+                style: TextStyle(
+                  color: Colors.white.withValues(alpha: 0.72),
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _DashboardPlaceholderTile extends StatelessWidget {
+  const _DashboardPlaceholderTile({required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: 200,
+      padding: const EdgeInsets.all(16),
+      decoration: BoxDecoration(
+        color: AppConstants.secondaryColor,
+        borderRadius: BorderRadius.circular(20),
+      ),
+      child: Text(
+        label,
+        style: const TextStyle(
+          color: Colors.white,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
   }
 }

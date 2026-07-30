@@ -5,7 +5,7 @@ import 'package:flutter/material.dart';
 /// Note: supervisor, site, agent are simplified Maps, NOT full model objects
 class ErrorLog {
   final String id;
-  final String type; // pointing_site | pointing_agent
+  final String type; // pointing_site | pointing_agent | pointing_zone
   final String errorType;
   final DateTime timestamp;
   final String? customMessage;
@@ -15,6 +15,8 @@ class ErrorLog {
   // These are Maps, NOT typed objects!
   final Map<String, dynamic>? supervisor;
   final Map<String, dynamic>? supervisorPosition;
+  final Map<String, dynamic>? zoneMember;
+  final Map<String, dynamic>? zoneMemberPosition;
   final Map<String, dynamic>? site;
   final Map<String, dynamic>? sitePosition;
   final Map<String, dynamic>? agent;
@@ -48,6 +50,8 @@ class ErrorLog {
     this.stackTrace,
     this.supervisor,
     this.supervisorPosition,
+    this.zoneMember,
+    this.zoneMemberPosition,
     this.site,
     this.sitePosition,
     this.agent,
@@ -86,6 +90,12 @@ class ErrorLog {
           : null,
       supervisorPosition: data['supervisorPosition'] != null
           ? Map<String, dynamic>.from(data['supervisorPosition'])
+          : null,
+      zoneMember: data['zoneMember'] != null
+          ? Map<String, dynamic>.from(data['zoneMember'])
+          : null,
+      zoneMemberPosition: data['zoneMemberPosition'] != null
+          ? Map<String, dynamic>.from(data['zoneMemberPosition'])
           : null,
       site:
           data['site'] != null ? Map<String, dynamic>.from(data['site']) : null,
@@ -127,6 +137,8 @@ class ErrorLog {
       'stackTrace': stackTrace,
       'supervisor': supervisor,
       'supervisorPosition': supervisorPosition,
+      'zoneMember': zoneMember,
+      'zoneMemberPosition': zoneMemberPosition,
       'site': site,
       'sitePosition': sitePosition,
       'agent': agent,
@@ -176,19 +188,64 @@ class ErrorLog {
     return null;
   }
 
-  // Getters for easy access to supervisor data
-  String get supervisorName {
-    if (supervisor == null) return 'N/A';
-    final firstName = supervisor!['firstName'] ?? '';
-    final lastName = supervisor!['lastName'] ?? '';
-    final name = '$firstName $lastName'.trim();
-    return name.isEmpty ? 'N/A' : name;
+  static String _mapString(Map<String, dynamic>? data, String key) {
+    final value = data?[key];
+    if (value == null) return 'N/A';
+    final text = value.toString().trim();
+    return text.isEmpty ? 'N/A' : text;
   }
 
-  String get supervisorCode => supervisor?['code'] ?? 'N/A';
-  String get supervisorPhone => supervisor?['phone'] ?? 'N/A';
-  String get supervisorEmail => supervisor?['email'] ?? 'N/A';
-  String? get supervisorUID => supervisor?['UID'];
+  static String _mapFullName(Map<String, dynamic>? data) {
+    if (data == null) return 'N/A';
+    final firstName = data['firstName']?.toString().trim() ?? '';
+    final lastName = data['lastName']?.toString().trim() ?? '';
+    final name = '$firstName $lastName'.trim();
+    if (name.isNotEmpty) return name;
+    return _mapString(data, 'name');
+  }
+
+  bool get isSitePointing => type == 'pointing_site';
+  bool get isAgentPointing => type == 'pointing_agent';
+  bool get isZonePointing => type == 'pointing_zone';
+
+  Map<String, dynamic>? get actor => isZonePointing ? zoneMember : supervisor;
+  Map<String, dynamic>? get actorPosition =>
+      isZonePointing ? zoneMemberPosition : supervisorPosition;
+
+  String get actorRoleLabel => isZonePointing ? 'Chef de zone' : 'Superviseur';
+  String get actorPositionLabel =>
+      'position du ${actorRoleLabel.toLowerCase()}';
+  String get actorName => _mapFullName(actor);
+  String get actorCode => _mapString(actor, 'code');
+  String get actorPhone => _mapString(actor, 'phone');
+  String get actorEmail => _mapString(actor, 'email');
+  String? get actorUID => actor?['UID']?.toString();
+
+  Map<String, dynamic>? get zoneMemberZone {
+    final zone = zoneMember?['zone'];
+    if (zone is Map<String, dynamic>) return zone;
+    if (zone is Map) return Map<String, dynamic>.from(zone);
+    return null;
+  }
+
+  String get zoneName => _mapString(zoneMemberZone, 'name');
+  String get zoneCode => _mapString(zoneMemberZone, 'codeZone');
+  String get zoneMemberPoste => _mapString(zoneMember, 'poste');
+  String get zoneDisplayName {
+    if (zoneName == 'N/A') return 'N/A';
+    if (zoneCode == 'N/A') return zoneName;
+    return '$zoneName ($zoneCode)';
+  }
+
+  // Getters for easy access to supervisor data
+  String get supervisorName {
+    return _mapFullName(supervisor);
+  }
+
+  String get supervisorCode => _mapString(supervisor, 'code');
+  String get supervisorPhone => _mapString(supervisor, 'phone');
+  String get supervisorEmail => _mapString(supervisor, 'email');
+  String? get supervisorUID => supervisor?['UID']?.toString();
 
   // Getters for easy access to site data
   String get siteName => site?['name'] ?? 'N/A';
@@ -199,33 +256,67 @@ class ErrorLog {
 
   // Getters for easy access to agent data
   String get agentName {
-    if (agent == null) return 'N/A';
-    final firstName = agent!['firstName'] ?? '';
-    final lastName = agent!['lastName'] ?? '';
-    final name = '$firstName $lastName'.trim();
-    return name.isEmpty ? 'N/A' : name;
+    return _mapFullName(agent);
   }
 
-  String get agentCode => agent?['code'] ?? 'N/A';
-  String get agentPhone => agent?['phone'] ?? 'N/A';
-  String? get agentSiteName => agent?['siteName'];
+  String get agentCode => _mapString(agent, 'code');
+  String get agentPhone => _mapString(agent, 'phone');
+  String? get agentSiteName => agent?['siteName']?.toString();
   bool get agentActif => agent?['actif'] ?? false;
 
   // Getters for positions
-  double? get supervisorLat => supervisorPosition?['lat']?.toDouble();
-  double? get supervisorLng => supervisorPosition?['lng']?.toDouble();
-  double? get siteLat => sitePosition?['lat']?.toDouble();
-  double? get siteLng => sitePosition?['lng']?.toDouble();
+  double? get supervisorLat => _parseDouble(supervisorPosition?['lat']);
+  double? get supervisorLng => _parseDouble(supervisorPosition?['lng']);
+  double? get zoneMemberLat => _parseDouble(zoneMemberPosition?['lat']);
+  double? get zoneMemberLng => _parseDouble(zoneMemberPosition?['lng']);
+  double? get actorLat => _parseDouble(actorPosition?['lat']);
+  double? get actorLng => _parseDouble(actorPosition?['lng']);
+  double? get siteLat => _parseDouble(sitePosition?['lat']);
+  double? get siteLng => _parseDouble(sitePosition?['lng']);
 
   bool get hasValidSupervisorPosition =>
       supervisorLat != null && supervisorLng != null;
+  bool get hasValidZoneMemberPosition =>
+      zoneMemberLat != null && zoneMemberLng != null;
+  bool get hasValidActorPosition => actorLat != null && actorLng != null;
   bool get hasValidSitePosition => siteLat != null && siteLng != null;
 
   /// Get display name for the entity (site or agent)
   String get entityName {
-    if (type == 'pointing_site') return siteName;
-    if (type == 'pointing_agent') return agentName;
+    if (isSitePointing || isZonePointing) return siteName;
+    if (isAgentPointing) return agentName;
     return 'N/A';
+  }
+
+  String get entityTypeLabel => isAgentPointing ? 'Agent' : 'Site';
+
+  String get referenceSiteLabel =>
+      isAgentPointing ? 'Site de reference' : 'Site';
+
+  String get pointageTypeLabel {
+    switch (type) {
+      case 'pointing_site':
+        return 'Pointage Site';
+      case 'pointing_agent':
+        return 'Pointage Agent';
+      case 'pointing_zone':
+        return 'Pointage Chef de zone';
+      default:
+        return type;
+    }
+  }
+
+  IconData get pointageTypeIcon {
+    switch (type) {
+      case 'pointing_agent':
+        return Icons.person;
+      case 'pointing_zone':
+        return Icons.map;
+      case 'pointing_site':
+        return Icons.location_on;
+      default:
+        return Icons.help_outline;
+    }
   }
 
   /// Get severity level (1-5, 5 being most severe)
@@ -266,6 +357,8 @@ class ErrorLog {
       stackTrace: stackTrace,
       supervisor: supervisor,
       supervisorPosition: supervisorPosition,
+      zoneMember: zoneMember,
+      zoneMemberPosition: zoneMemberPosition,
       site: site,
       sitePosition: sitePosition,
       agent: agent,
@@ -391,7 +484,7 @@ class ErrorLogFilters {
   final DateTimeRange? dateRange;
   final bool? isResolved;
   final String? searchQuery;
-  final String? type; // pointing_site | pointing_agent
+  final String? type; // pointing_site | pointing_agent | pointing_zone
 
   const ErrorLogFilters({
     this.errorType,

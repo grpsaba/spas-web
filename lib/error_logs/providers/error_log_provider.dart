@@ -1,5 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import '../../services/department_scope.dart';
 import '../../services/tenant_scope.dart';
 import '../models/error_log_model.dart';
 
@@ -30,6 +31,11 @@ class ErrorLogProvider extends ChangeNotifier {
   Set<String> get selectedIds => _selectedIds;
   bool get hasSelection => _selectedIds.isNotEmpty;
   int get selectedCount => _selectedIds.length;
+
+  Query<Map<String, dynamic>> get _scopedQuery =>
+      DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_firestore.collection('error_logs')),
+      );
 
   /// Initialize and load first page
   Future<void> initialize() async {
@@ -104,8 +110,7 @@ class ErrorLogProvider extends ChangeNotifier {
 
   /// Build Firestore query based on filters
   Query<Map<String, dynamic>> _buildQuery() {
-    Query<Map<String, dynamic>> query =
-        TenantScope.applyToQuery(_firestore.collection('error_logs'));
+    Query<Map<String, dynamic>> query = _scopedQuery;
 
     // Filter by resolved status
     if (_filters.isResolved != null) {
@@ -117,14 +122,17 @@ class ErrorLogProvider extends ChangeNotifier {
       query = query.where('errorType', isEqualTo: _filters.errorType);
     }
 
-    // Filter by type (pointing_site | pointing_agent)
+    // Filter by type (pointing_site | pointing_agent | pointing_zone)
     if (_filters.type != null) {
       query = query.where('type', isEqualTo: _filters.type);
     }
 
-    // Filter by supervisor
+    // Filter by actor
     if (_filters.supervisorId != null) {
-      query = query.where('supervisor.UID', isEqualTo: _filters.supervisorId);
+      query = query.where(
+        _filters.type == 'pointing_zone' ? 'zoneMember.UID' : 'supervisor.UID',
+        isEqualTo: _filters.supervisorId,
+      );
     }
 
     // Filter by date range
@@ -161,25 +169,21 @@ class ErrorLogProvider extends ChangeNotifier {
       // Get total count
       final totalSnapshot = await TenantScope.getCount(
         'ErrorLogProvider.totalCount',
-        TenantScope.applyToQuery(_firestore.collection('error_logs')).count(),
+        _scopedQuery.count(),
       );
       final total = totalSnapshot.count ?? 0;
 
       // Get unresolved count
       final unresolvedSnapshot = await TenantScope.getCount(
         'ErrorLogProvider.unresolvedCount',
-        TenantScope.applyToQuery(_firestore.collection('error_logs'))
-            .where('isResolved', isEqualTo: false)
-            .count(),
+        _scopedQuery.where('isResolved', isEqualTo: false).count(),
       );
       final unresolved = unresolvedSnapshot.count ?? 0;
 
       // Get counts by error type (limited query for performance)
       final recentLogs = await TenantScope.getQuery(
         'ErrorLogProvider.recentLogs',
-        TenantScope.applyToQuery(_firestore.collection('error_logs'))
-            .orderBy('timestamp', descending: true)
-            .limit(500),
+        _scopedQuery.orderBy('timestamp', descending: true).limit(500),
       );
 
       final byErrorType = <String, int>{};
@@ -260,7 +264,9 @@ class ErrorLogProvider extends ChangeNotifier {
     return _logs.where((log) {
       return log.customMessage?.toLowerCase().contains(query) == true ||
           log.entityName.toLowerCase().contains(query) ||
-          log.supervisorName.toLowerCase().contains(query) ||
+          log.actorName.toLowerCase().contains(query) ||
+          log.actorRoleLabel.toLowerCase().contains(query) ||
+          log.zoneName.toLowerCase().contains(query) ||
           log.errorType.toLowerCase().contains(query);
     }).toList();
   }
@@ -372,7 +378,7 @@ class ErrorLogProvider extends ChangeNotifier {
   String exportToCsv() {
     final buffer = StringBuffer();
     buffer.writeln(
-        'Date,Type,Error Type,Supervisor,Site/Agent,Message,Distance,Platform,Resolved,Resolved By,Resolved At');
+        'Date,Type,Error Type,Role,Acteur,Zone,Site/Agent,Message,Distance,Platform,Resolved,Resolved By,Resolved At');
 
     for (final log in filteredLogs) {
       final date =
@@ -383,9 +389,11 @@ class ErrorLogProvider extends ChangeNotifier {
 
       buffer.writeln([
         date,
-        log.type,
-        log.errorType,
-        log.supervisorName.replaceAll(',', ' '),
+        log.pointageTypeLabel.replaceAll(',', ' '),
+        ErrorTypeConfig.getLabel(log.errorType).replaceAll(',', ' '),
+        log.actorRoleLabel.replaceAll(',', ' '),
+        log.actorName.replaceAll(',', ' '),
+        log.zoneName.replaceAll(',', ' '),
         log.entityName.replaceAll(',', ' '),
         (log.customMessage ?? '').replaceAll(',', ' ').replaceAll('\n', ' '),
         log.distance?.toStringAsFixed(2) ?? '',

@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/home.dart';
@@ -75,12 +73,9 @@ class _AddCatToolState extends State<AddCatTool> {
                     stream: DepartmentService().all(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        var docs = snapshot.data?.docs
-                            .map((e) => jsonDecode(jsonEncode(e.data())))
+                        List<Department>? data = snapshot.data?.docs
+                            .map(DepartmentService.fromSnapshot)
                             .toList();
-
-                        List<Department>? data =
-                            docs?.map((e) => Department.fromJson(e)).toList();
 
                         return DropdownButtonFormField<Department>(
                           hint: const Text("Département"),
@@ -95,8 +90,11 @@ class _AddCatToolState extends State<AddCatTool> {
                           },
                           isExpanded: true,
                           value: data
-                              ?.where((element) => element.label.contains(
-                                  widget.catTool.department?.label ?? ""))
+                              ?.where((element) =>
+                                  element.id ==
+                                      widget.catTool.department?.id ||
+                                  element.label.contains(
+                                      widget.catTool.department?.label ?? ""))
                               .toList()
                               .first,
                           items: data

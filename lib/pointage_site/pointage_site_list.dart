@@ -6,6 +6,7 @@ import 'package:provider/provider.dart';
 import 'package:spas_web/administration/home.dart';
 
 import '../pdf/api/pdf_api.dart';
+import '../services/department_scope.dart';
 import '../services/export.dart';
 import '../services/supervisor.dart';
 import '../services/site.dart';
@@ -1148,13 +1149,17 @@ class _PointageSiteListState extends State<PointageSiteList> {
   }) async {
     final collection = FirebaseFirestore.instance.collection('sitePointings');
     
-    Query query = TenantScope.applyToQuery(collection)
+    Query query = DepartmentScope.applyToDepartmentQuery(
+      TenantScope.applyToQuery(collection),
+    )
         .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
         .where('datetimestamp', isLessThan: endDate)
         .orderBy('datetimestamp', descending: true);
 
     if (supervisorUID != null) {
-      query = TenantScope.applyToQuery(collection)
+      query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(collection),
+      )
           .where('supervisor.UID', isEqualTo: supervisorUID)
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate)

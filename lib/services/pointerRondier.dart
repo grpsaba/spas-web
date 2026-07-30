@@ -1,12 +1,18 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'department_scope.dart';
 import 'tenant_scope.dart';
 
 
 class PointingRondierService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("rondierPointings");
+
+  Query get _scopedQuery => DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      );
+
   Future<void> add(PointingRondier point) async {
     TenantScope.applyTenantIdForWrite(point);
     String child =
@@ -17,7 +23,7 @@ class PointingRondierService {
   Stream<QuerySnapshot> all() {
     return TenantScope.watchQuery(
       'PointingRondierService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
   }
 

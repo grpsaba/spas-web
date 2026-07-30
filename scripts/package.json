@@ -5,7 +5,11 @@
   "description": "Firestore migration helpers for SPAS",
   "scripts": {
     "backfill:tenant:dry-run": "node backfill_tenant_ml.js",
-    "backfill:tenant:execute": "node backfill_tenant_ml.js --execute"
+    "backfill:tenant:execute": "node backfill_tenant_ml.js --execute",
+    "backfill:departments:dry-run": "node backfill_department_fields.js",
+    "backfill:departments:execute": "node backfill_department_fields.js --execute",
+    "delete:zone-chief-month-pointings:dry-run": "node delete_zone_chief_current_month_pointings.js",
+    "delete:zone-chief-month-pointings:execute": "node delete_zone_chief_current_month_pointings.js --execute"
   },
   "dependencies": {
     "firebase-admin": "^13.0.0"

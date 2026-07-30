@@ -127,8 +127,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
           const SizedBox(height: PointageSpacing.md),
           const Divider(),
           const SizedBox(height: PointageSpacing.md),
-          _buildDetailRow('Type de pointage',
-              _currentLog.type == 'pointing_site' ? 'Site' : 'Agent'),
+          _buildDetailRow('Type de pointage', _currentLog.pointageTypeLabel),
           _buildDetailRow('Type d\'erreur',
               ErrorTypeConfig.getLabel(_currentLog.errorType)),
           _buildDetailRow('Message', _currentLog.customMessage ?? 'N/A'),
@@ -153,7 +152,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
           _buildDetailRow('Plateforme', _currentLog.devicePlatform ?? 'N/A'),
           // Update coordinates button for distance errors
           if (_currentLog.errorType == 'distanceError' &&
-              _currentLog.hasValidSupervisorPosition &&
+              _currentLog.hasValidActorPosition &&
               _currentLog.siteUID != null) ...[
             const SizedBox(height: PointageSpacing.lg),
             _UpdateCoordinatesButton(
@@ -162,28 +161,34 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
             ),
           ],
           const SizedBox(height: PointageSpacing.lg),
-          const Text('Superviseur', style: PointageTextStyles.headline4),
+          Text(_currentLog.actorRoleLabel, style: PointageTextStyles.headline4),
           const SizedBox(height: PointageSpacing.sm),
           const Divider(),
           const SizedBox(height: PointageSpacing.sm),
-          if (_currentLog.supervisor != null) ...[
-            _buildDetailRow('Nom', _currentLog.supervisorName),
-            _buildDetailRow('Code', _currentLog.supervisorCode),
-            _buildDetailRow('Téléphone', _currentLog.supervisorPhone),
-            _buildDetailRow('Email', _currentLog.supervisorEmail),
-            if (_currentLog.hasValidSupervisorPosition)
+          if (_currentLog.actor != null) ...[
+            _buildDetailRow('Nom', _currentLog.actorName),
+            _buildDetailRow('Code', _currentLog.actorCode),
+            _buildDetailRow('Téléphone', _currentLog.actorPhone),
+            _buildDetailRow('Email', _currentLog.actorEmail),
+            if (_currentLog.isZonePointing &&
+                _currentLog.zoneMemberPoste != 'N/A')
+              _buildDetailRow('Poste', _currentLog.zoneMemberPoste),
+            if (_currentLog.isZonePointing &&
+                _currentLog.zoneDisplayName != 'N/A')
+              _buildDetailRow('Zone', _currentLog.zoneDisplayName),
+            if (_currentLog.hasValidActorPosition)
               _buildDetailRow('Position',
-                  '${_currentLog.supervisorLat!.toStringAsFixed(6)}, ${_currentLog.supervisorLng!.toStringAsFixed(6)}'),
+                  '${_currentLog.actorLat!.toStringAsFixed(6)}, ${_currentLog.actorLng!.toStringAsFixed(6)}'),
           ] else
-            const Text('Superviseur non disponible',
+            Text('${_currentLog.actorRoleLabel} non disponible',
                 style: PointageTextStyles.caption),
           const SizedBox(height: PointageSpacing.lg),
-          Text(_currentLog.type == 'pointing_site' ? 'Site' : 'Agent',
+          Text(_currentLog.entityTypeLabel,
               style: PointageTextStyles.headline4),
           const SizedBox(height: PointageSpacing.sm),
           const Divider(),
           const SizedBox(height: PointageSpacing.sm),
-          if (_currentLog.type == 'pointing_site' &&
+          if ((_currentLog.isSitePointing || _currentLog.isZonePointing) &&
               _currentLog.site != null) ...[
             _buildDetailRow('Nom', _currentLog.siteName),
             _buildDetailRow('Code', _currentLog.siteCode),
@@ -192,7 +197,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
             if (_currentLog.hasValidSitePosition)
               _buildDetailRow('Position',
                   '${_currentLog.siteLat!.toStringAsFixed(6)}, ${_currentLog.siteLng!.toStringAsFixed(6)}'),
-          ] else if (_currentLog.type == 'pointing_agent' &&
+          ] else if (_currentLog.isAgentPointing &&
               _currentLog.agent != null) ...[
             _buildDetailRow('Nom', _currentLog.agentName),
             _buildDetailRow('Code', _currentLog.agentCode),
@@ -754,8 +759,8 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 
   Widget _buildMapCard() {
-    final hasPositions = _currentLog.hasValidSupervisorPosition ||
-        _currentLog.hasValidSitePosition;
+    final hasPositions =
+        _currentLog.hasValidActorPosition || _currentLog.hasValidSitePosition;
 
     return Container(
       height: 400,
@@ -772,13 +777,11 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
                     style: PointageTextStyles.headline4),
                 const Spacer(),
                 if (hasPositions) ...[
-                  _buildLegendItem(Colors.blue, 'Superviseur'),
+                  _buildLegendItem(Colors.blue, _currentLog.actorRoleLabel),
                   const SizedBox(width: PointageSpacing.md),
                   _buildLegendItem(
                     Colors.red,
-                    _currentLog.type == 'pointing_site'
-                        ? 'Site'
-                        : 'Site de référence',
+                    _currentLog.referenceSiteLabel,
                   ),
                 ],
               ],
@@ -835,9 +838,9 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 
   CameraPosition _getInitialCameraPosition() {
-    if (_currentLog.hasValidSupervisorPosition) {
+    if (_currentLog.hasValidActorPosition) {
       return CameraPosition(
-        target: LatLng(_currentLog.supervisorLat!, _currentLog.supervisorLng!),
+        target: LatLng(_currentLog.actorLat!, _currentLog.actorLng!),
         zoom: 15,
       );
     } else if (_currentLog.hasValidSitePosition) {
@@ -852,15 +855,14 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   Set<Marker> _buildMarkers() {
     final markers = <Marker>{};
 
-    if (_currentLog.hasValidSupervisorPosition) {
+    if (_currentLog.hasValidActorPosition) {
       markers.add(Marker(
-        markerId: const MarkerId('supervisor'),
-        position:
-            LatLng(_currentLog.supervisorLat!, _currentLog.supervisorLng!),
+        markerId: const MarkerId('actor'),
+        position: LatLng(_currentLog.actorLat!, _currentLog.actorLng!),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueBlue),
         infoWindow: InfoWindow(
-          title: 'Superviseur',
-          snippet: _currentLog.supervisorName,
+          title: _currentLog.actorRoleLabel,
+          snippet: _currentLog.actorName,
         ),
       ));
     }
@@ -871,9 +873,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
         position: LatLng(_currentLog.siteLat!, _currentLog.siteLng!),
         icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueRed),
         infoWindow: InfoWindow(
-          title: _currentLog.type == 'pointing_site'
-              ? 'Site'
-              : 'Site de référence',
+          title: _currentLog.referenceSiteLabel,
           snippet: _currentLog.siteName,
         ),
       ));
@@ -883,7 +883,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 
   Set<Polyline> _buildPolylines() {
-    if (!_currentLog.hasValidSupervisorPosition ||
+    if (!_currentLog.hasValidActorPosition ||
         !_currentLog.hasValidSitePosition) {
       return {};
     }
@@ -892,7 +892,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
       Polyline(
         polylineId: const PolylineId('distance'),
         points: [
-          LatLng(_currentLog.supervisorLat!, _currentLog.supervisorLng!),
+          LatLng(_currentLog.actorLat!, _currentLog.actorLng!),
           LatLng(_currentLog.siteLat!, _currentLog.siteLng!),
         ],
         color: PointageColors.error,
@@ -1140,8 +1140,8 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   }
 }
 
-/// Widget for updating site coordinates from supervisor position
-/// Only shown for distance errors with valid supervisor position
+/// Widget for updating site coordinates from the actor position.
+/// Only shown for distance errors with a valid actor position.
 class _UpdateCoordinatesButton extends StatefulWidget {
   final ErrorLog errorLog;
   final VoidCallback onSuccess;
@@ -1195,7 +1195,7 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
           ),
           const SizedBox(height: PointageSpacing.sm),
           Text(
-            'Cette action mettra à jour de façon durable la position enregistrée du site avec la position du superviseur.',
+            'Cette action mettra à jour de façon durable la position enregistrée du site avec la ${log.actorPositionLabel}.',
             style: PointageTextStyles.caption,
           ),
           const SizedBox(height: PointageSpacing.sm),
@@ -1235,7 +1235,7 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
             const SizedBox(height: PointageSpacing.sm),
           ],
           Text(
-            'Nouvelles coordonnées proposées (position du superviseur) :',
+            'Nouvelles coordonnées proposées (${log.actorPositionLabel}) :',
             style: PointageTextStyles.caption.copyWith(
               fontWeight: FontWeight.w600,
             ),
@@ -1255,13 +1255,13 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
                       Text(
-                        'Latitude: ${log.supervisorLat!.toStringAsFixed(6)}',
+                        'Latitude: ${log.actorLat!.toStringAsFixed(6)}',
                         style: PointageTextStyles.body2.copyWith(
                           fontFamily: 'monospace',
                         ),
                       ),
                       Text(
-                        'Longitude: ${log.supervisorLng!.toStringAsFixed(6)}',
+                        'Longitude: ${log.actorLng!.toStringAsFixed(6)}',
                         style: PointageTextStyles.body2.copyWith(
                           fontFamily: 'monospace',
                         ),
@@ -1318,7 +1318,7 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
         children: [
           Text(
             'Voulez-vous mettre à jour les coordonnées du site "${log.siteName}" '
-            'avec la position du superviseur ? Cette modification affectera la '
+            'avec la ${log.actorPositionLabel} ? Cette modification affectera la '
             'position de référence utilisée pour les prochains contrôles.',
           ),
           const SizedBox(height: PointageSpacing.md),
@@ -1360,8 +1360,8 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
                   style: TextStyle(fontWeight: FontWeight.w600),
                 ),
                 const SizedBox(height: PointageSpacing.sm),
-                Text('Latitude: ${log.supervisorLat!.toStringAsFixed(6)}'),
-                Text('Longitude: ${log.supervisorLng!.toStringAsFixed(6)}'),
+                Text('Latitude: ${log.actorLat!.toStringAsFixed(6)}'),
+                Text('Longitude: ${log.actorLng!.toStringAsFixed(6)}'),
               ],
             ),
           ),
@@ -1395,10 +1395,10 @@ class _UpdateCoordinatesButtonState extends State<_UpdateCoordinatesButton> {
         return;
       }
 
-      // Update the site coordinates with supervisor position
+      // Update the site coordinates with actor position
       site.latLng = LatLngModel(
-        lat: log.supervisorLat!,
-        lng: log.supervisorLng!,
+        lat: log.actorLat!,
+        lng: log.actorLng!,
       );
 
       // Save to Firestore

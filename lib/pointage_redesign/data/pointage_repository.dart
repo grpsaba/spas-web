@@ -5,6 +5,7 @@ import '../models/pagination_models.dart';
 import '../models/pointage_stats.dart';
 import '../models/pointage_exception.dart';
 import '../../model.dart';
+import '../../services/department_scope.dart';
 import '../../services/tenant_scope.dart';
 
 /// Repository for accessing pointage data with server-side operations
@@ -49,7 +50,9 @@ class PointageRepository {
         fromFirestore: (snapshot, _) => snapshot.data() ?? {},
         toFirestore: (data, _) => data,
       );
-      query = TenantScope.applyToQuery(query);
+      query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(query),
+      );
 
       // Apply filters if provided
       if (filters != null && !filters.isEmpty) {
@@ -179,6 +182,7 @@ class PointageRepository {
       'size_$pageSize',
       'sort_${sortField ?? 'datetimestamp'}_${sortAscending ? 'asc' : 'desc'}',
       'tenant_${TenantScope.shouldFilterTenant ? TenantScope.currentTenantId : 'all'}',
+      'departments_${DepartmentScope.activeDepartmentIds.join(',')}',
     ];
     
     if (filters != null && !filters.isEmpty) {
@@ -205,7 +209,9 @@ class PointageRepository {
   }) async {
     try {
       // Build query
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -267,7 +273,9 @@ class PointageRepository {
   }) async {
     try {
       // Build query
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -328,7 +336,9 @@ class PointageRepository {
   }) async {
     try {
       // Build query for date range
-      final query = TenantScope.applyToQuery(_collectionReference)
+      final query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -415,7 +425,9 @@ class PointageRepository {
       final start = DateTime(date.year, date.month, date.day);
       final end = start.add(const Duration(days: 1));
       
-      final query = TenantScope.applyToQuery(_collectionReference)
+      final query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('supervisor.UID', isEqualTo: supervisorUID)
           .where('datetimestamp', isGreaterThanOrEqualTo: start)
           .where('datetimestamp', isLessThan: end);
@@ -457,7 +469,9 @@ class PointageRepository {
       )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
-      query = TenantScope.applyToQuery(query);
+      query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(query),
+      );
 
       // Apply additional filters if provided
       if (filters != null && !filters.isEmpty) {

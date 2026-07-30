@@ -10,6 +10,7 @@ class AccessControl {
   static const String generalDirectorProfileName = 'Directeur General';
 
   static Manager? get _manager => AuthService.currentManager;
+  static Manager? get currentManager => _manager;
 
   static String get _normalizedProfileName =>
       normalizeProfileNameForAccess(_manager?.profil?.name);

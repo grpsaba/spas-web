@@ -12,9 +12,22 @@ class TenantPointageMode {
   static const String photo = 'photo';
   static const String geo = 'geo';
 
-  static String normalize(String? value) {
-    final mode = value?.trim().toLowerCase();
-    if (mode == geo) return geo;
+  static String normalize(Object? value) {
+    final mode = value
+        ?.toString()
+        .trim()
+        .toLowerCase()
+        .replaceAll('\u00e9', 'e')
+        .replaceAll('\u00e8', 'e')
+        .replaceAll('\u00ea', 'e')
+        .replaceAll('\u00eb', 'e');
+    if (mode == geo ||
+        mode == 'gps' ||
+        mode == 'location' ||
+        mode == 'geolocation' ||
+        mode == 'geolocalisation') {
+      return geo;
+    }
     return photo;
   }
 }
@@ -57,18 +70,98 @@ bool hasTenantIdInJson(Map<String, dynamic> json) {
 
 String? departmentIdFromJson(Map<String, dynamic> json) {
   final value = json['departmentId'];
-  if (value is String && value.trim().isNotEmpty) return value.trim();
+  if (value is String && value.trim().isNotEmpty) {
+    return normalizeDepartmentId(value);
+  }
 
   final department = json['department'];
   if (department is Map) {
     final id = department['id'];
-    if (id is String && id.trim().isNotEmpty) return id.trim();
+    if (id is String && id.trim().isNotEmpty) return normalizeDepartmentId(id);
 
     final label = department['label'];
-    if (label is String && label.trim().isNotEmpty) return label.trim();
+    if (label is String && label.trim().isNotEmpty) {
+      return normalizeDepartmentId(label);
+    }
   }
 
   return null;
+}
+
+class DepartmentScopeValue {
+  static const String all = 'all';
+  static const String limited = 'limited';
+
+  static String normalize(String? value) {
+    final normalized = value?.trim().toLowerCase();
+    if (normalized == limited) return limited;
+    if (_isLegacyDepartmentScope(normalized)) return limited;
+    return all;
+  }
+}
+
+String departmentScopeFromJson(Map<String, dynamic> json) {
+  final value = json['departmentScope'];
+  return DepartmentScopeValue.normalize(value is String ? value.trim() : null);
+}
+
+List<String> departmentIdsFromJson(Map<String, dynamic> json) {
+  final value = json['departmentIds'];
+  if (value is List) {
+    final ids = value
+        .whereType<String>()
+        .map(normalizeDepartmentId)
+        .where((id) => id.isNotEmpty)
+        .toSet()
+        .toList();
+    if (ids.isNotEmpty) return ids;
+  }
+
+  final legacyScope = json['departmentScope'];
+  if (legacyScope is String && _isLegacyDepartmentScope(legacyScope)) {
+    return <String>[normalizeDepartmentId(legacyScope)];
+  }
+
+  return <String>[];
+}
+
+bool _isLegacyDepartmentScope(String? value) {
+  const departmentIds = <String>{'security', 'cleaning', 'direction'};
+  return departmentIds.contains(normalizeDepartmentId(value));
+}
+
+String normalizeDepartmentId(String? value) {
+  final normalized = (value ?? '')
+      .trim()
+      .toLowerCase()
+      .replaceAll('\u00e0', 'a')
+      .replaceAll('\u00e2', 'a')
+      .replaceAll('\u00e7', 'c')
+      .replaceAll('\u00e9', 'e')
+      .replaceAll('\u00e8', 'e')
+      .replaceAll('\u00ea', 'e')
+      .replaceAll('\u00eb', 'e')
+      .replaceAll('\u00ee', 'i')
+      .replaceAll('\u00ef', 'i')
+      .replaceAll('\u00f4', 'o')
+      .replaceAll('\u00f9', 'u')
+      .replaceAll('\u00fb', 'u')
+      .replaceAll('\u00fc', 'u')
+      .replaceAll(RegExp(r'[^a-z0-9]+'), '-')
+      .replaceAll(RegExp(r'^-+|-+$'), '');
+
+  switch (normalized) {
+    case 'securite':
+    case 'security':
+      return 'security';
+    case 'nettoyage':
+    case 'cleaning':
+      return 'cleaning';
+    case 'direction':
+      return 'direction';
+    default:
+      return normalized;
+  }
 }
 
 String effectiveTenantId(
@@ -99,6 +192,7 @@ class Tenant extends Equatable {
   final String countryCode;
   final bool active;
   final String pointageMode;
+  final String zoneChiefPointageMode;
 
   const Tenant({
     required this.id,
@@ -106,15 +200,24 @@ class Tenant extends Equatable {
     required this.countryCode,
     this.active = true,
     this.pointageMode = TenantPointageMode.photo,
+    this.zoneChiefPointageMode = TenantPointageMode.photo,
   });
 
   factory Tenant.fromJson(Map<String, dynamic> json) {
+    final pointageMode = TenantPointageMode.normalize(json['pointageMode']);
     return Tenant(
       id: json['id'] ?? '',
       label: json['label'] ?? '',
       countryCode: json['countryCode'] ?? '',
       active: json['active'] ?? true,
-      pointageMode: TenantPointageMode.normalize(json['pointageMode']),
+      pointageMode: pointageMode,
+      zoneChiefPointageMode: TenantPointageMode.normalize(
+        json['zoneChiefPointageMode'] ??
+            json['zonePointageMode'] ??
+            json['zoneChefPointageMode'] ??
+            json['chefZonePointageMode'] ??
+            pointageMode,
+      ),
     );
   }
 
@@ -125,11 +228,16 @@ class Tenant extends Equatable {
       'countryCode': countryCode,
       'active': active,
       'pointageMode': pointageMode,
+      'zoneChiefPointageMode': zoneChiefPointageMode,
     };
   }
 
   bool get usesPhotoPointing => pointageMode == TenantPointageMode.photo;
   bool get usesGeoPointing => pointageMode == TenantPointageMode.geo;
+  bool get usesZoneChiefPhotoPointing =>
+      zoneChiefPointageMode == TenantPointageMode.photo;
+  bool get usesZoneChiefGeoPointing =>
+      zoneChiefPointageMode == TenantPointageMode.geo;
 
   @override
   List<Object?> get props => [id];
@@ -490,7 +598,11 @@ class Site extends Equatable {
       required this.dateContrat,
       required this.nbRonde,
       this.pointageType = 'jour'})
-      : departmentIds = departmentIds ?? <String>[];
+      : departmentIds = (departmentIds ?? <String>[])
+            .map(normalizeDepartmentId)
+            .where((id) => id.isNotEmpty)
+            .toSet()
+            .toList();
 
   factory Site.fromJson(Map<String, dynamic> json) {
     //verifier si une valeuir est null avant de la parser
@@ -508,6 +620,8 @@ class Site extends Equatable {
         tenantId: tenantIdFromJson(json),
         departmentIds: (json['departmentIds'] as List?)
                 ?.whereType<String>()
+                .map(normalizeDepartmentId)
+                .where((id) => id.isNotEmpty)
                 .toList() ??
             <String>[],
         dateContrat: json['dateContrat'] != null
@@ -541,13 +655,25 @@ class Site extends Equatable {
       'nbAgent': nbAgent,
       'actif': actif,
       'tenantId': tenantId,
-      'departmentIds': departmentIds,
+      'departmentIds': _effectiveDepartmentIds(),
       'nbRonde': nbRonde ?? 1,
       'pointageType': pointageType,
       'dateContrat': dateContrat != null
           ? dateContrat?.toIso8601String()
           : DateTime.now().toIso8601String()
     };
+  }
+
+  List<String> _effectiveDepartmentIds() {
+    final ids = <String>{
+      ...departmentIds.map(normalizeDepartmentId),
+      normalizeDepartmentId(supervisor?.departmentId),
+      normalizeDepartmentId(supervisor?.department?.id),
+      normalizeDepartmentId(supervisor_2?.departmentId),
+      normalizeDepartmentId(supervisor_2?.department?.id),
+    }..removeWhere((id) => id.isEmpty);
+
+    return ids.toList();
   }
 
   @override
@@ -1003,6 +1129,8 @@ class Manager {
   String poste;
   String tenantId;
   bool hasTenantId;
+  String departmentScope;
+  List<String> departmentIds;
   Profil? profil;
   Manager(
       {required this.UID,
@@ -1014,7 +1142,10 @@ class Manager {
       required this.token,
       this.tenantId = TenantDefaults.defaultTenantId,
       this.hasTenantId = false,
-      required this.profil});
+      this.departmentScope = DepartmentScopeValue.all,
+      List<String>? departmentIds,
+      required this.profil})
+      : departmentIds = departmentIds ?? <String>[];
 
   factory Manager.fromJson(Map<String, dynamic> json) {
     return Manager(
@@ -1027,6 +1158,8 @@ class Manager {
         token: json["token"],
         tenantId: tenantIdFromJson(json),
         hasTenantId: hasTenantIdInJson(json),
+        departmentScope: departmentScopeFromJson(json),
+        departmentIds: departmentIdsFromJson(json),
         profil: json["profil"] == null
             ? Profil(name: "Inconnu", modules: [
                 Module(
@@ -1051,6 +1184,8 @@ class Manager {
       "token": token,
       "poste": poste,
       "tenantId": tenantId,
+      "departmentScope": departmentScope,
+      "departmentIds": departmentIds,
       "profil": profil?.toJson()
     };
   }
@@ -1134,11 +1269,20 @@ class CategorieTool extends Equatable {
 class Department extends Equatable {
   String id;
   String label;
-  Department({String? id, required this.label}) : id = id ?? label;
+  bool active;
+  String? documentId;
+  Department({
+    String? id,
+    required this.label,
+    this.active = true,
+    this.documentId,
+  }) : id = normalizeDepartmentId(id ?? label);
+
   factory Department.fromJson(Map<String, dynamic> json) {
     return Department(
       id: json["id"] ?? json["label"],
-      label: json["label"],
+      label: json["label"] ?? json["id"] ?? "",
+      active: json["active"] is bool ? json["active"] : true,
     );
   }
 
@@ -1146,12 +1290,13 @@ class Department extends Equatable {
     return {
       "id": id,
       "label": label,
+      "active": active,
     };
   }
 
   @override
   // TODO: implement props
-  List<Object?> get props => [label];
+  List<Object?> get props => [id];
 //
 }
 

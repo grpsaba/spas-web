@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import 'package:spas_web/model.dart';
+import 'package:spas_web/services/department_scope.dart';
 import 'package:spas_web/services/site.dart';
 import 'package:spas_web/services/tenant_scope.dart';
 import 'package:spas_web/services/zoneMember.dart';
@@ -183,7 +184,9 @@ try{
       final collection = FirebaseFirestore.instance.collection('zonePointings');
     final snapshot = await TenantScope.getQuery(
       'ZonePointageListProvider.visitedSitesCount',
-      TenantScope.applyToQuery(collection)
+      DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(collection),
+      )
         .where('zoneMember.UID', isEqualTo: zoneMember.UID)
         .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
         .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate)),

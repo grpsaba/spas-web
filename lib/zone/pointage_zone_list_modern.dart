@@ -1,20 +1,22 @@
 import 'package:flutter/material.dart';
-import 'package:provider/provider.dart';
 import 'package:go_router/go_router.dart';
-import 'package:intl/intl.dart';
-import '../administration/home.dart';
-import '../pointage_redesign/providers/pointage_zone_provider.dart';
-import '../pointage_redesign/data/pointage_zone_repository.dart';
-import '../pointage_redesign/data/cache_manager.dart';
-import '../pointage_redesign/presentation/widgets/statistics_card.dart';
-import '../pointage_redesign/presentation/widgets/filter_bar.dart';
-import '../pointage_redesign/presentation/widgets/error_display.dart';
-import '../pointage_redesign/presentation/design_system.dart';
-import '../model.dart';
+import 'package:provider/provider.dart';
 
-/// Modern zone pointage list with statistics, filtering, and pagination
-/// 
-/// Requirements: 1.1, 1.2, 1.3, 1.4
+import '../administration/home.dart';
+import '../model.dart';
+import '../pointage_redesign/data/cache_manager.dart';
+import '../pointage_redesign/data/pointage_zone_repository.dart';
+import '../pointage_redesign/providers/pointage_zone_provider.dart';
+import '../pointage_redesign/presentation/design_system.dart';
+import '../pointage_redesign/presentation/widgets/error_display.dart';
+import '../pointage_redesign/presentation/widgets/filter_bar.dart';
+import '../pointage_redesign/presentation/widgets/modern_pointage_table.dart';
+import '../pointage_redesign/presentation/widgets/statistics_card.dart';
+import '../services/site.dart';
+import '../services/zone.dart';
+import '../services/zoneMember.dart';
+
+/// Modern zone pointage list aligned with the site pointage experience.
 class PointageZoneListModern extends StatefulWidget {
   const PointageZoneListModern({super.key});
 
@@ -23,90 +25,114 @@ class PointageZoneListModern extends StatefulWidget {
 }
 
 class _PointageZoneListModernState extends State<PointageZoneListModern> {
+  late final PointageZoneProvider _provider;
   DateTime _selectedDate = DateTime.now();
+  bool _showStats = false;
+
+  List<ZoneMember>? _availableZoneMembers;
+  List<Site>? _availableSites;
+  List<Zone>? _availableZones;
+
+  @override
+  void initState() {
+    super.initState();
+    _provider = PointageZoneProvider(
+      repository: PointageZoneRepository(),
+      cacheManager: CacheManager(),
+    );
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _provider.loadPointages();
+      _loadFilterData();
+    });
+  }
+
+  Future<void> _loadFilterData() async {
+    try {
+      final results = await Future.wait<Object>([
+        ZoneMemberService().allActifAsModel(),
+        SiteService().allActifAsModel(),
+        ZoneService().allAsModel(),
+      ]);
+
+      if (!mounted) return;
+      setState(() {
+        _availableZoneMembers = results[0] as List<ZoneMember>;
+        _availableSites = results[1] as List<Site>;
+        _availableZones = results[2] as List<Zone>;
+      });
+    } catch (error) {
+      debugPrint('Error loading zone pointage filter data: $error');
+    }
+  }
+
+  @override
+  void dispose() {
+    _provider.dispose();
+    super.dispose();
+  }
 
   @override
   Widget build(BuildContext context) {
-    return ChangeNotifierProvider(
-      create: (_) => PointageZoneProvider(
-        repository: PointageZoneRepository(),
-        cacheManager: CacheManager(),
-      )..loadPointages()..loadStats(),
+    return ChangeNotifierProvider.value(
+      value: _provider,
       child: PageModel(
         pageIndex: 15,
-        title: "Pointages des chefs de zone",
+        title: 'Pointages des chefs de zone',
         child: Consumer<PointageZoneProvider>(
           builder: (context, provider, child) {
             return SingleChildScrollView(
+              padding: const EdgeInsets.all(PointageSpacing.lg),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  // Statistics Card - Compact mode for reduced height
-                  // Pass stats only when available to avoid "Aucune statistique disponible"
-                  Padding(
-                    padding: const EdgeInsets.all(16.0),
-                    child: StatisticsCard(
-                      totalPointages: provider.stats?.totalPointages,
-                      uniqueSupervisors: provider.stats?.uniqueZoneMembers,
-                      uniqueSites: provider.stats?.uniqueZones,
-                      averagePerDay: provider.stats?.averagePointagesPerDay,
-                      supervisorLabel: 'Chefs de zone',
-                      siteLabel: 'Zones',
-                      isLoading: provider.isLoadingStats,
-                      compact: true,
-                    ),
+                  _buildStatsSection(provider),
+                  const SizedBox(height: PointageSpacing.lg),
+                  FilterBar(
+                    filters: provider.filters,
+                    onFiltersChanged: provider.applyFilters,
+                    resultCount: provider.pagination.totalItems,
+                    isLoading: provider.isLoading,
+                    availableZoneMembers: _availableZoneMembers,
+                    availableSites: _availableSites,
+                    availableZones: _availableZones,
+                    showZoneMemberFilter: true,
+                    showZoneFilter: true,
+                    zoneMemberLabel: 'Chef de zone',
                   ),
-
-                  // Action buttons row
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0, vertical: 8.0),
-                    child: Row(
-                      children: [
-                        const Spacer(),
-                        // Report button
-                        ElevatedButton.icon(
-                          onPressed: () => _showReportDialog(context),
-                          icon: const Icon(Icons.calendar_today, size: PointageIconSizes.sm),
-                          label: const Text('Rapports'),
-                          style: PointageButtonStyles.primary,
-                        ),
-                        const SizedBox(width: PointageSpacing.md),
-                        // Refresh button
-                        _RefreshButton(
-                          isLoading: provider.isLoading,
-                          onPressed: () => provider.refreshData(),
-                        ),
-                      ],
-                    ),
-                  ),
-
-                  // Filter Bar
-                  Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: 16.0),
-                    child: FilterBar(
-                      filters: provider.filters,
-                      onFiltersChanged: (filters) => provider.applyFilters(filters),
-                      isLoading: provider.isLoading,
-                      showZoneMemberFilter: true,
-                      showZoneFilter: true,
-                      zoneMemberLabel: 'Chef de zone',
-                    ),
-                  ),
-
-                  const SizedBox(height: 16),
-
-                  // Error Display
+                  const SizedBox(height: PointageSpacing.lg),
+                  _buildActionButtons(context, provider),
+                  const SizedBox(height: PointageSpacing.lg),
                   if (provider.hasError)
                     Padding(
-                      padding: const EdgeInsets.all(16.0),
+                      padding:
+                          const EdgeInsets.only(bottom: PointageSpacing.lg),
                       child: ErrorDisplay(
-                        customMessage: provider.error!,
-                        onRetry: () => provider.loadPointages(refresh: true),
+                        customMessage: provider.error,
+                        onRetry: () => provider.refreshData(),
+                        compact: provider.pointages.isNotEmpty,
                       ),
                     ),
-
-                  // Pointage Table - No Expanded wrapper for full page scroll
-                  _buildPointageTable(provider),
+                  if (provider.isLoading && provider.pointages.isNotEmpty) ...[
+                    const LinearProgressIndicator(minHeight: 3),
+                    const SizedBox(height: PointageSpacing.md),
+                  ],
+                  ModernZonePointageTable(
+                    pointages: provider.pointages,
+                    isLoading: provider.isLoading && provider.pointages.isEmpty,
+                    sortConfig: TableSortConfig(
+                      field: provider.sortField,
+                      ascending: provider.sortAscending,
+                    ),
+                    onSort: (config) {
+                      provider.changeSort(
+                        config.field,
+                        ascending: config.ascending,
+                      );
+                    },
+                  ),
+                  const SizedBox(height: PointageSpacing.lg),
+                  _buildPaginationControls(provider),
                 ],
               ),
             );
@@ -116,110 +142,203 @@ class _PointageZoneListModernState extends State<PointageZoneListModern> {
     );
   }
 
-  /// Build the pointage table
-  Widget _buildPointageTable(PointageZoneProvider provider) {
-    if (provider.isLoading && provider.pointages.isEmpty) {
-      return const Padding(
-        padding: EdgeInsets.all(64.0),
-        child: Center(
-          child: CircularProgressIndicator(),
-        ),
-      );
-    }
-
-    if (provider.pointages.isEmpty) {
-      return Padding(
-        padding: const EdgeInsets.all(64.0),
-        child: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Icon(
-                Icons.inbox_outlined,
-                size: 64,
-                color: Colors.grey.shade400,
+  Widget _buildStatsSection(PointageZoneProvider provider) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Row(
+          children: [
+            const Icon(
+              Icons.analytics_outlined,
+              color: PointageColors.primary,
+              size: PointageIconSizes.sm,
+            ),
+            const SizedBox(width: PointageSpacing.sm),
+            Text(
+              'Statistiques',
+              style: PointageTextStyles.body2.copyWith(
+                fontWeight: FontWeight.w600,
               ),
-              const SizedBox(height: 16),
-              Text(
-                'Aucun pointage trouvé',
-                style: TextStyle(
-                  fontSize: 18,
-                  color: Colors.grey.shade600,
+            ),
+            const SizedBox(width: PointageSpacing.sm),
+            Switch(
+              value: _showStats,
+              activeTrackColor: PointageColors.primary.withValues(alpha: 0.5),
+              activeThumbColor: PointageColors.primary,
+              onChanged: (value) {
+                setState(() {
+                  _showStats = value;
+                });
+                if (value && provider.stats == null) {
+                  provider.loadStats();
+                }
+              },
+            ),
+          ],
+        ),
+        if (_showStats) ...[
+          const SizedBox(height: PointageSpacing.sm),
+          StatisticsCard(
+            totalPointages: provider.stats?.totalPointages,
+            uniqueSupervisors: provider.stats?.uniqueZoneMembers,
+            uniqueSites: provider.stats?.uniqueZones,
+            averagePerDay: provider.stats?.averagePointagesPerDay,
+            supervisorLabel: 'Chefs de zone',
+            siteLabel: 'Zones',
+            isLoading: provider.isLoadingStats,
+          ),
+        ],
+      ],
+    );
+  }
+
+  Widget _buildActionButtons(
+    BuildContext context,
+    PointageZoneProvider provider,
+  ) {
+    return Container(
+      padding: const EdgeInsets.all(PointageSpacing.md),
+      decoration: PointageCardDecorations.outlined,
+      child: Wrap(
+        spacing: PointageSpacing.sm,
+        runSpacing: PointageSpacing.sm,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        alignment: WrapAlignment.spaceBetween,
+        children: [
+          Wrap(
+            spacing: PointageSpacing.sm,
+            runSpacing: PointageSpacing.sm,
+            children: [
+              ElevatedButton.icon(
+                onPressed: provider.isLoading ? null : provider.refreshData,
+                icon: provider.isLoading
+                    ? const SizedBox(
+                        width: PointageIconSizes.sm,
+                        height: PointageIconSizes.sm,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.refresh, size: PointageIconSizes.sm),
+                label: const Text('Actualiser'),
+                style: PointageButtonStyles.outlined,
+              ),
+              ElevatedButton.icon(
+                onPressed: () => _showReportDialog(context),
+                icon: const Icon(
+                  Icons.assessment_outlined,
+                  size: PointageIconSizes.sm,
                 ),
+                label: const Text('Rapports'),
+                style: PointageButtonStyles.primary,
               ),
             ],
           ),
-        ),
-      );
-    }
-
-    final dateFormat = DateFormat('dd/MM/yyyy');
-    final timeFormat = DateFormat('HH:mm:ss');
-
-    return Container(
-      margin: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(8),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.05),
-            blurRadius: 10,
-            offset: const Offset(0, 2),
-          ),
+          _buildItemsPerPageSelector(provider),
         ],
-      ),
-      child: PaginatedDataTable(
-        header: null,
-        rowsPerPage: provider.pagination.itemsPerPage,
-        availableRowsPerPage: const [10, 20, 50, 100],
-        onRowsPerPageChanged: (value) {
-          if (value != null) {
-            provider.changeItemsPerPage(value);
-          }
-        },
-        onPageChanged: (page) {
-          final newPage = (page ~/ provider.pagination.itemsPerPage) + 1;
-          if (newPage != provider.pagination.currentPage) {
-            provider.goToPage(newPage);
-          }
-        },
-        columns: const [
-          DataColumn(
-            label: Text('Chef de zone'),
-            tooltip: 'Chef de zone ayant effectué le pointage',
-          ),
-          DataColumn(
-            label: Text('Site'),
-            tooltip: 'Site visité',
-          ),
-          DataColumn(
-            label: Text('Zone'),
-            tooltip: 'Zone du chef de zone',
-          ),
-          DataColumn(
-            label: Text('Date'),
-            tooltip: 'Date du pointage',
-          ),
-          DataColumn(
-            label: Text('Heure'),
-            tooltip: 'Heure du pointage',
-          ),
-          DataColumn(
-            label: Text('Contact'),
-            tooltip: 'Numéro de téléphone',
-          ),
-        ],
-        source: _PointageZoneDataSource(
-          pointages: provider.pointages,
-          dateFormat: dateFormat,
-          timeFormat: timeFormat,
-        ),
       ),
     );
   }
 
-  /// Show report selection dialog
+  Widget _buildItemsPerPageSelector(PointageZoneProvider provider) {
+    return Row(
+      mainAxisSize: MainAxisSize.min,
+      children: [
+        const Text(
+          'Lignes par page:',
+          style: PointageTextStyles.body2,
+        ),
+        const SizedBox(width: PointageSpacing.sm),
+        DropdownButton<int>(
+          value: provider.pagination.itemsPerPage,
+          items: const [10, 20, 50, 100]
+              .map(
+                (value) => DropdownMenuItem<int>(
+                  value: value,
+                  child: Text(value.toString()),
+                ),
+              )
+              .toList(),
+          onChanged: (value) {
+            if (value != null) {
+              provider.changeItemsPerPage(value);
+            }
+          },
+        ),
+      ],
+    );
+  }
+
+  Widget _buildPaginationControls(PointageZoneProvider provider) {
+    final pagination = provider.pagination;
+    final pageLabel = pagination.totalItems == 0
+        ? 'Aucun résultat'
+        : 'Page ${pagination.currentPage} sur ${pagination.totalPages}';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.md,
+        vertical: PointageSpacing.sm,
+      ),
+      decoration: PointageCardDecorations.outlined,
+      child: Wrap(
+        spacing: PointageSpacing.sm,
+        runSpacing: PointageSpacing.sm,
+        alignment: WrapAlignment.center,
+        crossAxisAlignment: WrapCrossAlignment.center,
+        children: [
+          IconButton(
+            onPressed: pagination.currentPage > 1 && !provider.isLoading
+                ? () => provider.goToPage(1)
+                : null,
+            icon: const Icon(Icons.first_page),
+            tooltip: 'Première page',
+          ),
+          IconButton(
+            onPressed: pagination.canGoPrevious && !provider.isLoading
+                ? provider.loadPreviousPage
+                : null,
+            icon: const Icon(Icons.chevron_left),
+            tooltip: 'Page précédente',
+          ),
+          Container(
+            padding: const EdgeInsets.symmetric(
+              horizontal: PointageSpacing.md,
+              vertical: PointageSpacing.sm,
+            ),
+            decoration: BoxDecoration(
+              color: PointageColors.background,
+              borderRadius: PointageBorderRadius.medium,
+            ),
+            child: Text(
+              pageLabel,
+              style: PointageTextStyles.body2.copyWith(
+                fontWeight: FontWeight.w600,
+              ),
+            ),
+          ),
+          IconButton(
+            onPressed: pagination.canGoNext && !provider.isLoading
+                ? provider.loadNextPage
+                : null,
+            icon: const Icon(Icons.chevron_right),
+            tooltip: 'Page suivante',
+          ),
+          IconButton(
+            onPressed: pagination.currentPage < pagination.totalPages &&
+                    !provider.isLoading
+                ? () => provider.goToPage(pagination.totalPages)
+                : null,
+            icon: const Icon(Icons.last_page),
+            tooltip: 'Dernière page',
+          ),
+          Text(
+            '${pagination.totalItems} pointage${pagination.totalItems > 1 ? 's' : ''}',
+            style: PointageTextStyles.caption,
+          ),
+        ],
+      ),
+    );
+  }
+
   void _showReportDialog(BuildContext context) {
     showDialog(
       context: context,
@@ -243,7 +362,6 @@ class _PointageZoneListModernState extends State<PointageZoneListModern> {
                 ),
               ),
               const SizedBox(height: PointageSpacing.lg),
-              // Date picker
               _DatePickerTile(
                 selectedDate: _selectedDate,
                 onDateSelected: (date) {
@@ -251,7 +369,6 @@ class _PointageZoneListModernState extends State<PointageZoneListModern> {
                 },
               ),
               const SizedBox(height: PointageSpacing.xl),
-              // Report buttons
               SizedBox(
                 width: double.infinity,
                 child: ElevatedButton.icon(
@@ -259,7 +376,10 @@ class _PointageZoneListModernState extends State<PointageZoneListModern> {
                     Navigator.pop(dialogContext);
                     context.go('/pointagezones/npcz', extra: _selectedDate);
                   },
-                  icon: const Icon(Icons.assessment, size: PointageIconSizes.sm),
+                  icon: const Icon(
+                    Icons.assessment,
+                    size: PointageIconSizes.sm,
+                  ),
                   label: const Text('Rapport de pointage par chef de zone'),
                   style: PointageButtonStyles.primary,
                 ),
@@ -272,7 +392,10 @@ class _PointageZoneListModernState extends State<PointageZoneListModern> {
                     Navigator.pop(dialogContext);
                     context.go('/pointagezones/nvcz', extra: _selectedDate);
                   },
-                  icon: const Icon(Icons.bar_chart, size: PointageIconSizes.sm),
+                  icon: const Icon(
+                    Icons.bar_chart,
+                    size: PointageIconSizes.sm,
+                  ),
                   label: const Text('Nombre de visites par site'),
                   style: PointageButtonStyles.outlined,
                 ),
@@ -292,77 +415,158 @@ class _PointageZoneListModernState extends State<PointageZoneListModern> {
   }
 }
 
-
-/// Refresh button with glass smooth hover effect
-class _RefreshButton extends StatefulWidget {
-  final bool isLoading;
-  final VoidCallback onPressed;
-
-  const _RefreshButton({
-    required this.isLoading,
-    required this.onPressed,
+class ModernZonePointageTable extends StatelessWidget {
+  const ModernZonePointageTable({
+    super.key,
+    required this.pointages,
+    this.isLoading = false,
+    this.sortConfig,
+    this.onSort,
   });
 
-  @override
-  State<_RefreshButton> createState() => _RefreshButtonState();
-}
-
-class _RefreshButtonState extends State<_RefreshButton> {
-  bool _isHovered = false;
+  final List<PointingZone> pointages;
+  final bool isLoading;
+  final TableSortConfig? sortConfig;
+  final ValueChanged<TableSortConfig>? onSort;
 
   @override
   Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: widget.isLoading ? SystemMouseCursors.basic : SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.isLoading ? null : widget.onPressed,
-        child: AnimatedContainer(
-          duration: PointageAnimations.fast,
-          curve: PointageAnimations.defaultCurve,
-          padding: const EdgeInsets.symmetric(
-            horizontal: PointageSpacing.lg,
-            vertical: PointageSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: _isHovered && !widget.isLoading
-                ? PointageColors.primary.withValues(alpha: 0.1)
-                : Colors.transparent,
-            border: Border.all(
-              color: PointageColors.primary,
-              width: _isHovered && !widget.isLoading ? 2.0 : 1.5,
+    if (isLoading) {
+      return _buildLoadingSkeleton();
+    }
+
+    if (pointages.isEmpty) {
+      return _buildEmptyState();
+    }
+
+    return Container(
+      decoration: PointageCardDecorations.standard,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Padding(
+            padding: const EdgeInsets.fromLTRB(
+              PointageSpacing.lg,
+              PointageSpacing.lg,
+              PointageSpacing.lg,
+              PointageSpacing.sm,
             ),
-            borderRadius: PointageBorderRadius.medium,
-            boxShadow: _isHovered && !widget.isLoading ? PointageShadows.sm : null,
+            child: Wrap(
+              spacing: PointageSpacing.md,
+              runSpacing: PointageSpacing.sm,
+              alignment: WrapAlignment.spaceBetween,
+              crossAxisAlignment: WrapCrossAlignment.center,
+              children: [
+                Text(
+                  'Tableau des pointages',
+                  style: PointageTextStyles.headline4.copyWith(
+                    fontWeight: FontWeight.w700,
+                  ),
+                ),
+                _CountBadge(count: pointages.length),
+              ],
+            ),
           ),
+          SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            padding: const EdgeInsets.only(bottom: PointageSpacing.sm),
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minWidth: MediaQuery.of(context).size.width - 48,
+              ),
+              child: DataTable(
+                headingRowColor: WidgetStateProperty.all(
+                  PointageColors.background,
+                ),
+                dataRowColor: WidgetStateProperty.resolveWith<Color>(
+                  (states) {
+                    if (states.contains(WidgetState.hovered)) {
+                      return PointageColors.primary.withValues(alpha: 0.05);
+                    }
+                    return Colors.transparent;
+                  },
+                ),
+                columns: _buildColumns(),
+                rows: _buildRows(),
+                columnSpacing: PointageSpacing.lg,
+                horizontalMargin: PointageSpacing.lg,
+                showCheckboxColumn: false,
+                sortColumnIndex: sortConfig != null ? 3 : null,
+                sortAscending: sortConfig?.ascending ?? true,
+              ),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  List<DataColumn> _buildColumns() {
+    return [
+      const DataColumn(
+        label: Text('Chef de zone', style: PointageTextStyles.label),
+      ),
+      const DataColumn(
+        label: Text('Site', style: PointageTextStyles.label),
+      ),
+      const DataColumn(
+        label: Text('Zone', style: PointageTextStyles.label),
+      ),
+      _buildSortableColumn('Date', 'datetimestamp'),
+      _buildSortableColumn('Heure', 'datetimestamp'),
+      const DataColumn(
+        label: Text('Distance', style: PointageTextStyles.label),
+      ),
+      const DataColumn(
+        label: Text('Contact', style: PointageTextStyles.label),
+      ),
+    ];
+  }
+
+  DataColumn _buildSortableColumn(String label, String field) {
+    final isActive = sortConfig?.field == field;
+    final ascending = sortConfig?.ascending ?? true;
+
+    return DataColumn(
+      label: Tooltip(
+        message: isActive
+            ? (ascending
+                ? 'Trier par $label décroissant'
+                : 'Trier par $label croissant')
+            : 'Trier par $label',
+        child: InkWell(
+          onTap: onSort == null
+              ? null
+              : () {
+                  onSort!(
+                    TableSortConfig(
+                      field: field,
+                      ascending: isActive ? !ascending : true,
+                    ),
+                  );
+                },
           child: Row(
             mainAxisSize: MainAxisSize.min,
             children: [
-              widget.isLoading
-                  ? const SizedBox(
-                      width: PointageIconSizes.sm,
-                      height: PointageIconSizes.sm,
-                      child: CircularProgressIndicator(
-                        strokeWidth: 2,
-                        valueColor: AlwaysStoppedAnimation<Color>(PointageColors.primary),
-                      ),
-                    )
-                  : AnimatedContainer(
-                      duration: PointageAnimations.fast,
-                      transform: Matrix4.identity()
-                        ..scale(_isHovered ? 1.1 : 1.0),
-                      child: Icon(
-                        Icons.refresh,
-                        color: PointageColors.primary,
-                        size: _isHovered ? 22 : PointageIconSizes.sm,
-                      ),
-                    ),
-              const SizedBox(width: PointageSpacing.sm),
               Text(
-                'Actualiser',
-                style: PointageTextStyles.button.copyWith(
-                  color: PointageColors.primary,
+                label,
+                style: PointageTextStyles.label.copyWith(
+                  color: isActive
+                      ? PointageColors.primary
+                      : PointageColors.textPrimary,
+                  fontWeight: isActive ? FontWeight.w700 : FontWeight.w500,
+                ),
+              ),
+              const SizedBox(width: PointageSpacing.xs),
+              AnimatedRotation(
+                turns: isActive && !ascending ? 0.5 : 0,
+                duration: PointageAnimations.fast,
+                child: Icon(
+                  Icons.arrow_upward,
+                  size: PointageIconSizes.xs,
+                  color: isActive
+                      ? PointageColors.primary
+                      : PointageColors.textSecondary.withValues(alpha: 0.55),
                 ),
               ),
             ],
@@ -371,17 +575,357 @@ class _RefreshButtonState extends State<_RefreshButton> {
       ),
     );
   }
+
+  List<DataRow> _buildRows() {
+    return pointages.asMap().entries.map((entry) {
+      final index = entry.key;
+      final pointage = entry.value;
+
+      return DataRow(
+        color: WidgetStateProperty.resolveWith<Color>(
+          (states) {
+            if (states.contains(WidgetState.hovered)) {
+              return PointageColors.primary.withValues(alpha: 0.05);
+            }
+            return index.isEven
+                ? Colors.transparent
+                : PointageColors.background.withValues(alpha: 0.3);
+          },
+        ),
+        cells: [
+          DataCell(_ZoneMemberCell(zoneMember: pointage.zoneMember)),
+          DataCell(_SiteCell(site: pointage.site)),
+          DataCell(_ZoneCell(zone: pointage.zoneMember?.zone)),
+          DataCell(_DateChip(date: pointage.date)),
+          DataCell(_TimeChip(date: pointage.date)),
+          DataCell(_DistanceChip(distance: pointage.distance)),
+          DataCell(Text(pointage.zoneMember?.phone ?? 'N/A')),
+        ],
+      );
+    }).toList();
+  }
+
+  Widget _buildLoadingSkeleton() {
+    return Container(
+      decoration: PointageCardDecorations.standard,
+      padding: const EdgeInsets.all(PointageSpacing.lg),
+      child: Column(
+        children: List.generate(
+          8,
+          (index) => Container(
+            margin: const EdgeInsets.only(bottom: PointageSpacing.sm),
+            padding: const EdgeInsets.all(PointageSpacing.md),
+            decoration: BoxDecoration(
+              color: index.isEven
+                  ? PointageColors.background
+                  : PointageColors.hover,
+              borderRadius: PointageBorderRadius.medium,
+            ),
+            child: const Row(
+              children: [
+                _SkeletonBox(width: 160),
+                SizedBox(width: PointageSpacing.lg),
+                _SkeletonBox(width: 180),
+                SizedBox(width: PointageSpacing.lg),
+                _SkeletonBox(width: 100),
+                SizedBox(width: PointageSpacing.lg),
+                _SkeletonBox(width: 90),
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildEmptyState() {
+    return Container(
+      decoration: PointageCardDecorations.standard,
+      padding: const EdgeInsets.all(PointageSpacing.xxl),
+      child: Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.inbox_outlined,
+              size: PointageIconSizes.xl,
+              color: PointageColors.textSecondary,
+            ),
+            const SizedBox(height: PointageSpacing.lg),
+            Text(
+              'Aucun pointage trouvé',
+              style: PointageTextStyles.headline4.copyWith(
+                color: PointageColors.textSecondary,
+              ),
+            ),
+            const SizedBox(height: PointageSpacing.sm),
+            Text(
+              'Modifiez les filtres ou actualisez la liste.',
+              style: PointageTextStyles.body2.copyWith(
+                color: PointageColors.textSecondary,
+              ),
+              textAlign: TextAlign.center,
+            ),
+          ],
+        ),
+      ),
+    );
+  }
 }
 
-/// Date picker tile with glass smooth hover effect
-class _DatePickerTile extends StatefulWidget {
-  final DateTime selectedDate;
-  final Function(DateTime) onDateSelected;
+class _ZoneMemberCell extends StatelessWidget {
+  const _ZoneMemberCell({required this.zoneMember});
 
+  final ZoneMember? zoneMember;
+
+  @override
+  Widget build(BuildContext context) {
+    final firstName = zoneMember?.firstName ?? '';
+    final lastName = zoneMember?.lastName ?? '';
+    final initials =
+        '${firstName.isNotEmpty ? firstName[0] : ''}${lastName.isNotEmpty ? lastName[0] : ''}'
+            .toUpperCase();
+    final fullName = '$firstName $lastName'.trim();
+
+    return SizedBox(
+      width: 230,
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundColor: PointageColors.primary.withValues(alpha: 0.1),
+            child: Text(
+              initials.isEmpty ? '?' : initials,
+              style: PointageTextStyles.caption.copyWith(
+                color: PointageColors.primary,
+                fontWeight: FontWeight.bold,
+              ),
+            ),
+          ),
+          const SizedBox(width: PointageSpacing.sm),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  fullName.isEmpty ? 'Non défini' : fullName,
+                  style: PointageTextStyles.body2.copyWith(
+                    fontWeight: FontWeight.w600,
+                  ),
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+                Text(
+                  zoneMember?.code ?? '',
+                  style: PointageTextStyles.caption,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _SiteCell extends StatelessWidget {
+  const _SiteCell({required this.site});
+
+  final Site site;
+
+  @override
+  Widget build(BuildContext context) {
+    return SizedBox(
+      width: 230,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Text(
+            site.codeSite,
+            style: PointageTextStyles.body2.copyWith(
+              fontWeight: FontWeight.w700,
+            ),
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+          Text(
+            site.name,
+            style: PointageTextStyles.caption,
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _ZoneCell extends StatelessWidget {
+  const _ZoneCell({required this.zone});
+
+  final Zone? zone;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.sm,
+        vertical: PointageSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: PointageColors.secondary.withValues(alpha: 0.1),
+        borderRadius: PointageBorderRadius.small,
+      ),
+      child: Text(
+        zone?.name ?? 'N/A',
+        style: PointageTextStyles.body2.copyWith(
+          color: PointageColors.secondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _DateChip extends StatelessWidget {
+  const _DateChip({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ValueChip(
+      label:
+          '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}',
+      color: PointageColors.chartBlue,
+    );
+  }
+}
+
+class _TimeChip extends StatelessWidget {
+  const _TimeChip({required this.date});
+
+  final DateTime date;
+
+  @override
+  Widget build(BuildContext context) {
+    return _ValueChip(
+      label:
+          '${date.hour.toString().padLeft(2, '0')}:${date.minute.toString().padLeft(2, '0')}',
+      color: PointageColors.warning,
+    );
+  }
+}
+
+class _DistanceChip extends StatelessWidget {
+  const _DistanceChip({required this.distance});
+
+  final double distance;
+
+  @override
+  Widget build(BuildContext context) {
+    final roundedDistance = distance.isFinite ? distance.round() : 0;
+    final color = roundedDistance <= 500
+        ? PointageColors.success
+        : PointageColors.warning;
+
+    return _ValueChip(
+      label: '$roundedDistance m',
+      color: color,
+    );
+  }
+}
+
+class _ValueChip extends StatelessWidget {
+  const _ValueChip({
+    required this.label,
+    required this.color,
+  });
+
+  final String label;
+  final Color color;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.sm,
+        vertical: PointageSpacing.xs,
+      ),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.1),
+        borderRadius: PointageBorderRadius.small,
+        border: Border.all(color: color.withValues(alpha: 0.22)),
+      ),
+      child: Text(
+        label,
+        style: PointageTextStyles.body2.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _CountBadge extends StatelessWidget {
+  const _CountBadge({required this.count});
+
+  final int count;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.md,
+        vertical: PointageSpacing.sm,
+      ),
+      decoration: BoxDecoration(
+        color: PointageColors.background,
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: PointageColors.divider),
+      ),
+      child: Text(
+        '$count ligne${count > 1 ? 's' : ''} affichée${count > 1 ? 's' : ''}',
+        style: PointageTextStyles.body2.copyWith(
+          color: PointageColors.textSecondary,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+}
+
+class _SkeletonBox extends StatelessWidget {
+  const _SkeletonBox({required this.width});
+
+  final double width;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      width: width,
+      height: 16,
+      decoration: BoxDecoration(
+        color: PointageColors.divider,
+        borderRadius: PointageBorderRadius.small,
+      ),
+    );
+  }
+}
+
+class _DatePickerTile extends StatefulWidget {
   const _DatePickerTile({
     required this.selectedDate,
     required this.onDateSelected,
   });
+
+  final DateTime selectedDate;
+  final ValueChanged<DateTime> onDateSelected;
 
   @override
   State<_DatePickerTile> createState() => _DatePickerTileState();
@@ -392,6 +936,11 @@ class _DatePickerTileState extends State<_DatePickerTile> {
 
   @override
   Widget build(BuildContext context) {
+    final formattedDate =
+        '${widget.selectedDate.day.toString().padLeft(2, '0')}/'
+        '${widget.selectedDate.month.toString().padLeft(2, '0')}/'
+        '${widget.selectedDate.year}';
+
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -431,7 +980,8 @@ class _DatePickerTileState extends State<_DatePickerTile> {
                 : Colors.transparent,
             borderRadius: PointageBorderRadius.medium,
             border: Border.all(
-              color: _isHovered ? PointageColors.primary : PointageColors.divider,
+              color:
+                  _isHovered ? PointageColors.primary : PointageColors.divider,
               width: _isHovered ? 1.5 : 1,
             ),
           ),
@@ -439,21 +989,27 @@ class _DatePickerTileState extends State<_DatePickerTile> {
             children: [
               Icon(
                 Icons.calendar_today,
-                color: _isHovered ? PointageColors.primary : PointageColors.textSecondary,
+                color: _isHovered
+                    ? PointageColors.primary
+                    : PointageColors.textSecondary,
                 size: PointageIconSizes.sm,
               ),
               const SizedBox(width: PointageSpacing.md),
               Expanded(
                 child: Text(
-                  DateFormat('dd/MM/yyyy').format(widget.selectedDate),
+                  formattedDate,
                   style: PointageTextStyles.body1.copyWith(
-                    color: _isHovered ? PointageColors.primary : PointageColors.textPrimary,
+                    color: _isHovered
+                        ? PointageColors.primary
+                        : PointageColors.textPrimary,
                   ),
                 ),
               ),
               Icon(
                 Icons.edit,
-                color: _isHovered ? PointageColors.primary : PointageColors.textSecondary,
+                color: _isHovered
+                    ? PointageColors.primary
+                    : PointageColors.textSecondary,
                 size: PointageIconSizes.sm,
               ),
             ],
@@ -462,97 +1018,4 @@ class _DatePickerTileState extends State<_DatePickerTile> {
       ),
     );
   }
-}
-
-
-/// Data source for the zone pointage table
-class _PointageZoneDataSource extends DataTableSource {
-  final List<PointingZone> pointages;
-  final DateFormat dateFormat;
-  final DateFormat timeFormat;
-
-  _PointageZoneDataSource({
-    required this.pointages,
-    required this.dateFormat,
-    required this.timeFormat,
-  });
-
-  @override
-  DataRow? getRow(int index) {
-    if (index >= pointages.length) return null;
-
-    final pointage = pointages[index];
-
-    return DataRow(
-      cells: [
-        // Chef de zone
-        DataCell(
-          Text(
-            '${pointage.zoneMember?.firstName ?? ''} ${pointage.zoneMember?.lastName ?? ''}',
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        // Site
-        DataCell(
-          Text(
-            pointage.site.name,
-            style: const TextStyle(fontWeight: FontWeight.w500),
-          ),
-        ),
-        // Zone
-        DataCell(
-          Text(pointage.zoneMember?.zone?.name ?? 'N/A'),
-        ),
-        // Date - with colored chip (blue)
-        DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.blue.shade50,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              dateFormat.format(pointage.date),
-              style: TextStyle(
-                color: Colors.blue.shade700,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        // Heure - with colored chip (orange)
-        DataCell(
-          Container(
-            padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-            decoration: BoxDecoration(
-              color: Colors.orange.shade100,
-              borderRadius: BorderRadius.circular(12),
-            ),
-            child: Text(
-              timeFormat.format(pointage.date),
-              style: TextStyle(
-                color: Colors.orange.shade800,
-                fontWeight: FontWeight.w500,
-                fontSize: 13,
-              ),
-            ),
-          ),
-        ),
-        // Contact
-        DataCell(
-          Text(pointage.zoneMember?.phone ?? 'N/A'),
-        ),
-      ],
-    );
-  }
-
-  @override
-  bool get isRowCountApproximate => false;
-
-  @override
-  int get rowCount => pointages.length;
-
-  @override
-  int get selectedRowCount => 0;
 }

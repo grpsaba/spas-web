@@ -434,8 +434,8 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
                 ),
                 _tableHeader('Date', flex: 2),
                 _tableHeader('Type', flex: 2),
-                _tableHeader('Superviseur', flex: 2),
-                _tableHeader('Site/Agent', flex: 2),
+                _tableHeader('Acteur', flex: 2),
+                _tableHeader('Cible', flex: 2),
                 _tableHeader('Message', flex: 3),
                 _tableHeader('Actions', flex: 1),
               ],
@@ -482,6 +482,9 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
       BuildContext context, ErrorLogProvider provider, ErrorLog log) {
     final isSelected = provider.selectedIds.contains(log.id);
     final diagnosticSummary = _buildGpsDiagnosticSummary(log);
+    final actorSubtitle = log.isZonePointing && log.zoneName != 'N/A'
+        ? '${log.actorRoleLabel} - ${log.zoneName}'
+        : log.actorRoleLabel;
 
     return InkWell(
       onTap: () => context.go('/errorlogs/detail', extra: log),
@@ -543,33 +546,57 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
               flex: 2,
               child: ErrorTypeBadge(errorType: log.errorType),
             ),
-            // Supervisor
+            // Actor
             Expanded(
               flex: 2,
-              child: Text(
-                log.supervisorName,
-                style: PointageTextStyles.body2,
-                overflow: TextOverflow.ellipsis,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    log.actorName,
+                    style: PointageTextStyles.body2,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    actorSubtitle,
+                    style: PointageTextStyles.caption.copyWith(
+                      color: PointageColors.textSecondary,
+                    ),
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ],
               ),
             ),
-            // Site/Agent
+            // Target
             Expanded(
               flex: 2,
               child: Row(
                 children: [
                   Icon(
-                    log.type == 'pointing_site'
-                        ? Icons.location_on
-                        : Icons.person,
+                    log.pointageTypeIcon,
                     size: 16,
                     color: PointageColors.textSecondary,
                   ),
                   const SizedBox(width: 4),
                   Expanded(
-                    child: Text(
-                      log.entityName,
-                      style: PointageTextStyles.body2,
-                      overflow: TextOverflow.ellipsis,
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          log.entityName,
+                          style: PointageTextStyles.body2,
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                        const SizedBox(height: 2),
+                        Text(
+                          log.pointageTypeLabel,
+                          style: PointageTextStyles.caption.copyWith(
+                            color: PointageColors.textSecondary,
+                          ),
+                          overflow: TextOverflow.ellipsis,
+                        ),
+                      ],
                     ),
                   ),
                 ],
