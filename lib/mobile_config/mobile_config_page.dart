@@ -4,6 +4,7 @@ import 'package:spas_web/const.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/access_control.dart';
 import 'package:spas_web/services/mobile_config.dart';
+import 'package:spas_web/services/tenant.dart';
 
 class MobileConfigPage extends StatefulWidget {
   const MobileConfigPage({super.key});
@@ -16,6 +17,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
   static const int _pageIndex = 19;
 
   final MobileConfigService _service = MobileConfigService();
+  final TenantService _tenantService = TenantService();
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   final TextEditingController _maxWidthController = TextEditingController();
   final TextEditingController _maxHeightController = TextEditingController();
@@ -27,6 +29,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
       MobileConfig.defaultBackgroundTrackingEnabled;
   double _photoQuality = MobileConfig.defaultPointingPhotoQuality.toDouble();
   bool _isSaving = false;
+  final Set<String> _savingPointageTenantIds = <String>{};
 
   @override
   void initState() {
@@ -95,6 +98,9 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
 
   Widget _buildContent() {
     final canEdit = AccessControl.canAdd(ModuleName.MOBILE_CONFIG);
+    final canEditPointageModes = AccessControl.canView(
+      ModuleName.MOBILE_CONFIG,
+    );
 
     return Form(
       key: _formKey,
@@ -106,12 +112,14 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
-                _buildHeader(canEdit),
+                _buildHeader(canEdit || canEditPointageModes),
                 const SizedBox(height: 16),
                 if (!canEdit) ...[
-                  _buildReadOnlyNotice(),
+                  _buildReadOnlyNotice(canEditPointageModes),
                   const SizedBox(height: 16),
                 ],
+                _buildPointageModesPanel(canEditPointageModes),
+                const SizedBox(height: 16),
                 _buildTrackingPanel(canEdit),
                 const SizedBox(height: 16),
                 _buildPhotoPanel(canEdit),
@@ -211,7 +219,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
     );
   }
 
-  Widget _buildReadOnlyNotice() {
+  Widget _buildReadOnlyNotice(bool canEditPointageModes) {
     return Container(
       padding: const EdgeInsets.all(14),
       decoration: BoxDecoration(
@@ -223,10 +231,277 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
         children: [
           Icon(Icons.info_outline_rounded, color: Colors.orange.shade800),
           const SizedBox(width: 10),
-          const Expanded(
+          Expanded(
             child: Text(
-              'Votre profil peut consulter cette configuration, mais ne peut pas la modifier.',
-              style: TextStyle(fontWeight: FontWeight.w500),
+              canEditPointageModes
+                  ? 'Votre profil peut modifier les modes de pointage de son pays. Les autres parametres mobiles sont en lecture seule.'
+                  : 'Votre profil peut consulter cette configuration, mais ne peut pas la modifier.',
+              style: const TextStyle(fontWeight: FontWeight.w500),
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildPointageModesPanel(bool canEdit) {
+    final includeAllTenants = AccessControl.canBypassTenantFilter;
+    final tenantId = AccessControl.currentTenantId;
+
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: _panelDecoration(),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: [
+          Row(
+            children: [
+              _buildPanelIcon(Icons.rule_rounded),
+              const SizedBox(width: 14),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    const Text(
+                      'Modes de pointage par pays',
+                      style:
+                          TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      includeAllTenants
+                          ? 'Configuration des superviseurs et chefs de zone pour tous les pays.'
+                          : 'Configuration des superviseurs et chefs de zone pour votre pays.',
+                      style:
+                          const TextStyle(color: Colors.black54, fontSize: 13),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          const SizedBox(height: 16),
+          StreamBuilder<List<Tenant>>(
+            stream: _tenantService.watchPointageModeTenants(
+              includeAll: includeAllTenants,
+              tenantId: tenantId,
+            ),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting &&
+                  !snapshot.hasData) {
+                return const Center(
+                  child: Padding(
+                    padding: EdgeInsets.all(16),
+                    child: CircularProgressIndicator(),
+                  ),
+                );
+              }
+
+              if (snapshot.hasError) {
+                return _buildPanelMessage(
+                  icon: Icons.error_outline_rounded,
+                  message:
+                      'Impossible de charger les modes de pointage: ${snapshot.error}',
+                  isError: true,
+                );
+              }
+
+              final tenants = snapshot.data ?? <Tenant>[];
+              if (tenants.isEmpty) {
+                return _buildPanelMessage(
+                  icon: Icons.info_outline_rounded,
+                  message: includeAllTenants
+                      ? 'Aucun pays configure.'
+                      : 'Aucun pays trouve pour votre profil.',
+                );
+              }
+
+              return Column(
+                children: tenants
+                    .map(
+                      (tenant) => Padding(
+                        padding: const EdgeInsets.only(bottom: 10),
+                        child: _buildTenantPointageModeRow(
+                          tenant,
+                          canEdit: canEdit,
+                        ),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildTenantPointageModeRow(Tenant tenant, {required bool canEdit}) {
+    final isSaving = _savingPointageTenantIds.contains(tenant.id);
+    final rowEnabled = canEdit && !isSaving;
+
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE5E7EB)),
+      ),
+      child: LayoutBuilder(
+        builder: (context, constraints) {
+          final isCompact = constraints.maxWidth < 760;
+          final country = Row(
+            children: [
+              Icon(
+                Icons.public_rounded,
+                size: 22,
+                color: tenant.active ? AppConstants.primaryColor : Colors.grey,
+              ),
+              const SizedBox(width: 10),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      tenant.label.isEmpty
+                          ? tenant.id.toUpperCase()
+                          : tenant.label,
+                      style: const TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 2),
+                    Text(
+                      '${tenant.id.toUpperCase()} - ${tenant.countryCode}',
+                      style: const TextStyle(
+                        color: Colors.black54,
+                        fontSize: 12,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+              if (isSaving)
+                const SizedBox(
+                  width: 18,
+                  height: 18,
+                  child: CircularProgressIndicator(strokeWidth: 2),
+                ),
+            ],
+          );
+
+          final controls = Wrap(
+            spacing: 12,
+            runSpacing: 12,
+            children: [
+              _buildPointageModeDropdown(
+                label: 'Superviseurs',
+                value: tenant.pointageMode,
+                enabled: rowEnabled,
+                onChanged: (mode) => _updateTenantPointageModes(
+                  tenant,
+                  pointageMode: mode,
+                ),
+              ),
+              _buildPointageModeDropdown(
+                label: 'Chefs de zone',
+                value: tenant.zoneChiefPointageMode,
+                enabled: rowEnabled,
+                onChanged: (mode) => _updateTenantPointageModes(
+                  tenant,
+                  zoneChiefPointageMode: mode,
+                ),
+              ),
+            ],
+          );
+
+          if (isCompact) {
+            return Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: [
+                country,
+                const SizedBox(height: 12),
+                controls,
+              ],
+            );
+          }
+
+          return Row(
+            children: [
+              SizedBox(width: 250, child: country),
+              const SizedBox(width: 16),
+              Expanded(child: controls),
+            ],
+          );
+        },
+      ),
+    );
+  }
+
+  Widget _buildPointageModeDropdown({
+    required String label,
+    required String value,
+    required bool enabled,
+    required ValueChanged<String> onChanged,
+  }) {
+    return SizedBox(
+      width: 220,
+      child: DropdownButtonFormField<String>(
+        key: ValueKey('$label-$value'),
+        initialValue: TenantPointageMode.normalize(value),
+        decoration: InputDecoration(
+          labelText: label,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+          filled: true,
+          fillColor: enabled ? Colors.white : const Color(0xFFF3F4F6),
+        ),
+        items: const [
+          DropdownMenuItem(
+            value: TenantPointageMode.photo,
+            child: Text('Photo'),
+          ),
+          DropdownMenuItem(
+            value: TenantPointageMode.geo,
+            child: Text('Geolocalisation'),
+          ),
+        ],
+        onChanged: enabled
+            ? (mode) {
+                if (mode != null) onChanged(mode);
+              }
+            : null,
+      ),
+    );
+  }
+
+  Widget _buildPanelMessage({
+    required IconData icon,
+    required String message,
+    bool isError = false,
+  }) {
+    final color = isError ? Colors.red.shade700 : Colors.black54;
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: isError
+            ? Colors.red.withValues(alpha: 0.06)
+            : const Color(0xFFF9FAFB),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(
+          color: isError
+              ? Colors.red.withValues(alpha: 0.18)
+              : const Color(0xFFE5E7EB),
+        ),
+      ),
+      child: Row(
+        children: [
+          Icon(icon, color: color),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              message,
+              style: TextStyle(color: color, fontWeight: FontWeight.w500),
             ),
           ),
         ],
@@ -502,6 +777,62 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
         ),
       ],
     );
+  }
+
+  Future<void> _updateTenantPointageModes(
+    Tenant tenant, {
+    String? pointageMode,
+    String? zoneChiefPointageMode,
+  }) async {
+    final tenantId = tenant.id.trim().toLowerCase();
+    if (tenantId.isEmpty) return;
+
+    final currentTenantId = AccessControl.currentTenantId.trim().toLowerCase();
+    if (!AccessControl.canBypassTenantFilter && tenantId != currentTenantId) {
+      _showSnackBar(
+        'Votre profil ne peut modifier que son pays.',
+        isError: true,
+      );
+      return;
+    }
+
+    final nextPointageMode = TenantPointageMode.normalize(
+      pointageMode ?? tenant.pointageMode,
+    );
+    final nextZoneChiefPointageMode = TenantPointageMode.normalize(
+      zoneChiefPointageMode ?? tenant.zoneChiefPointageMode,
+    );
+
+    if (nextPointageMode == tenant.pointageMode &&
+        nextZoneChiefPointageMode == tenant.zoneChiefPointageMode) {
+      return;
+    }
+
+    setState(() {
+      _savingPointageTenantIds.add(tenantId);
+    });
+
+    try {
+      await _tenantService.updatePointageModes(
+        tenantId: tenantId,
+        pointageMode: nextPointageMode,
+        zoneChiefPointageMode: nextZoneChiefPointageMode,
+      );
+      if (!mounted) return;
+      _showSnackBar('Modes de pointage mis a jour.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnackBar(
+        'Erreur pendant la mise a jour des modes: $error',
+        isError: true,
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingPointageTenantIds.remove(tenantId);
+        });
+      }
+    }
   }
 
   Future<void> _save() async {

@@ -112,6 +112,8 @@ const fieldPathDocumentId = admin.firestore.FieldPath.documentId();
 const docCache = new Map();
 
 async function main() {
+  const startedAtMs = Date.now();
+
   console.log('Department backfill');
   console.log(`Mode: ${execute ? 'EXECUTE' : 'DRY-RUN'}`);
   console.log(`Project: ${projectId || '(default credentials project)'}`);
@@ -168,6 +170,7 @@ async function main() {
   console.log(`Skipped: ${totals.skipped}`);
   console.log(`Ambiguous: ${totals.ambiguous}`);
   console.log(`Errors: ${totals.errors}`);
+  console.log(`Duration: ${formatDuration(Date.now() - startedAtMs)}`);
 
   if (!execute) {
     console.log('');
@@ -933,6 +936,13 @@ function startOfUtcDay(date) {
 
 function addUtcDays(date, days) {
   return new Date(date.getTime() + days * 24 * 60 * 60 * 1000);
+}
+
+function formatDuration(milliseconds) {
+  const totalSeconds = Math.max(0, Math.round(milliseconds / 1000));
+  const minutes = Math.floor(totalSeconds / 60);
+  const seconds = totalSeconds % 60;
+  return `${minutes}m ${String(seconds).padStart(2, '0')}s`;
 }
 
 function isTenantInScope(data) {

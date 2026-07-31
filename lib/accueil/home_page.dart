@@ -339,12 +339,12 @@ class _HomePageState extends State<HomePage> {
       key: const ValueKey('stats-visible'),
       padding: const EdgeInsets.all(18),
       decoration: BoxDecoration(
-        color: Colors.white,
+        color: const Color(0xFF303236),
         borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
+        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
         boxShadow: [
           BoxShadow(
-            color: Colors.black.withValues(alpha: 0.08),
+            color: Colors.black.withValues(alpha: 0.16),
             blurRadius: 18,
             offset: const Offset(0, 8),
           ),
@@ -357,7 +357,7 @@ class _HomePageState extends State<HomePage> {
             title: 'Indicateurs clés',
             subtitle: 'Activité et alertes',
             icon: Icons.dashboard_customize_outlined,
-            onDark: false,
+            onDark: true,
             compact: true,
           ),
           const SizedBox(height: 14),

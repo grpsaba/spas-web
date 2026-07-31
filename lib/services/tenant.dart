@@ -14,6 +14,25 @@ class TenantService {
     return _collectionReference.orderBy('label').snapshots();
   }
 
+  Stream<List<Tenant>> watchPointageModeTenants({
+    required bool includeAll,
+    required String tenantId,
+  }) {
+    if (includeAll) {
+      return _collectionReference.orderBy('label').snapshots().map(
+            (snapshot) => snapshot.docs.map(_mapSnapshotToTenant).toList(),
+          );
+    }
+
+    final id = tenantId.trim().toLowerCase();
+    if (id.isEmpty) return Stream.value(<Tenant>[]);
+
+    return _collectionReference.doc(id).snapshots().map((snapshot) {
+      final tenant = _mapDocumentToTenant(snapshot);
+      return tenant == null ? <Tenant>[] : <Tenant>[tenant];
+    });
+  }
+
   Future<List<Tenant>> allActive() async {
 try{    final snapshot = await _collectionReference
         .where('active', isEqualTo: true)
@@ -43,6 +62,24 @@ try{    final snapshot = await _collectionReference
     await _collectionReference.doc(id).set({
       ...tenant.toJson(),
       'id': id,
+    });
+  }
+
+  Future<void> updatePointageModes({
+    required String tenantId,
+    required String pointageMode,
+    required String zoneChiefPointageMode,
+  }) async {
+    final id = tenantId.trim().toLowerCase();
+    if (id.isEmpty) {
+      throw ArgumentError('Le code pays est obligatoire.');
+    }
+
+    await _collectionReference.doc(id).update({
+      'pointageMode': TenantPointageMode.normalize(pointageMode),
+      'zoneChiefPointageMode':
+          TenantPointageMode.normalize(zoneChiefPointageMode),
+      'updatedAt': FieldValue.serverTimestamp(),
     });
   }
 
@@ -88,6 +125,15 @@ try{    final snapshot = await _collectionReference
 
   Tenant _mapSnapshotToTenant(QueryDocumentSnapshot snapshot) {
     final data = _asMap(snapshot.data()) ?? <String, dynamic>{};
+    return Tenant.fromJson({
+      'id': snapshot.id,
+      ...data,
+    });
+  }
+
+  Tenant? _mapDocumentToTenant(DocumentSnapshot snapshot) {
+    final data = _asMap(snapshot.data());
+    if (data == null) return null;
     return Tenant.fromJson({
       'id': snapshot.id,
       ...data,
