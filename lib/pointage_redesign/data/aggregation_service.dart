@@ -1,6 +1,7 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/foundation.dart';
 import '../models/pointage_exception.dart';
+import '../../services/department_scope.dart';
 import '../../services/tenant_scope.dart';
 
 /// Service for optimized aggregation queries on pointage data
@@ -50,7 +51,9 @@ class AggregationService {
       }
 
       // Build query for all supervisors and date range
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -185,7 +188,9 @@ class AggregationService {
       }
 
       // Build query for all supervisors and date range
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -306,7 +311,9 @@ class AggregationService {
   }) async {
     try {
       // Build query
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -378,7 +385,9 @@ class AggregationService {
   }) async {
     try {
       // Build query
-      final query = TenantScope.applyToQuery(_collectionReference)
+      final query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 
@@ -503,7 +512,9 @@ class AggregationService {
       final end = start.add(const Duration(days: 1));
 
       // Build query
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: start)
           .where('datetimestamp', isLessThan: end);
 
@@ -598,7 +609,9 @@ class AggregationService {
       final zonePointingsRef =
           FirebaseFirestore.instance.collection("zonePointings");
 
-      Query query = TenantScope.applyToQuery(zonePointingsRef)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(zonePointingsRef),
+      )
           .where('datetimestamp', isGreaterThanOrEqualTo: startDate)
           .where('datetimestamp', isLessThan: endDate);
 

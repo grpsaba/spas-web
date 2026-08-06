@@ -16,6 +16,7 @@ class AddDepatment extends StatefulWidget {
 }
 
 class _AddDepatmentState extends State<AddDepatment> {
+  final TextEditingController _idCtrl = TextEditingController();
   final TextEditingController _label_ctrl = TextEditingController();
 
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
@@ -27,6 +28,7 @@ class _AddDepatmentState extends State<AddDepatment> {
     // TODO: implement initState
     super.initState();
 
+    _idCtrl.text = widget.department.id;
     _label_ctrl.text = widget.department.label;
   }
 
@@ -35,6 +37,7 @@ class _AddDepatmentState extends State<AddDepatment> {
     // TODO: implement dispose
     super.dispose();
 
+    _idCtrl.dispose();
     _label_ctrl.dispose();
   }
 
@@ -53,6 +56,25 @@ class _AddDepatmentState extends State<AddDepatment> {
             child: Column(
               children: [
                 TextFormField(
+                  controller: _idCtrl,
+                  readOnly: widget.department.id.isNotEmpty,
+                  onChanged: (value) {
+                    widget.department.id = normalizeDepartmentId(value);
+                  },
+                  validator: (value) {
+                    return normalizeDepartmentId(value).isNotEmpty
+                        ? null
+                        : "ID obligatoir";
+                  },
+                  decoration: const InputDecoration(
+                      hintText: "ID technique",
+                      border: OutlineInputBorder(),
+                      prefixIcon: Icon(Icons.key)),
+                ),
+                const SizedBox(
+                  height: 20,
+                ),
+                TextFormField(
                   controller: _label_ctrl,
                   onChanged: (value) {
                     widget.department.label = value;
@@ -64,6 +86,19 @@ class _AddDepatmentState extends State<AddDepatment> {
                       hintText: "Libellé",
                       border: OutlineInputBorder(),
                       prefixIcon: Icon(Icons.person)),
+                ),
+                const SizedBox(
+                  height: 10,
+                ),
+                SwitchListTile(
+                  contentPadding: EdgeInsets.zero,
+                  title: const Text('Actif'),
+                  value: widget.department.active,
+                  onChanged: (value) {
+                    setState(() {
+                      widget.department.active = value;
+                    });
+                  },
                 ),
                 const SizedBox(
                   height: 20,
@@ -79,6 +114,8 @@ class _AddDepatmentState extends State<AddDepatment> {
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20))),
                               onPressed: () async {
+                                widget.department.id =
+                                    normalizeDepartmentId(_idCtrl.text);
                                 widget.department.label = _label_ctrl.text;
 
                                 if (_key.currentState!.validate()) {

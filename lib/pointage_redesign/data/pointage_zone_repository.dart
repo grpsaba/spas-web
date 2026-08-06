@@ -5,6 +5,7 @@ import '../models/pagination_models.dart';
 import '../models/pointage_zone_stats.dart';
 import '../models/pointage_exception.dart';
 import '../../model.dart';
+import '../../services/department_scope.dart';
 import '../../services/tenant_scope.dart';
 
 /// Repository for accessing zone pointage data with server-side operations
@@ -49,7 +50,9 @@ class PointageZoneRepository {
         fromFirestore: (snapshot, _) => snapshot.data() ?? {},
         toFirestore: (data, _) => data,
       );
-      query = TenantScope.applyToQuery(query);
+      query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(query),
+      );
 
       // Apply filters if provided
       if (filters != null && !filters.isEmpty) {
@@ -177,6 +180,7 @@ class PointageZoneRepository {
       'size_$pageSize',
       'sort_${sortField ?? 'date'}_${sortAscending ? 'asc' : 'desc'}',
       'tenant_${TenantScope.shouldFilterTenant ? TenantScope.currentTenantId : 'all'}',
+      'departments_${DepartmentScope.activeDepartmentIds.join(',')}',
     ];
     
     if (filters != null && !filters.isEmpty) {
@@ -203,7 +207,9 @@ class PointageZoneRepository {
   }) async {
     try {
       // Build query
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
 
@@ -265,7 +271,9 @@ class PointageZoneRepository {
   }) async {
     try {
       // Build query
-      Query query = TenantScope.applyToQuery(_collectionReference)
+      Query query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
 
@@ -329,7 +337,9 @@ class PointageZoneRepository {
   }) async {
     try {
       // Build query for date range
-      final query = TenantScope.applyToQuery(_collectionReference)
+      final query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      )
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
 
@@ -422,7 +432,9 @@ class PointageZoneRepository {
       )
           .where('date', isGreaterThanOrEqualTo: startDate.toIso8601String())
           .where('date', isLessThan: endDate.toIso8601String());
-      query = TenantScope.applyToQuery(query);
+      query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(query),
+      );
 
       // Apply additional filters if provided
       if (filters != null && !filters.isEmpty) {

@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
 import '../model.dart';
+import 'department_scope.dart';
 import 'tenant_scope.dart';
 
 class AgentService {
@@ -12,6 +13,10 @@ class AgentService {
             (firestore ?? FirebaseFirestore.instance).collection("Agents");
 
   final CollectionReference _collectionReference;
+
+  Query get _scopedQuery => DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      );
 
   Future<void> add(Agent agent) async {
     TenantScope.applyTenantIdForWrite(agent);
@@ -22,14 +27,14 @@ class AgentService {
   Stream<QuerySnapshot> all() {
     return TenantScope.watchQuery(
       'AgentService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
   }
 
   Stream<QuerySnapshot> allOfficePersonnel() {
     return TenantScope.watchQuery(
       'AgentService.allOfficePersonnel',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where("actif", isEqualTo: true)
           .where("site.UID", isEqualTo: "rXkVVl9AH8MYSPn25FSHS7eESpc2"),
     );
@@ -38,7 +43,7 @@ class AgentService {
   Future<List<Agent>> allFuture() async {
     final snapshot = await TenantScope.getQuery(
       'AgentService.allFuture',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
     return snapshot.docs.map(_mapSnapshotToAgent).toList();
   }
@@ -46,7 +51,7 @@ class AgentService {
   Future<List<Agent>> allByDomaine(String domaine) async {
     final snapshot = await TenantScope.getQuery(
       'AgentService.allByDomaine',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where("AgentType.label", isEqualTo: domaine)
           .where("site", isNotEqualTo: null)
           .where("actif", isEqualTo: true),
@@ -58,7 +63,7 @@ class AgentService {
   Future<List<Agent>> allBySupervisor(dynamic uid) async {
     final snapshot = await TenantScope.getQuery(
       'AgentService.allBySupervisor',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
     return snapshot.docs
         .map(_mapSnapshotToAgent)
@@ -75,7 +80,7 @@ class AgentService {
   Future<List<Agent>> allBySite(dynamic uid) async {
     final snapshot = await TenantScope.getQuery(
       'AgentService.allBySite',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where("site.UID", isEqualTo: uid),
     );
 
@@ -88,6 +93,11 @@ class AgentService {
 
     if (data == null) {
       throw StateError('Agent not found for code: $code');
+    }
+
+    if (!TenantScope.matchesTenant(tenantIdFromJson(data)) ||
+        !DepartmentScope.matchesDepartment(departmentIdFromJson(data))) {
+      throw StateError('Agent outside the active tenant or department scope.');
     }
 
     return Agent.fromJson(data);
@@ -136,8 +146,7 @@ class AgentService {
     bool descending = false,
   }) async {
     try {
-      Query query = TenantScope.applyToQuery(_collectionReference)
-          .orderBy('code', descending: descending);
+      Query query = _scopedQuery.orderBy('code', descending: descending);
 
       if (actif != null) {
         query = query.where('actif', isEqualTo: actif);
@@ -225,7 +234,7 @@ class AgentService {
     final snapshots = await Future.wait(
       searchPlans.expand((plan) {
         return plan.terms.map((term) {
-          Query searchQuery = TenantScope.applyToQuery(_collectionReference);
+          Query searchQuery = _scopedQuery;
 
           if (actif != null) {
             searchQuery = searchQuery.where('actif', isEqualTo: actif);

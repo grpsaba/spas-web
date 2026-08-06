@@ -7,16 +7,19 @@ import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../model.dart';
 import 'authentication.dart';
+import 'department_scope.dart';
 import 'tenant_scope.dart';
 
 class SupervisorService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Supervisors");
+
+  Query get _scopedQuery => DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      );
+
   Future<User?> add(Supervisor supervisor, password) async {
-    if (TenantScope.shouldFilterTenant) {
-      supervisor.tenantId = TenantScope.currentTenantId;
-      supervisor.hasTenantId = true;
-    }
+    TenantScope.applyTenantIdForWrite(supervisor);
     var user =
         await AuthService().createUserWithEmail(supervisor.email, password);
     if (user != null) {
@@ -31,7 +34,7 @@ class SupervisorService {
   Stream<QuerySnapshot> all() {
     return TenantScope.watchQuery(
       'SupervisorService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
   }
 
@@ -39,8 +42,7 @@ class SupervisorService {
     try {
       var snpshot = await TenantScope.getQuery(
         'SupervisorService.allActifFuture',
-        TenantScope.applyToQuery(_collectionReference)
-            .where('actif', isEqualTo: true),
+        _scopedQuery.where('actif', isEqualTo: true),
       );
       List<Supervisor> data = snpshot.docs
           .map((QueryDocumentSnapshot e) =>
@@ -58,8 +60,7 @@ class SupervisorService {
     try {
       var snpshot = await TenantScope.getQuery(
         'SupervisorService.allFuture',
-        TenantScope.applyToQuery(_collectionReference)
-            .where("actif", isEqualTo: true),
+        _scopedQuery.where("actif", isEqualTo: true),
       );
       List<Supervisor> data = snpshot.docs
           .map((QueryDocumentSnapshot e) =>
@@ -77,17 +78,19 @@ class SupervisorService {
     try {
       var dataSnapshot = await _collectionReference.doc(uid).get();
       var data = jsonEncode(dataSnapshot.data());
-      return Supervisor.fromJson(jsonDecode(data));
+      final json = jsonDecode(data) as Map<String, dynamic>;
+      if (!TenantScope.matchesTenant(tenantIdFromJson(json)) ||
+          !DepartmentScope.matchesDepartment(departmentIdFromJson(json))) {
+        return null;
+      }
+      return Supervisor.fromJson(json);
     } catch (error) {
       return null;
     }
   }
 
   Future<void> update(Supervisor supervisor) {
-    if (TenantScope.shouldFilterTenant) {
-      supervisor.tenantId = TenantScope.currentTenantId;
-      supervisor.hasTenantId = true;
-    }
+    TenantScope.applyTenantIdForWrite(supervisor);
     return _collectionReference.doc(supervisor.UID).update(supervisor.toJson());
   }
 

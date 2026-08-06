@@ -7,6 +7,7 @@ import 'package:spas_web/administration/home.dart';
 
 import '../model.dart';
 import '../services/access_control.dart';
+import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/manager.dart';
 import '../services/profil.dart';
@@ -32,8 +33,12 @@ class _AddSupervisorState extends State<AddManager> {
   bool _obscurePass = true;
   bool _adding = false;
   bool _loadingTenants = true;
+  bool _loadingDepartments = true;
   List<Tenant> _tenants = TenantOptions.fallback;
+  List<Department> _departments = <Department>[];
   String? _selectedTenantId;
+  String _departmentScope = DepartmentScopeValue.all;
+  Set<String> _selectedDepartmentIds = <String>{};
 
   @override
   void initState() {
@@ -46,10 +51,14 @@ class _AddSupervisorState extends State<AddManager> {
     _phone_ctrl.text = widget.manager.phone;
     _selectedTenantId =
         widget.manager.hasTenantId ? widget.manager.tenantId : null;
+    _departmentScope =
+        DepartmentScopeValue.normalize(widget.manager.departmentScope);
+    _selectedDepartmentIds = widget.manager.departmentIds.toSet();
     if (!AccessControl.canBypassTenantFilter) {
       _selectedTenantId = AccessControl.currentTenantId;
     }
     _loadTenants();
+    _loadDepartments();
   }
 
   @override
@@ -63,6 +72,16 @@ class _AddSupervisorState extends State<AddManager> {
 
     _email_ctrl.dispose();
     _pass_ctrl.dispose();
+  }
+
+  Future<void> _loadDepartments() async {
+    final departments = await DepartmentService().allFuture();
+    if (!mounted) return;
+
+    setState(() {
+      _departments = departments.where((department) => department.active).toList();
+      _loadingDepartments = false;
+    });
   }
 
   Future<void> _loadTenants() async {
@@ -112,7 +131,7 @@ class _AddSupervisorState extends State<AddManager> {
     ];
 
     return DropdownButtonFormField<String?>(
-      value: _selectedTenantId,
+      initialValue: _selectedTenantId,
       hint: const Text('Pays'),
       decoration: const InputDecoration(
         hintText: 'Pays',
@@ -148,6 +167,92 @@ class _AddSupervisorState extends State<AddManager> {
     } else {
       widget.manager.tenantId = TenantDefaults.defaultTenantId;
     }
+  }
+
+  void _applyDepartmentScopeToManager() {
+    widget.manager.departmentScope =
+        DepartmentScopeValue.normalize(_departmentScope);
+    if (widget.manager.departmentScope == DepartmentScopeValue.limited) {
+      widget.manager.departmentIds = _selectedDepartmentIds
+          .map(normalizeDepartmentId)
+          .where((id) => id.isNotEmpty)
+          .toSet()
+          .toList();
+    } else {
+      widget.manager.departmentIds = <String>[];
+    }
+  }
+
+  bool _validateDepartmentScope() {
+    if (_departmentScope != DepartmentScopeValue.limited ||
+        _selectedDepartmentIds.isNotEmpty) {
+      return true;
+    }
+
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('Selectionner au moins un departement')),
+    );
+    return false;
+  }
+
+  Widget _buildDepartmentScopeField() {
+    if (_loadingDepartments) {
+      return Loading(size: 28, inline: true);
+    }
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        DropdownButtonFormField<String>(
+          initialValue: _departmentScope,
+          decoration: const InputDecoration(
+            hintText: 'Scope departement',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.apartment),
+          ),
+          items: const [
+            DropdownMenuItem(
+              value: DepartmentScopeValue.all,
+              child: Text('Tous les departements'),
+            ),
+            DropdownMenuItem(
+              value: DepartmentScopeValue.limited,
+              child: Text('Departements limites'),
+            ),
+          ],
+          onChanged: (value) {
+            setState(() {
+              _departmentScope =
+                  DepartmentScopeValue.normalize(value);
+              if (_departmentScope == DepartmentScopeValue.all) {
+                _selectedDepartmentIds.clear();
+              }
+            });
+          },
+        ),
+        if (_departmentScope == DepartmentScopeValue.limited) ...[
+          const SizedBox(height: 10),
+          ..._departments.map((department) {
+            final id = normalizeDepartmentId(department.id);
+            return CheckboxListTile(
+              contentPadding: EdgeInsets.zero,
+              title: Text(department.label),
+              subtitle: Text(id),
+              value: _selectedDepartmentIds.contains(id),
+              onChanged: (selected) {
+                setState(() {
+                  if (selected == true) {
+                    _selectedDepartmentIds.add(id);
+                  } else {
+                    _selectedDepartmentIds.remove(id);
+                  }
+                });
+              },
+            );
+          }),
+        ],
+      ],
+    );
   }
 
   @override
@@ -283,6 +388,10 @@ class _AddSupervisorState extends State<AddManager> {
                 const SizedBox(
                   height: 20,
                 ),
+                _buildDepartmentScopeField(),
+                const SizedBox(
+                  height: 20,
+                ),
                 TextFormField(
                   readOnly: widget.manager.email.isNotEmpty,
                   controller: _email_ctrl,
@@ -347,6 +456,8 @@ class _AddSupervisorState extends State<AddManager> {
                                 widget.manager.email = _email_ctrl.text;
                                 widget.manager.phone = _phone_ctrl.text;
                                 _applyTenantToManager();
+                                _applyDepartmentScopeToManager();
+                                if (!_validateDepartmentScope()) return;
 
                                 if (_key.currentState!.validate()) {
                                   setState(() {

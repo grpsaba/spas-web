@@ -727,10 +727,8 @@ class _ZoneMemberStatutState extends State<ZoneMemberStatut> {
         _updating = false;
       });
 
-      // If activated, generate monthly pointings
-      if (wasInactive && widget.zoneMember.actif!) {
-        _generateMonthlyPointingsForZoneMember(widget.zoneMember);
-      }
+      // Activation only changes account availability. Pointings must come from
+      // mobile/manual pointing flows, never from status toggles.
     }).onError((error, stackTrace) {
       setState(() {
         _updating = false;

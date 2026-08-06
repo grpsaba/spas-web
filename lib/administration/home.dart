@@ -34,6 +34,9 @@ class _PageModelState extends State<PageModel>
   static const double _expandedDrawerWidth = 280;
   static const double _drawerHeaderHeight = 96;
   static const double _webDrawerBreakpoint = 900;
+  static const double _fullAppBarBreakpoint = 1060;
+  static const double _versionAppBarBreakpoint = 1180;
+  static const double _tenantAppBarBreakpoint = 980;
   static const Color _drawerActiveIconColor = Color(0xFFE6ECFF);
   static const Color _drawerInactiveIconColor = Color(0xFFAEB7C8);
   static const Color _drawerActiveIndicatorColor = Color(0xFF9AA7FF);
@@ -116,6 +119,11 @@ class _PageModelState extends State<PageModel>
   }
 
   PreferredSizeWidget _buildAppBar(BuildContext context) {
+    final screenWidth = MediaQuery.of(context).size.width;
+    final showFullUser = screenWidth >= _fullAppBarBreakpoint;
+    final showVersion = screenWidth >= _versionAppBarBreakpoint;
+    final showFullTenant = screenWidth >= _tenantAppBarBreakpoint;
+
     return AppBar(
       automaticallyImplyLeading: false,
       backgroundColor: AppConstants.primaryColor,
@@ -129,6 +137,8 @@ class _PageModelState extends State<PageModel>
       ),
       title: Text(
         widget.title,
+        maxLines: 1,
+        overflow: TextOverflow.ellipsis,
         style: const TextStyle(
           color: Colors.white,
           fontWeight: FontWeight.w600,
@@ -136,16 +146,19 @@ class _PageModelState extends State<PageModel>
         ),
       ),
       actions: [
-        const AppVersionLabel(color: Colors.white),
+        if (showVersion) const AppVersionLabel(color: Colors.white),
         if (AccessControl.canBypassTenantFilter) ...[
-          const SizedBox(width: 12),
-          _buildTenantFilter(),
+          SizedBox(width: showVersion ? 12 : 4),
+          showFullTenant ? _buildTenantFilter() : _buildCompactTenantButton(),
         ],
         Sos(),
-        const SizedBox(width: 16),
-        _buildUserInfo(),
-        const SizedBox(width: 8),
-        _buildLogoutButton(context),
+        SizedBox(width: showFullUser ? 16 : 6),
+        if (showFullUser) ...[
+          _buildUserInfo(),
+          const SizedBox(width: 8),
+          _buildLogoutButton(context),
+        ] else
+          _buildUserMenu(context),
         const SizedBox(width: 16),
       ],
     );
@@ -196,6 +209,71 @@ class _PageModelState extends State<PageModel>
     );
   }
 
+  Widget _buildCompactTenantButton() {
+    if (_loadingTenants) {
+      return const SizedBox(
+        width: 38,
+        height: 38,
+        child: Padding(
+          padding: EdgeInsets.all(9),
+          child: CircularProgressIndicator(
+            strokeWidth: 2,
+            color: Colors.white,
+          ),
+        ),
+      );
+    }
+
+    final selectedTenant = _tenants.where(
+      (tenant) => tenant.id == TenantScope.selectedTenantId,
+    );
+    final selectedLabel = TenantScope.selectedTenantId == null
+        ? 'Tous pays'
+        : selectedTenant.isEmpty
+            ? 'Pays'
+            : selectedTenant.first.label;
+
+    return PopupMenuButton<String>(
+      tooltip: 'Filtrer par pays',
+      onSelected: (value) {
+        setState(() {
+          TenantScope.selectedTenantId = value == '__all__' ? null : value;
+        });
+      },
+      itemBuilder: (context) => [
+        CheckedPopupMenuItem<String>(
+          value: '__all__',
+          checked: TenantScope.selectedTenantId == null,
+          child: const Text('Tous pays'),
+        ),
+        ..._tenants.map(
+          (tenant) => CheckedPopupMenuItem<String>(
+            value: tenant.id,
+            checked: TenantScope.selectedTenantId == tenant.id,
+            child: Text(tenant.label),
+          ),
+        ),
+      ],
+      child: Tooltip(
+        message: selectedLabel,
+        child: Container(
+          width: 38,
+          height: 38,
+          decoration: BoxDecoration(
+            color: Colors.white.withValues(alpha: 0.12),
+            borderRadius: BorderRadius.circular(10),
+            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
+          ),
+          child: const Icon(
+            HugeIcons.strokeRoundedGlobal,
+            color: Colors.white,
+            size: 20,
+          ),
+        ),
+      ),
+    );
+  }
+
   Widget _buildUserInfo() {
     final manager = AuthService.currentManager;
     if (manager == null) return const SizedBox.shrink();
@@ -225,6 +303,8 @@ class _PageModelState extends State<PageModel>
           const SizedBox(width: 8),
           Text(
             "${manager.firstName} ${manager.lastName}",
+            maxLines: 1,
+            overflow: TextOverflow.ellipsis,
             style: const TextStyle(
               color: Colors.white,
               fontSize: 14,
@@ -240,22 +320,7 @@ class _PageModelState extends State<PageModel>
     return Material(
       color: Colors.transparent,
       child: InkWell(
-        onTap: () async {
-          try {
-            await AuthService().logOut();
-            if (context.mounted) {
-              context.go('/login');
-            } else {
-              debugPrint('Warning: Context not mounted, navigation aborted.');
-            }
-          } catch (e) {
-            if (context.mounted) {
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Logout failed: $e')),
-              );
-            }
-          }
-        },
+        onTap: () => _logout(context),
         borderRadius: BorderRadius.circular(8),
         child: Container(
           padding: const EdgeInsets.all(8),
@@ -267,6 +332,73 @@ class _PageModelState extends State<PageModel>
         ),
       ),
     );
+  }
+
+  Widget _buildUserMenu(BuildContext context) {
+    final manager = AuthService.currentManager;
+    if (manager == null) return _buildLogoutButton(context);
+
+    final initials =
+        "${manager.firstName.isNotEmpty ? manager.firstName[0] : ''}${manager.lastName.isNotEmpty ? manager.lastName[0] : ''}";
+    final fullName = "${manager.firstName} ${manager.lastName}".trim();
+
+    return PopupMenuButton<String>(
+      tooltip: 'Compte',
+      onSelected: (value) {
+        if (value == 'logout') {
+          _logout(context);
+        }
+      },
+      itemBuilder: (context) => [
+        PopupMenuItem<String>(
+          enabled: false,
+          child: Text(
+            fullName.isEmpty ? 'Utilisateur' : fullName,
+            overflow: TextOverflow.ellipsis,
+          ),
+        ),
+        const PopupMenuDivider(),
+        const PopupMenuItem<String>(
+          value: 'logout',
+          child: Row(
+            children: [
+              Icon(HugeIcons.strokeRoundedLogout03, size: 18),
+              SizedBox(width: 10),
+              Text('Déconnexion'),
+            ],
+          ),
+        ),
+      ],
+      child: CircleAvatar(
+        radius: 16,
+        backgroundColor: Colors.white.withValues(alpha: 0.18),
+        child: Text(
+          initials,
+          style: const TextStyle(
+            color: Colors.white,
+            fontSize: 11,
+            fontWeight: FontWeight.bold,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Future<void> _logout(BuildContext context) async {
+    try {
+      await AuthService().logOut();
+      if (context.mounted) {
+        context.go('/login');
+      } else {
+        debugPrint('Warning: Context not mounted, navigation aborted.');
+      }
+    } catch (e) {
+      if (context.mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Logout failed: $e')),
+        );
+      }
+    }
   }
 
   Widget _buildDrawer() {

@@ -8,7 +8,7 @@ import '../data/cache_manager.dart';
 import '../../model.dart';
 
 /// Provider for managing zone pointage state with caching and pagination
-/// 
+///
 /// Implements state management with ChangeNotifier for reactive UI updates
 /// Requirements: 1.1, 1.3
 class PointageZoneProvider extends ChangeNotifier {
@@ -26,7 +26,7 @@ class PointageZoneProvider extends ChangeNotifier {
   bool _isUsingCachedData = false;
   bool _isRefreshingInBackground = false;
   String? _error;
-  String _sortField = 'date';
+  String _sortField = 'datetimestamp';
   bool _sortAscending = false;
 
   PointageZoneProvider({
@@ -65,7 +65,7 @@ class PointageZoneProvider extends ChangeNotifier {
   }
 
   /// Load pointages with optional cache integration
-  /// 
+  ///
   /// If refresh is false, will try to load from cache first
   /// Requirements: 1.1
   Future<void> loadPointages({bool refresh = false}) async {
@@ -82,7 +82,7 @@ class PointageZoneProvider extends ChangeNotifier {
         if (cached) {
           _isLoading = false;
           notifyListeners();
-          
+
           // Load fresh data in background
           _loadFreshDataInBackground();
           return;
@@ -100,7 +100,7 @@ class PointageZoneProvider extends ChangeNotifier {
   }
 
   /// Apply filters and reload data
-  /// 
+  ///
   /// Filters are applied server-side for optimal performance
   /// Requirements: 1.3, 1.4
   Future<void> applyFilters(PointageFilters newFilters) async {
@@ -110,16 +110,16 @@ class PointageZoneProvider extends ChangeNotifier {
       _filters = newFilters;
       _pagination = _pagination.reset(); // Reset to first page
       _error = null;
-      
+
       // Clear pagination cursors in repository
       _repository.clearPaginationCursors();
-      
+
       // Invalidate cache for old filters
       await _invalidateCache();
-      
+
       // Load with new filters
       await loadPointages(refresh: true);
-      
+
       // Reload statistics with new filters
       await loadStats();
     } catch (e, stackTrace) {
@@ -128,7 +128,7 @@ class PointageZoneProvider extends ChangeNotifier {
   }
 
   /// Load next page of pointages
-  /// 
+  ///
   /// Implements pagination for efficient data loading
   /// Requirements: 1.1
   Future<void> loadNextPage() async {
@@ -157,8 +157,9 @@ class PointageZoneProvider extends ChangeNotifier {
 
       // Update cache with new data
       await _saveToCache();
-      
-      debugPrint('Loaded page $nextPage: ${result.items.length} items (total: ${_pointages.length})');
+
+      debugPrint(
+          'Loaded page $nextPage: ${result.items.length} items (total: ${_pointages.length})');
     } catch (e, stackTrace) {
       _handleError(e, stackTrace);
     } finally {
@@ -234,7 +235,7 @@ class PointageZoneProvider extends ChangeNotifier {
   }
 
   /// Refresh data with cache invalidation
-  /// 
+  ///
   /// Forces a fresh load from the server
   Future<void> refreshData() async {
     await _invalidateCache();
@@ -243,7 +244,7 @@ class PointageZoneProvider extends ChangeNotifier {
   }
 
   /// Load statistics for the current filters
-  /// 
+  ///
   /// Requirements: 1.3, 1.4
   Future<void> loadStats() async {
     if (_isLoadingStats) return;
@@ -254,7 +255,7 @@ class PointageZoneProvider extends ChangeNotifier {
 
       // Use date range from filters or default to last 30 days
       final endDate = _filters.dateRange?.end ?? DateTime.now();
-      final startDate = _filters.dateRange?.start ?? 
+      final startDate = _filters.dateRange?.start ??
           endDate.subtract(const Duration(days: 30));
 
       _stats = await _repository.getStats(
@@ -274,10 +275,10 @@ class PointageZoneProvider extends ChangeNotifier {
   Future<void> changeSort(String field, {bool? ascending}) async {
     _sortField = field;
     _sortAscending = ascending ?? !_sortAscending;
-    
+
     // Clear pagination cursors since sort changed
     _repository.clearPaginationCursors();
-    
+
     // Reset to first page and reload
     _pagination = _pagination.reset();
     await loadPointages(refresh: true);
@@ -325,13 +326,13 @@ class PointageZoneProvider extends ChangeNotifier {
     );
 
     _isUsingCachedData = false;
-    
+
     // Save to cache
     await _saveToCache();
   }
 
   /// Try to load from cache
-  /// 
+  ///
   /// Returns true if cache was valid and loaded
   Future<bool> _loadFromCache() async {
     try {
@@ -343,9 +344,10 @@ class PointageZoneProvider extends ChangeNotifier {
         final itemsList = cached['items'] as List<dynamic>?;
         if (itemsList != null) {
           _pointages = itemsList
-              .map((json) => PointingZone.fromJson(json as Map<String, dynamic>))
+              .map(
+                  (json) => PointingZone.fromJson(json as Map<String, dynamic>))
               .toList();
-          
+
           _pagination = PaginationState(
             currentPage: cached['currentPage'] as int? ?? 1,
             itemsPerPage: cached['itemsPerPage'] as int? ?? 20,
@@ -369,7 +371,7 @@ class PointageZoneProvider extends ChangeNotifier {
   Future<void> _saveToCache() async {
     try {
       final cacheKey = _getCacheKey();
-      
+
       // Convert pointages to JSON-serializable format
       final List<Map<String, dynamic>> serializedItems = [];
       for (final pointage in _pointages) {
@@ -380,7 +382,8 @@ class PointageZoneProvider extends ChangeNotifier {
             json['date'] = (json['date'] as DateTime).toIso8601String();
           }
           if (json['datetimestamp'] is DateTime) {
-            json['datetimestamp'] = (json['datetimestamp'] as DateTime).toIso8601String();
+            json['datetimestamp'] =
+                (json['datetimestamp'] as DateTime).toIso8601String();
           }
           serializedItems.add(json);
         } catch (e) {
@@ -388,7 +391,7 @@ class PointageZoneProvider extends ChangeNotifier {
           // Skip this item
         }
       }
-      
+
       final data = {
         'items': serializedItems,
         'currentPage': _pagination.currentPage,
@@ -423,11 +426,11 @@ class PointageZoneProvider extends ChangeNotifier {
   /// Load fresh data in background without blocking UI
   Future<void> _loadFreshDataInBackground() async {
     if (_isRefreshingInBackground) return;
-    
+
     try {
       _isRefreshingInBackground = true;
       notifyListeners();
-      
+
       final result = await _repository.getPointages(
         page: _pagination.currentPage,
         pageSize: _pagination.itemsPerPage,
@@ -447,7 +450,7 @@ class PointageZoneProvider extends ChangeNotifier {
         _isUsingCachedData = false;
         await _saveToCache();
         notifyListeners();
-        
+
         debugPrint('Updated with fresh data in background');
       } else {
         // Data is the same, just mark as not using cache anymore
@@ -473,7 +476,8 @@ class PointageZoneProvider extends ChangeNotifier {
     ];
 
     if (_filters.dateRange != null) {
-      parts.add('date_${_filters.dateRange!.start.toIso8601String()}_${_filters.dateRange!.end.toIso8601String()}');
+      parts.add(
+          'date_${_filters.dateRange!.start.toIso8601String()}_${_filters.dateRange!.end.toIso8601String()}');
     }
     if (_filters.supervisorIds != null && _filters.supervisorIds!.isNotEmpty) {
       parts.add('zm_${_filters.supervisorIds!.join('_')}');

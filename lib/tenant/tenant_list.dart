@@ -54,37 +54,42 @@ class _TenantListPageState extends State<TenantListPage> {
           }).toList();
 
           return SingleChildScrollView(
-            child: DataTable(
-              headingRowColor: MaterialStateProperty.all(
-                Theme.of(context).primaryColor.withOpacity(0.08),
-              ),
-              columns: const [
-                DataColumn(label: Text('Code')),
-                DataColumn(label: Text('Pays')),
-                DataColumn(label: Text('Code pays')),
-                DataColumn(label: Text('Mode pointage')),
-                DataColumn(label: Text('Affectations')),
-                DataColumn(label: Text('Statut')),
-                DataColumn(label: Text('Action')),
-              ],
-              rows: [
-                ...tenants.map(_buildRow),
-                DataRow(cells: [
-                  DataCell(
-                    TextButton.icon(
-                      onPressed: _showTenantDialog,
-                      icon: const Icon(Icons.add),
-                      label: const Text('Ajouter un pays'),
+            child: SingleChildScrollView(
+              scrollDirection: Axis.horizontal,
+              child: DataTable(
+                headingRowColor: MaterialStateProperty.all(
+                  Theme.of(context).primaryColor.withOpacity(0.08),
+                ),
+                columns: const [
+                  DataColumn(label: Text('Code')),
+                  DataColumn(label: Text('Pays')),
+                  DataColumn(label: Text('Code pays')),
+                  DataColumn(label: Text('Pointage superviseurs')),
+                  DataColumn(label: Text('Pointage chefs zone')),
+                  DataColumn(label: Text('Affectations')),
+                  DataColumn(label: Text('Statut')),
+                  DataColumn(label: Text('Action')),
+                ],
+                rows: [
+                  ...tenants.map(_buildRow),
+                  DataRow(cells: [
+                    DataCell(
+                      TextButton.icon(
+                        onPressed: _showTenantDialog,
+                        icon: const Icon(Icons.add),
+                        label: const Text('Ajouter un pays'),
+                      ),
                     ),
-                  ),
-                  const DataCell(SizedBox.shrink()),
-                  const DataCell(SizedBox.shrink()),
-                  const DataCell(SizedBox.shrink()),
-                  const DataCell(SizedBox.shrink()),
-                  const DataCell(SizedBox.shrink()),
-                  const DataCell(SizedBox.shrink()),
-                ]),
-              ],
+                    const DataCell(SizedBox.shrink()),
+                    const DataCell(SizedBox.shrink()),
+                    const DataCell(SizedBox.shrink()),
+                    const DataCell(SizedBox.shrink()),
+                    const DataCell(SizedBox.shrink()),
+                    const DataCell(SizedBox.shrink()),
+                    const DataCell(SizedBox.shrink()),
+                  ]),
+                ],
+              ),
             ),
           );
         },
@@ -101,6 +106,7 @@ class _TenantListPageState extends State<TenantListPage> {
       DataCell(Text(tenant.label)),
       DataCell(Text(tenant.countryCode)),
       DataCell(_PointageModeLabel(mode: tenant.pointageMode)),
+      DataCell(_PointageModeLabel(mode: tenant.zoneChiefPointageMode)),
       DataCell(_TenantUsage(service: _service, tenantId: tenant.id)),
       DataCell(_TenantStatus(active: tenant.active)),
       DataCell(
@@ -147,6 +153,8 @@ class _TenantListPageState extends State<TenantListPage> {
     final formKey = GlobalKey<FormState>();
     bool active = tenant?.active ?? true;
     String pointageMode = tenant?.pointageMode ?? TenantPointageMode.photo;
+    String zoneChiefPointageMode =
+        tenant?.zoneChiefPointageMode ?? pointageMode;
     bool saving = false;
 
     await showDialog<void>(
@@ -159,7 +167,7 @@ class _TenantListPageState extends State<TenantListPage> {
               content: Form(
                 key: formKey,
                 child: SizedBox(
-                  width: 420,
+                  width: 460,
                   child: Column(
                     mainAxisSize: MainAxisSize.min,
                     children: [
@@ -223,9 +231,9 @@ class _TenantListPageState extends State<TenantListPage> {
                       ),
                       const SizedBox(height: 12),
                       DropdownButtonFormField<String>(
-                        value: pointageMode,
+                        initialValue: pointageMode,
                         decoration: const InputDecoration(
-                          labelText: 'Mode de pointage',
+                          labelText: 'Mode de pointage superviseurs',
                           border: OutlineInputBorder(),
                         ),
                         items: const [
@@ -241,7 +249,34 @@ class _TenantListPageState extends State<TenantListPage> {
                         onChanged: (value) {
                           if (value == null) return;
                           setDialogState(() {
+                            if (zoneChiefPointageMode == pointageMode) {
+                              zoneChiefPointageMode = value;
+                            }
                             pointageMode = value;
+                          });
+                        },
+                      ),
+                      const SizedBox(height: 12),
+                      DropdownButtonFormField<String>(
+                        initialValue: zoneChiefPointageMode,
+                        decoration: const InputDecoration(
+                          labelText: 'Mode de pointage chefs de zone',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: const [
+                          DropdownMenuItem(
+                            value: TenantPointageMode.photo,
+                            child: Text('Photo'),
+                          ),
+                          DropdownMenuItem(
+                            value: TenantPointageMode.geo,
+                            child: Text('Geolocalisation'),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          if (value == null) return;
+                          setDialogState(() {
+                            zoneChiefPointageMode = value;
                           });
                         },
                       ),
@@ -273,6 +308,7 @@ class _TenantListPageState extends State<TenantListPage> {
                                   .toUpperCase(),
                               active: active,
                               pointageMode: pointageMode,
+                              zoneChiefPointageMode: zoneChiefPointageMode,
                             );
 
                             if (tenant != null && tenant.active != active) {

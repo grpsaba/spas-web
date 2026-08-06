@@ -3,11 +3,18 @@ import 'dart:convert';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'department_scope.dart';
 import 'tenant_scope.dart';
 
 class PointingZoneService {
   final CollectionReference<Map<String, dynamic>> _collectionReference =
       FirebaseFirestore.instance.collection("zonePointings");
+
+  Query<Map<String, dynamic>> get _scopedQuery =>
+      DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      );
+
   Future<void> add(PointingZone point) async {
     TenantScope.applyTenantIdForWrite(point);
     String child =
@@ -20,7 +27,7 @@ class PointingZoneService {
   Stream<QuerySnapshot<Map<String, dynamic>>> all() {
     return TenantScope.watchQuery(
       'PointingZoneService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
   }
 
@@ -29,7 +36,7 @@ class PointingZoneService {
     final range = _monthRange(month ?? DateTime.now());
     return TenantScope.watchQuery(
       'PointingZoneService.allByZoneMember',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where('zoneMember.UID', isEqualTo: zoneMember.UID)
           .where('datetimestamp',
               isGreaterThanOrEqualTo: Timestamp.fromDate(range.start))
@@ -53,7 +60,7 @@ class PointingZoneService {
   Future<List<PointingZone>> allFuture() async {
     var snpshot = await TenantScope.getQuery(
       'PointingZoneService.allFuture',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
     List<PointingZone> data = snpshot.docs
         .map((QueryDocumentSnapshot<Map<String, dynamic>> e) =>
@@ -67,7 +74,7 @@ class PointingZoneService {
     // DateTime _fin = DateTime.now().add(const Duration(days: 1));
     var snapshot = await TenantScope.getQuery(
       'PointingZoneService.nbSiteCheckedToDAyByZone',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
     var collection = snapshot.docs.map((snap) {
       return PointingZone.fromJson(jsonDecode(jsonEncode(snap.data())));

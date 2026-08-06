@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -249,16 +247,16 @@ class _AddSupervisorState extends State<AddSupervisor> {
           return Loading(size: 28, inline: true);
         }
 
-        final docs = snapshot.data?.docs
-                .map((e) => jsonDecode(jsonEncode(e.data())))
+        final departments = snapshot.data?.docs
+                .map(DepartmentService.fromSnapshot)
                 .toList() ??
             [];
-        final departments = docs.map((e) => Department.fromJson(e)).toList();
 
         Department? initialDepartment;
         if (widget.supervisor.department != null) {
           for (final department in departments) {
-            if (department.label == widget.supervisor.department!.label) {
+            if (department.id == widget.supervisor.department!.id ||
+                department.label == widget.supervisor.department!.label) {
               initialDepartment = department;
               break;
             }

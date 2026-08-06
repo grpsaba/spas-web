@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:spas_web/administration/home.dart';
@@ -52,10 +50,9 @@ class _DepartmentListState extends State<DepartmentList> {
               stream: _service.all(),
               builder: (context, snapshot) {
                 if (snapshot.hasData) {
-                  var docs = snapshot.data?.docs
-                      .map((e) => jsonDecode(jsonEncode(e.data())))
+                  var data = snapshot.data?.docs
+                      .map(DepartmentService.fromSnapshot)
                       .toList();
-                  var data = docs?.map((e) => Department.fromJson(e)).toList();
 
                   //copy to _dataToexport
                   _dataToexport = data!;
@@ -115,7 +112,9 @@ class _DepartmentListState extends State<DepartmentList> {
                     rowsPerPage: rowParPage,
                     showFirstLastButtons: true,
                     columns: const [
-                      DataColumn(label: Text("Libellé")),
+                      DataColumn(label: Text("ID")),
+                      DataColumn(label: Text("Libelle")),
+                      DataColumn(label: Text("Statut")),
                       DataColumn(label: Text("Action")),
                     ],
                     source: _DataSource(
@@ -157,17 +156,23 @@ class _DataSource extends DataTableSource {
       return const DataRow(cells: [
         DataCell(Text("")),
         DataCell(Text("")),
+        DataCell(Text("")),
+        DataCell(Text("")),
       ]);
     }
     Department department = data[index];
 
     return DataRow(cells: [
+      DataCell(Text(department.id)),
       DataCell(Text(
         department.label,
         style: TextStyle(
             color: Theme.of(context).primaryColor,
             fontWeight: FontWeight.bold,
             fontSize: 20),
+      )),
+      DataCell(Chip(
+        label: Text(department.active ? 'Actif' : 'Inactif'),
       )),
       DataCell(
         Row(

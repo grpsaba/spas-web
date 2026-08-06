@@ -5,6 +5,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spas_web/model.dart';
 
 import 'authentication.dart';
+import 'department_scope.dart';
 import 'tenant_scope.dart';
 
 enum SiteSupervisorSlot {
@@ -46,8 +47,13 @@ class SiteService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Sites");
 
+  Query get _scopedQuery => DepartmentScope.applyToSiteQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      );
+
   Future<User?> add(Site site, password) async {
     TenantScope.applyTenantIdForWrite(site);
+    _requireSiteWriteAccess(site);
     var user = await AuthService().createUserWithEmail(site.email, password);
     if (user != null) {
       site.UID = user.uid;
@@ -62,14 +68,14 @@ class SiteService {
   Stream<QuerySnapshot> all() {
     return TenantScope.watchQuery(
       'SiteService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
   }
 
   Stream<QuerySnapshot> allSos() {
     return TenantScope.watchQuery(
       'SiteService.allSos',
-      TenantScope.applyToQuery(_collectionReference).where(Filter.and(
+      _scopedQuery.where(Filter.and(
           Filter('sos', isEqualTo: true), Filter('actif', isEqualTo: true))),
     );
   }
@@ -80,8 +86,7 @@ class SiteService {
   Stream<QuerySnapshot> allActifSite() {
     return TenantScope.watchQuery(
       'SiteService.allActifSite',
-      TenantScope.applyToQuery(_collectionReference)
-          .where("actif", isEqualTo: true),
+      _scopedQuery.where("actif", isEqualTo: true),
     );
   }
 
@@ -89,8 +94,7 @@ class SiteService {
     try {
       var snapshot = await TenantScope.getQuery(
         'SiteService.allAsModel',
-        TenantScope.applyToQuery(_collectionReference)
-            .where("actif", isEqualTo: true),
+        _scopedQuery.where("actif", isEqualTo: true),
       );
       var collection = snapshot.docs.map((snap) {
         return Site.fromJson(snap.data() as Map<String, dynamic>);
@@ -106,8 +110,7 @@ class SiteService {
   Future<List<Site>> allActifAsModel() async {
     var snapshot = await TenantScope.getQuery(
       'SiteService.allActifAsModel',
-      TenantScope.applyToQuery(_collectionReference)
-          .where("actif", isEqualTo: true),
+      _scopedQuery.where("actif", isEqualTo: true),
     );
     var collection = snapshot.docs.map((snap) {
       return Site.fromJson(snap.data() as Map<String, dynamic>);
@@ -119,13 +122,13 @@ class SiteService {
   Future<List<Site>> allSitesByZone(Zone zone) async {
     var s1 = await TenantScope.getQuery(
       'SiteService.allSitesByZone',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where("zone.codeZone", isEqualTo: zone.codeZone)
           .where("actif", isEqualTo: true),
     );
 
     var s1Future = s1.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     });
 
     return s1Future.toList();
@@ -134,7 +137,7 @@ class SiteService {
   Future<int?> allSitesCountByZone(Zone zone) async {
     var s1 = await TenantScope.getCount(
       'SiteService.allSitesCountByZone',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where("zone.codeZone", isEqualTo: zone.codeZone)
           .where("actif", isEqualTo: true)
           .count(),
@@ -149,7 +152,7 @@ class SiteService {
     }
     var snapshot = await TenantScope.getCount(
       'SiteService.allSitesCountBySupervisor',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where(
             'actif',
             isEqualTo: true,
@@ -168,8 +171,7 @@ class SiteService {
     }
     var snapshot = await TenantScope.getQuery(
       'SiteService.allBySupervisor',
-      TenantScope.applyToQuery(_collectionReference)
-          .where('actif', isEqualTo: true),
+      _scopedQuery.where('actif', isEqualTo: true),
     );
     var collection = snapshot.docs
         .map((snap) {
@@ -188,8 +190,7 @@ class SiteService {
   Future<List<Site>> allAssignedToSupervisor(Supervisor supervisor) async {
     var snapshot = await TenantScope.getQuery(
       'SiteService.allAssignedToSupervisor',
-      TenantScope.applyToQuery(_collectionReference)
-          .where('actif', isEqualTo: true),
+      _scopedQuery.where('actif', isEqualTo: true),
     );
 
     return snapshot.docs.map((snap) {
@@ -227,12 +228,12 @@ class SiteService {
   Future<List<Site>> allByZone(Zone zone) async {
     var snapshot = await TenantScope.getQuery(
       'SiteService.allByZone',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where('zone.codeZone', isEqualTo: zone.codeZone)
           .where('actif', isEqualTo: true),
     );
     var collection = snapshot.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
 
     return collection;
@@ -244,13 +245,22 @@ class SiteService {
 
   Future<Site?> one(uid) async {
     var dataSnapshot = await _collectionReference.doc(uid).get();
-    var data = jsonEncode(dataSnapshot.data());
-    return Site.fromJson(jsonDecode(data));
+    final rawData = dataSnapshot.data();
+    if (rawData == null) return null;
+
+    final data = jsonDecode(jsonEncode(rawData)) as Map<String, dynamic>;
+    final site = Site.fromJson(data);
+    if (!TenantScope.matchesTenant(site.tenantId) ||
+        !DepartmentScope.matchesSite(site)) {
+      return null;
+    }
+    return site;
   }
 
   Future<void> update(Site site) async {
     try {
       TenantScope.applyTenantIdForWrite(site);
+      _requireSiteWriteAccess(site);
       await _collectionReference.doc(site.UID).update(site.toJson());
     } catch (e) {
       print("Erreur lors de la mise à jour du site : $e");
@@ -262,12 +272,20 @@ class SiteService {
   }
 
   Future<void> sos(Site site) {
+    _requireSiteWriteAccess(site);
     site.sos = true;
     return _collectionReference.doc(site.UID).update(site.toJson());
   }
 
   Future<void> stopSos(Site site) {
+    _requireSiteWriteAccess(site);
     site.sos = false;
     return _collectionReference.doc(site.UID).update(site.toJson());
+  }
+
+  void _requireSiteWriteAccess(Site site) {
+    if (!DepartmentScope.matchesSite(site)) {
+      throw StateError('Write outside the active site department scope.');
+    }
   }
 }

@@ -1,11 +1,17 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../model.dart';
+import 'department_scope.dart';
 import 'tenant_scope.dart';
 
 class PointingAgentService {
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("agentPointings");
+
+  Query get _scopedQuery => DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_collectionReference),
+      );
+
   Future<void> add(PointingAgent point) async {
     TenantScope.applyTenantIdForWrite(point);
     String child =
@@ -16,7 +22,7 @@ class PointingAgentService {
   Stream<QuerySnapshot> all() {
     return TenantScope.watchQuery(
       'PointingAgentService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      _scopedQuery,
     );
   }
 
@@ -27,7 +33,7 @@ class PointingAgentService {
 
     return TenantScope.watchQuery(
       'PointingAgentService.allByDay',
-      TenantScope.applyToQuery(_collectionReference)
+      _scopedQuery
           .where("date", isGreaterThanOrEqualTo: startOfDay)
           .where("date", isLessThan: endOfDay),
     );
