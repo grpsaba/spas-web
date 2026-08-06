@@ -163,7 +163,7 @@ class PointingSiteService {
         _scopedQuery,
       );
       var collection = snapshot.docs.map((snap) {
-        return PointingSite.fromJson(jsonDecode(jsonEncode(snap.data())));
+        return PointingSite.fromJson(snap.data() as Map<String, dynamic>);
       }).toList();
       collection = collection
           .where((element) =>

@@ -128,7 +128,7 @@ class SiteService {
     );
 
     var s1Future = s1.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     });
 
     return s1Future.toList();
@@ -233,7 +233,7 @@ class SiteService {
           .where('actif', isEqualTo: true),
     );
     var collection = snapshot.docs.map((snap) {
-      return Site.fromJson(jsonDecode(jsonEncode(snap.data())));
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
     }).toList();
 
     return collection;
