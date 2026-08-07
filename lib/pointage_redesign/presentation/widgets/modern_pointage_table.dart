@@ -206,19 +206,13 @@ class ModernPointageTable extends StatelessWidget {
 
   List<DataRow> _buildRows(BuildContext tableContext) {
     return pointages.asMap().entries.map((entry) {
-      final index = entry.key;
       final pointage = entry.value;
-      final isEven = index % 2 == 0;
       return DataRow(
         color: WidgetStateProperty.resolveWith<Color>(
-          (Set<WidgetState> states) {
-            if (states.contains(WidgetState.hovered)) {
-              return PointageColors.primary.withValues(alpha: 0.05);
-            }
-            return isEven
-                ? Colors.transparent
-                : PointageColors.background.withValues(alpha: 0.3);
-          },
+          (Set<WidgetState> states) => _resolveRowColor(
+            pointage.date,
+            states,
+          ),
         ),
         onSelectChanged: onRowTap != null ? (_) => onRowTap!(pointage) : null,
         cells: [
@@ -297,6 +291,20 @@ class ModernPointageTable extends StatelessWidget {
       );
     }).toList();
   }
+
+  Color _resolveRowColor(DateTime date, Set<WidgetState> states) {
+    final isEvening = _isEveningPointage(date);
+
+    if (states.contains(WidgetState.hovered)) {
+      return isEvening
+          ? PointageColors.primary.withValues(alpha: 0.14)
+          : PointageColors.primary.withValues(alpha: 0.06);
+    }
+
+    return isEvening ? const Color(0xFFE8EBF1) : Colors.transparent;
+  }
+
+  bool _isEveningPointage(DateTime date) => date.hour >= 18;
 
   Widget _buildDistanceCell(double distance) {
     final roundedDistance = distance.isFinite ? distance.round() : 0;
