@@ -26,6 +26,7 @@ class ZonePointageListProvider extends ChangeNotifier {
   final ZoneMemberService _zoneMemberService = ZoneMemberService();
   final SiteService _siteService = SiteService();
   
+  bool _disposed = false;
   bool _isLoading = false;
   String? _error;
   List<ZoneMemberPointageStats> _stats = [];
@@ -72,12 +73,14 @@ class ZonePointageListProvider extends ChangeNotifier {
 
   /// Met à jour le mot-clé de recherche
   void setSearchKeyword(String keyword) {
+    if (_disposed) return;
     _searchKeyword = keyword;
     notifyListeners();
   }
 
   /// Charge les données des membres de zone avec leurs stats
   Future<void> loadData() async {
+    if (_disposed) return;
     if (_isLoading) return;
     
     _setLoading(true);
@@ -155,10 +158,8 @@ class ZonePointageListProvider extends ChangeNotifier {
     }
   }
 
-  /// Compte les sites visités par un membre de zone (requête optimisée)
-
-
   void _setLoading(bool value) {
+    if (_disposed) return;
     _isLoading = value;
     notifyListeners();
   }
@@ -170,37 +171,50 @@ class ZonePointageListProvider extends ChangeNotifier {
   }
 
   void clear() {
+    if (_disposed) return;
     _stats = [];
     _error = null;
     _lastFetch = null;
     notifyListeners();
   }
-    Future<int> _getVisitedSitesCount(
+
+  /// Compte les sites visités par un membre de zone (requête optimisée)
+  Future<int> _getVisitedSitesCount(
     ZoneMember zoneMember,
     DateTime startDate,
     DateTime endDate,
   ) async {
-try{
+    if (_disposed) return 0;
+
+    try {
       final collection = FirebaseFirestore.instance.collection('zonePointings');
-    final snapshot = await TenantScope.getQuery(
-      'ZonePointageListProvider.visitedSitesCount',
-      DepartmentScope.applyToDepartmentQuery(
-        TenantScope.applyToQuery(collection),
-      )
-        .where('zoneMember.UID', isEqualTo: zoneMember.UID)
-        .where('datetimestamp', isGreaterThanOrEqualTo: Timestamp.fromDate(startDate))
-        .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate)),
-    );
-    // Compter les sites uniques
-    final uniqueSiteIds = snapshot.docs
-        .map((doc) => doc.data()['site']?['UID'] as String?)
-        .where((id) => id != null)
-        .toSet();
-    
-        return uniqueSiteIds.length;
-       }catch(e){      
+      final snapshot = await TenantScope.getQuery(
+        'ZonePointageListProvider.visitedSitesCount',
+        DepartmentScope.applyToDepartmentQuery(
+          TenantScope.applyToQuery(collection),
+        )
+            .where('zoneMember.UID', isEqualTo: zoneMember.UID)
+            .where(
+              'datetimestamp',
+              isGreaterThanOrEqualTo: Timestamp.fromDate(startDate),
+            )
+            .where('datetimestamp', isLessThan: Timestamp.fromDate(endDate)),
+      );
+      final uniqueSiteIds = snapshot.docs
+          .map((doc) => doc.data()['site']?['UID'] as String?)
+          .where((id) => id != null)
+          .toSet();
+
+      return uniqueSiteIds.length;
+    } catch (e) {
       debugPrint('Erreur lors du comptage des sites visités: $e');
       return 0;
-          }
-      }
+    }
+  }
+
+  @override
+  void dispose() {
+    _disposed = true;
+    super.dispose();
+  }
 }

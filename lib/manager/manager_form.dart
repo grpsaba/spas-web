@@ -3,10 +3,12 @@ import 'dart:convert';
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
+import 'package:hugeicons/hugeicons.dart';
 import 'package:spas_web/administration/home.dart';
 
 import '../model.dart';
 import '../services/access_control.dart';
+import '../services/authentication.dart';
 import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/manager.dart';
@@ -68,8 +70,7 @@ class _AddSupervisorState extends State<AddManager> {
     _phone_ctrl.dispose();
     _lastName_ctrl.dispose();
     _firstName_ctrl.dispose();
-    _phone_ctrl.dispose();
-
+    _poste_ctrl.dispose();
     _email_ctrl.dispose();
     _pass_ctrl.dispose();
   }
@@ -136,7 +137,7 @@ class _AddSupervisorState extends State<AddManager> {
       decoration: const InputDecoration(
         hintText: 'Pays',
         border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.public),
+        prefixIcon: Icon(HugeIcons.strokeRoundedGlobal),
       ),
       validator: (value) {
         if (_selectedProfileCanBypassTenant) return null;
@@ -208,7 +209,7 @@ class _AddSupervisorState extends State<AddManager> {
           decoration: const InputDecoration(
             hintText: 'Scope departement',
             border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.apartment),
+            prefixIcon: Icon(HugeIcons.strokeRoundedOffice),
           ),
           items: const [
             DropdownMenuItem(
@@ -280,7 +281,7 @@ class _AddSupervisorState extends State<AddManager> {
                   decoration: const InputDecoration(
                       hintText: "Prénom",
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person)),
+                      prefixIcon: Icon(HugeIcons.strokeRoundedUser)),
                 ),
                 const SizedBox(
                   height: 20,
@@ -296,7 +297,7 @@ class _AddSupervisorState extends State<AddManager> {
                   decoration: const InputDecoration(
                       hintText: "Nom",
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.person)),
+                      prefixIcon: Icon(HugeIcons.strokeRoundedUser)),
                 ),
                 const SizedBox(
                   height: 20,
@@ -313,7 +314,7 @@ class _AddSupervisorState extends State<AddManager> {
                   decoration: const InputDecoration(
                       hintText: "Téléphone",
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.phone)),
+                      prefixIcon: Icon(HugeIcons.strokeRoundedCall)),
                 ),
                 const SizedBox(
                   height: 20,
@@ -329,7 +330,7 @@ class _AddSupervisorState extends State<AddManager> {
                   decoration: const InputDecoration(
                       hintText: "Poste",
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.badge)),
+                      prefixIcon: Icon(HugeIcons.strokeRoundedIdentification)),
                 ),
                 const SizedBox(
                   height: 20,
@@ -349,7 +350,7 @@ class _AddSupervisorState extends State<AddManager> {
                           decoration: const InputDecoration(
                               hintText: "Profil",
                               border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.person)),
+                              prefixIcon: Icon(HugeIcons.strokeRoundedShieldUser)),
                           validator: (value) {
                             return value != null ? null : "Profil obligatoir";
                           },
@@ -406,7 +407,7 @@ class _AddSupervisorState extends State<AddManager> {
                   decoration: const InputDecoration(
                       hintText: "Email",
                       border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.email)),
+                      prefixIcon: Icon(HugeIcons.strokeRoundedMail01)),
                 ),
                 const SizedBox(
                   height: 20,
@@ -431,10 +432,11 @@ class _AddSupervisorState extends State<AddManager> {
                                   });
                                 },
                                 icon: _obscurePass
-                                    ? const Icon(Icons.remove_red_eye)
+                                    ? const Icon(HugeIcons.strokeRoundedView)
                                     : const Icon(
-                                        Icons.remove_red_eye_outlined)),
-                            prefixIcon: const Icon(Icons.password)),
+                                        HugeIcons.strokeRoundedViewOff)),
+                            prefixIcon: const Icon(
+                                HugeIcons.strokeRoundedLockPassword)),
                       ),
                 const SizedBox(
                   height: 20,
@@ -501,7 +503,7 @@ class _AddSupervisorState extends State<AddManager> {
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [
-                                  Icon(Icons.check_circle),
+                                  Icon(HugeIcons.strokeRoundedCheckmarkCircle01),
                                   SizedBox(
                                     width: 5,
                                   ),
@@ -513,7 +515,7 @@ class _AddSupervisorState extends State<AddManager> {
                           ),
                           widget.manager.UID.isEmpty
                               ? const SizedBox.shrink()
-                              : widget.manager.profil!
+                              : AuthService.currentManager!.profil!
                                       .getModule(ModuleName.MANAGER)!
                                       .delete
                                   ? ElevatedButton(
@@ -551,7 +553,7 @@ class _AddSupervisorState extends State<AddManager> {
                                         mainAxisAlignment:
                                             MainAxisAlignment.center,
                                         children: [
-                                          Icon(Icons.delete),
+                                          Icon(HugeIcons.strokeRoundedDelete02),
                                           SizedBox(
                                             width: 5,
                                           ),

@@ -68,6 +68,14 @@ bool hasTenantIdInJson(Map<String, dynamic> json) {
   return value is String && value.trim().isNotEmpty;
 }
 
+DateTime? dateTimeFromJsonValue(Object? value) {
+  if (value == null) return null;
+  if (value is DateTime) return value;
+  if (value is Timestamp) return value.toDate();
+  if (value is String) return DateTime.tryParse(value);
+  return null;
+}
+
 String? departmentIdFromJson(Map<String, dynamic> json) {
   final value = json['departmentId'];
   if (value is String && value.trim().isNotEmpty) {
@@ -625,16 +633,20 @@ class Site extends Equatable {
                 .toList() ??
             <String>[],
         dateContrat: json['dateContrat'] != null
-            ? DateTime.tryParse(json['dateContrat'])
+            ? dateTimeFromJsonValue(json['dateContrat'])
             : DateTime.now(),
         zone: json["zone"] == null ? null : Zone.fromJson(json["zone"]),
-        supervisor: Supervisor.fromJson(json["supervisor"]),
+        supervisor: json["supervisor"] == null
+            ? null
+            : Supervisor.fromJson(json["supervisor"]),
         supervisor_2: json["supervisor_2"] == null
             ? null
             : Supervisor.fromJson(json["supervisor_2"]),
-        latLng: LatLngModel.fromJson(json["latLng"]),
-        sos: json["sos"],
-        phone: json["phone"],
+        latLng: json["latLng"] == null
+            ? LatLngModel(lat: 0, lng: 0)
+            : LatLngModel.fromJson(json["latLng"]),
+        sos: json["sos"] ?? false,
+        phone: json["phone"] ?? "",
         pointageType: json['pointageType'] ?? 'jour');
   }
 
@@ -1129,6 +1141,7 @@ class Manager {
   String poste;
   String tenantId;
   bool hasTenantId;
+  bool actif;
   String departmentScope;
   List<String> departmentIds;
   Profil? profil;
@@ -1142,6 +1155,7 @@ class Manager {
       required this.token,
       this.tenantId = TenantDefaults.defaultTenantId,
       this.hasTenantId = false,
+      this.actif = true,
       this.departmentScope = DepartmentScopeValue.all,
       List<String>? departmentIds,
       required this.profil})
@@ -1158,6 +1172,7 @@ class Manager {
         token: json["token"],
         tenantId: tenantIdFromJson(json),
         hasTenantId: hasTenantIdInJson(json),
+        actif: json['actif'] ?? true,
         departmentScope: departmentScopeFromJson(json),
         departmentIds: departmentIdsFromJson(json),
         profil: json["profil"] == null
@@ -1183,6 +1198,7 @@ class Manager {
       "email": email,
       "token": token,
       "poste": poste,
+      "actif": actif,
       "tenantId": tenantId,
       "departmentScope": departmentScope,
       "departmentIds": departmentIds,

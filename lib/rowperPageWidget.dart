@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 class RowPerPageWidget extends StatefulWidget {
   RowPerPageWidget(
@@ -40,7 +41,7 @@ class _RowPerPageState extends State<RowPerPageWidget> {
           IconButton(
               onPressed: widget.decremente,
               icon: Icon(
-                Icons.arrow_back_ios,
+                HugeIcons.strokeRoundedArrowLeft01,
                 color: Theme.of(context).primaryColor,
               )),
           Expanded(
@@ -51,7 +52,7 @@ class _RowPerPageState extends State<RowPerPageWidget> {
           )),
           IconButton(
               onPressed: widget.incremente,
-              icon: Icon(Icons.arrow_forward_ios,
+              icon: Icon(HugeIcons.strokeRoundedArrowRight01,
                   color: Theme.of(context).primaryColor))
         ],
       ),

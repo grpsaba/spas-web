@@ -18,6 +18,12 @@ class AuthService {
         var manager = await managerService.one(user.uid);
         final profileName = manager?.profil?.name;
 
+        if (manager != null && manager.actif != true) {
+          currentManager = null;
+          await logOut();
+          return null;
+        }
+
         if (manager != null && profileName != null && profileName.isNotEmpty) {
           final latestProfile = await ProfilService().one(profileName);
           if (latestProfile != null) {

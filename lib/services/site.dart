@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:spas_web/model.dart';
@@ -248,8 +246,7 @@ class SiteService {
     final rawData = dataSnapshot.data();
     if (rawData == null) return null;
 
-    final data = jsonDecode(jsonEncode(rawData)) as Map<String, dynamic>;
-    final site = Site.fromJson(data);
+    final site = Site.fromJson(rawData as Map<String, dynamic>);
     if (!TenantScope.matchesTenant(site.tenantId) ||
         !DepartmentScope.matchesSite(site)) {
       return null;

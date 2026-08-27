@@ -56,6 +56,39 @@ import 'manager/manager_form.dart';
 import 'manager/user_page.dart';
 import 'mobile_config/mobile_config_page.dart';
 
+Manager _emptyManager() {
+  return Manager(
+    poste: '',
+    firstName: '',
+    lastName: '',
+    phone: '',
+    email: '',
+    profil: null,
+    UID: '',
+    token: '',
+  );
+}
+
+Site _emptySite() {
+  return Site(
+    UID: '',
+    codeSite: '',
+    name: '',
+    adresse: '',
+    email: '',
+    phone: '',
+    latLng: LatLngModel(lat: 0, lng: 0),
+    token: '',
+    nbAgent: 0,
+    supervisor_2: null,
+    supervisor: null,
+    actif: false,
+    zone: null,
+    dateContrat: DateTime.now(),
+    nbRonde: null,
+  );
+}
+
 GoRouter routeConfig = GoRouter(
     initialLocation: "/home",
     // errorBuilder: (context, state) => const PathErrorPage(),
@@ -116,7 +149,9 @@ GoRouter routeConfig = GoRouter(
                 name: "Ajoute un utilisateur",
                 path: "add",
                 builder: (context, state) => AddManager(
-                      manager: state.extra as Manager,
+                      manager: state.extra is Manager
+                          ? state.extra as Manager
+                          : _emptyManager(),
                     )),
           ]),
       //routes site
@@ -129,7 +164,9 @@ GoRouter routeConfig = GoRouter(
                 name: "Ajoute un site",
                 path: "add",
                 builder: (context, state) => AddSite(
-                      site: state.extra as Site,
+                      site: state.extra is Site
+                          ? state.extra as Site
+                          : _emptySite(),
                     )),
             GoRoute(
                 name: "sites maps",
