@@ -156,6 +156,7 @@ class _PointageSiteListState extends State<PointageSiteList> {
                     availableSupervisors: _availableSupervisors,
                     availableSites: _availableSites,
                     availableZones: _availableZones,
+                    showZoneFilter: true,
                   ),
                   
                   const SizedBox(height: PointageSpacing.lg),

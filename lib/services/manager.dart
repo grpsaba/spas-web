@@ -119,6 +119,15 @@ class ManagerService {
     return _collectionReference.doc(manager.UID).update(_toFirestore(manager));
   }
 
+  Future<void> toggleStatus(Manager manager) {
+    final previousStatus = manager.actif;
+    manager.actif = !previousStatus;
+    return update(manager).catchError((error) {
+      manager.actif = previousStatus;
+      throw error;
+    });
+  }
+
   Future<void> saveToken(String? token, String UID) {
     return _collectionReference.doc(UID).update({'token': token});
   }

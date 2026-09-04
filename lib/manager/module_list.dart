@@ -1,40 +1,20 @@
 import 'package:flutter/material.dart';
+import 'package:hugeicons/hugeicons.dart';
 
 import '../model.dart';
+import '../services/loading.dart';
 import '../services/profil.dart';
 
 class ModuleList extends StatefulWidget {
   ModuleList({super.key, required this.profil});
+
   Profil profil;
+
   @override
-  _ModuleListState createState() => _ModuleListState();
+  State<ModuleList> createState() => _ModuleListState();
 }
 
 class _ModuleListState extends State<ModuleList> {
-  final TextEditingController _texController = TextEditingController();
-  final GlobalKey<FormState> _key = GlobalKey<FormState>();
-  final List<ModuleName> _moduleNames = ModuleName.values;
-  final Module _module = Module(
-      moduleName: ModuleName.MANAGER,
-      add: true,
-      delete: false,
-      validation: false,
-      view: false,
-      print: true,
-      generBadge: true);
-  @override
-  void initState() {
-    // TODO: implement initState
-    super.initState();
-  }
-
-  @override
-  void dispose() {
-    // TODO: implement dispose
-    super.dispose();
-    _texController.dispose();
-  }
-
   List<Module> _completeModules(List<Module> existingModules) {
     return ModuleName.values.map((moduleName) {
       return existingModules.firstWhere(
@@ -54,332 +34,383 @@ class _ModuleListState extends State<ModuleList> {
 
   @override
   Widget build(BuildContext context) {
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          widget.profil.name,
-          style: TextStyle(
+    return Container(
+      decoration: _panelDecoration(),
+      child: FutureBuilder(
+        future: ProfilService().one(widget.profil.name),
+        builder: (context, snapshot) {
+          if (!snapshot.hasData) {
+            return Center(
+              child: Loading(size: 48, inline: true),
+            );
+          }
+
+          final profil = snapshot.data;
+          if (profil == null) {
+            return const Center(
+              child: Text(
+                'Profil introuvable',
+                style: TextStyle(color: Color(0xFF64748B)),
+              ),
+            );
+          }
+
+          final modules = _completeModules(profil.modules);
+          profil.modules = modules;
+
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              _PermissionHeader(
+                profileName: profil.name,
+                moduleCount: modules.length,
+              ),
+              const Divider(height: 1),
+              Expanded(
+                child: ListView.separated(
+                  padding: const EdgeInsets.all(14),
+                  itemCount: modules.length,
+                  separatorBuilder: (_, __) => const SizedBox(height: 10),
+                  itemBuilder: (context, index) {
+                    final module = modules[index];
+
+                    return _ModulePermissionRow(
+                      module: module,
+                      onChanged: () {
+                        ProfilService().update(profil).then((_) {
+                          setState(() {});
+                        });
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _PermissionHeader extends StatelessWidget {
+  const _PermissionHeader({
+    required this.profileName,
+    required this.moduleCount,
+  });
+
+  final String profileName;
+  final int moduleCount;
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.all(18),
+      child: Row(
+        children: [
+          Container(
+            width: 40,
+            height: 40,
+            decoration: BoxDecoration(
+              color: Theme.of(context).primaryColor.withOpacity(0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(
+              HugeIcons.strokeRoundedShieldUser,
               color: Theme.of(context).primaryColor,
-              fontWeight: FontWeight.bold,
-              fontSize: 20),
-        ),
-        /* Container(
-          padding: const EdgeInsets.all(8.0),
-          //decoration: BoxDecoration(color: Colors.blueGrey),
-          child: Form(
-            key: _key,
+              size: 21,
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  widget.profil.name,
-                  style: TextStyle(
-                      color: Theme.of(context).primaryColor,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 20),
+                  profileName,
+                  style: const TextStyle(
+                    color: Color(0xFF111827),
+                    fontSize: 18,
+                    fontWeight: FontWeight.w800,
+                  ),
                 ),
-                const SizedBox(
-                  height: 10,
+                const SizedBox(height: 3),
+                Text(
+                  '$moduleCount modules de permission',
+                  style: const TextStyle(
+                    color: Color(0xFF64748B),
+                    fontSize: 12,
+                  ),
                 ),
-                DropdownButtonFormField<ModuleName>(
-                  hint: const Text("Module"),
-                  decoration: const InputDecoration(
-                      hintText: "Module",
-                      border: OutlineInputBorder(),
-                      prefixIcon: Icon(Icons.work)),
-                  validator: (value) {
-                    return value != null ? null : "Module obligatoir";
-                  },
-                  isExpanded: true,
-                  value: _moduleNames.first,
-                  items: _moduleNames
-                      .map((e) => DropdownMenuItem<ModuleName>(
-                          value: e, child: Text(e.name)))
-                      .toList(),
-                  onChanged: (value) {
-                    _module.moduleName = value!;
-                  },
-                  onSaved: (value) {
-                    _module.moduleName = value!;
-                  },
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                Row(
-                  children: [
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _module.validation,
-                            onChanged: (value) {
-                              setState(() {
-                                _module.validation =
-                                    _module.validation ? false : true;
-                              });
-                            }),
-                        const Text('Validation')
-                      ],
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _module.add,
-                            onChanged: (value) {
-                              setState(() {
-                                _module.add = _module.add ? false : true;
-                              });
-                            }),
-                        const Text('Ajout')
-                      ],
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _module.delete,
-                            onChanged: (value) {
-                              setState(() {
-                                _module.delete = _module.delete ? false : true;
-                              });
-                            }),
-                        const Text('Suppression')
-                      ],
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _module.view,
-                            onChanged: (value) {
-                              setState(() {
-                                _module.view = _module.view ? false : true;
-                              });
-                            }),
-                        const Text('Visualisation')
-                      ],
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _module.print,
-                            onChanged: (value) {
-                              setState(() {
-                                _module.print = _module.print ? false : true;
-                              });
-                            }),
-                        const Text('Impression')
-                      ],
-                    ),
-                    const SizedBox(
-                      width: 5,
-                    ),
-                    Row(
-                      children: [
-                        Checkbox(
-                            value: _module.generBadge,
-                            onChanged: (value) {
-                              setState(() {
-                                _module.generBadge =
-                                    _module.generBadge ? false : true;
-                              });
-                            }),
-                        const Text('Générer les codes QR')
-                      ],
-                    ),
-                  ],
-                ),
-                const SizedBox(
-                  height: 10,
-                ),
-                FittedBox(
-                  child: ElevatedButton(
-                      onPressed: () {
-                        if (_key.currentState!.validate()) {
-                          Module module = _module;
-                          widget.profil.modules.add(module);
-                          ProfilService().update(widget.profil).then((value) {
-                            setState(() {});
-                          });
-                        }
-                      },
-                      child: const Row(
-                        children: [
-                          Text("Ajouter"),
-                          Icon(
-                            Icons.add,
-                          ),
-                        ],
-                      )),
-                )
               ],
             ),
           ),
-        ),*/
-        FutureBuilder(
-            future: ProfilService().one(widget.profil.name),
-            builder: (context, snapshot) {
-              if (snapshot.hasData) {
-                var profil = snapshot.data;
-                if (profil == null) return const SizedBox.shrink();
-                final modules = _completeModules(profil.modules);
-                profil.modules = modules;
-
-                return SizedBox(
-                  height: MediaQuery.of(context).size.height - 160,
-                  child: ListView.builder(
-                      itemCount: modules.length,
-                      itemBuilder: (context, index) {
-                        Module? module = modules[index];
-                        return Card(
-                          child: ListTile(
-                            onTap: () {},
-                            title: Text(module!.moduleName.name),
-                            subtitle: Row(
-                              children: [
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                        value: module.validation,
-                                        onChanged: (value) {
-                                          module.validation = value!;
-                                          ProfilService()
-                                              .update(profil!)
-                                              .then((value) {
-                                            setState(() {});
-                                          });
-                                        }),
-                                    const Text('Validation')
-                                  ],
-                                ),
-                                const SizedBox(
-                                  width: 5,
-                                ),
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                        value: module.add,
-                                        onChanged: (value) {
-                                          module.add = value!;
-                                          ProfilService()
-                                              .update(profil!)
-                                              .then((value) {
-                                            setState(() {});
-                                          });
-                                        }),
-                                    const Text('Ajout')
-                                  ],
-                                ),
-                                const SizedBox(
-                                  width: 5,
-                                ),
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                        value: module.delete,
-                                        onChanged: (value) {
-                                          module.delete = value!;
-                                          ProfilService()
-                                              .update(profil!)
-                                              .then((value) {
-                                            setState(() {});
-                                          });
-                                        }),
-                                    const Text('Suppression')
-                                  ],
-                                ),
-                                const SizedBox(
-                                  width: 5,
-                                ),
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                        value: module.view,
-                                        onChanged: (value) {
-                                          module.view = value!;
-                                          ProfilService()
-                                              .update(profil!)
-                                              .then((value) {
-                                            setState(() {});
-                                          });
-                                        }),
-                                    const Text('Visualisation')
-                                  ],
-                                ),
-                                const SizedBox(
-                                  width: 5,
-                                ),
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                        value: module.print,
-                                        onChanged: (value) {
-                                          module.print = value!;
-                                          ProfilService()
-                                              .update(profil!)
-                                              .then((value) {
-                                            setState(() {});
-                                          });
-                                        }),
-                                    const Text('Impression')
-                                  ],
-                                ),
-                                const SizedBox(
-                                  width: 5,
-                                ),
-                                Row(
-                                  children: [
-                                    Checkbox(
-                                        value: module.generBadge,
-                                        onChanged: (value) {
-                                          module.generBadge = value!;
-                                          ProfilService()
-                                              .update(profil!)
-                                              .then((value) {
-                                            setState(() {});
-                                          });
-                                        }),
-                                    const Text('Générer QR code')
-                                  ],
-                                )
-                              ],
-                            ),
-                            leading: Icon(
-                              Icons.person,
-                              color: Theme.of(context).primaryColor,
-                            ),
-                            /* trailing: IconButton(
-                              onPressed: () {
-                                profil?.modules.removeAt(index);
-                                ProfilService().update(profil!).then((value) {
-                                  setState(() {});
-                                });
-                              },
-                              icon: const Icon(
-                                Icons.delete,
-                                color: Colors.red,
-                              ),
-                            ),*/
-                          ),
-                        );
-                      }),
-                );
-              } else {
-                return const SizedBox.shrink();
-              }
-            }),
-      ],
+        ],
+      ),
     );
   }
+}
+
+class _ModulePermissionRow extends StatelessWidget {
+  const _ModulePermissionRow({
+    required this.module,
+    required this.onChanged,
+  });
+
+  final Module module;
+  final VoidCallback onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(14),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF8FAFC),
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: const Color(0xFFE2E8F0)),
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 36,
+            height: 36,
+            decoration: BoxDecoration(
+              color: Colors.white,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(color: const Color(0xFFE2E8F0)),
+            ),
+            child: Icon(
+              _moduleIcon(module.moduleName),
+              size: 18,
+              color: Theme.of(context).primaryColor,
+            ),
+          ),
+          const SizedBox(width: 12),
+          SizedBox(
+            width: 210,
+            child: Text(
+              _moduleLabel(module.moduleName),
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: const TextStyle(
+                color: Color(0xFF111827),
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+          ),
+          const SizedBox(width: 12),
+          Expanded(
+            child: Wrap(
+              spacing: 8,
+              runSpacing: 8,
+              children: [
+                _PermissionToggle(
+                  label: 'Voir',
+                  value: module.view,
+                  onChanged: (value) {
+                    module.view = value;
+                    onChanged();
+                  },
+                ),
+                _PermissionToggle(
+                  label: 'Ajouter',
+                  value: module.add,
+                  onChanged: (value) {
+                    module.add = value;
+                    onChanged();
+                  },
+                ),
+                _PermissionToggle(
+                  label: 'Valider',
+                  value: module.validation,
+                  onChanged: (value) {
+                    module.validation = value;
+                    onChanged();
+                  },
+                ),
+                _PermissionToggle(
+                  label: 'Supprimer',
+                  value: module.delete,
+                  onChanged: (value) {
+                    module.delete = value;
+                    onChanged();
+                  },
+                ),
+                _PermissionToggle(
+                  label: 'Exporter',
+                  value: module.print,
+                  onChanged: (value) {
+                    module.print = value;
+                    onChanged();
+                  },
+                ),
+                _PermissionToggle(
+                  label: 'QR',
+                  value: module.generBadge,
+                  onChanged: (value) {
+                    module.generBadge = value;
+                    onChanged();
+                  },
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+}
+
+class _PermissionToggle extends StatelessWidget {
+  const _PermissionToggle({
+    required this.label,
+    required this.value,
+    required this.onChanged,
+  });
+
+  final String label;
+  final bool value;
+  final ValueChanged<bool> onChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = Theme.of(context).primaryColor;
+
+    return InkWell(
+      borderRadius: BorderRadius.circular(999),
+      onTap: () => onChanged(!value),
+      child: Container(
+        padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+        decoration: BoxDecoration(
+          color: value ? color.withOpacity(0.1) : Colors.white,
+          borderRadius: BorderRadius.circular(999),
+          border: Border.all(
+            color: value ? color.withOpacity(0.35) : const Color(0xFFE2E8F0),
+          ),
+        ),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Icon(
+              value
+                  ? HugeIcons.strokeRoundedCheckmarkCircle01
+                  : HugeIcons.strokeRoundedCancelCircle,
+              size: 15,
+              color: value ? color : const Color(0xFF94A3B8),
+            ),
+            const SizedBox(width: 6),
+            Text(
+              label,
+              style: TextStyle(
+                color: value ? color : const Color(0xFF64748B),
+                fontSize: 12,
+                fontWeight: FontWeight.w700,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+IconData _moduleIcon(ModuleName moduleName) {
+  switch (moduleName) {
+    case ModuleName.TABLEAU_DE_BORD:
+      return HugeIcons.strokeRoundedDashboardSquare01;
+    case ModuleName.AGENT:
+      return HugeIcons.strokeRoundedUserGroup;
+    case ModuleName.SUPERVISEUR:
+      return HugeIcons.strokeRoundedManager;
+    case ModuleName.SITE:
+      return HugeIcons.strokeRoundedBuilding03;
+    case ModuleName.TOOL:
+      return HugeIcons.strokeRoundedTools;
+    case ModuleName.NOTE:
+      return HugeIcons.strokeRoundedNoteEdit;
+    case ModuleName.MANAGER:
+      return HugeIcons.strokeRoundedComputerUser;
+    case ModuleName.CATEGORIE_TOOL:
+      return HugeIcons.strokeRoundedPackageSearch;
+    case ModuleName.DEPARTMENT:
+      return HugeIcons.strokeRoundedOffice;
+    case ModuleName.AGENT_TYPE:
+      return HugeIcons.strokeRoundedUserIdVerification;
+    case ModuleName.ZONE:
+      return HugeIcons.strokeRoundedMapsCircle01;
+    case ModuleName.ZONE_MEMBER:
+      return HugeIcons.strokeRoundedLocationUser01;
+    case ModuleName.POINTAGE_SITE:
+      return HugeIcons.strokeRoundedCheckList;
+    case ModuleName.POINTAGE_AGENT:
+      return HugeIcons.strokeRoundedUserCheck01;
+    case ModuleName.POINTAGE_RONDIER:
+      return HugeIcons.strokeRoundedRoute03;
+    case ModuleName.POINTAGE_TOOL:
+      return HugeIcons.strokeRoundedTools;
+    case ModuleName.POINTAGE_ZONE:
+      return HugeIcons.strokeRoundedMapsLocation01;
+    case ModuleName.ERROR_LOG:
+      return HugeIcons.strokeRoundedAlertCircle;
+    case ModuleName.MOBILE_CONFIG:
+      return HugeIcons.strokeRoundedMobileSecurity;
+  }
+}
+
+String _moduleLabel(ModuleName moduleName) {
+  switch (moduleName) {
+    case ModuleName.TABLEAU_DE_BORD:
+      return 'Tableau de bord';
+    case ModuleName.AGENT:
+      return 'Agents';
+    case ModuleName.SUPERVISEUR:
+      return 'Superviseurs';
+    case ModuleName.SITE:
+      return 'Sites';
+    case ModuleName.TOOL:
+      return 'Materiaux';
+    case ModuleName.NOTE:
+      return 'Notes';
+    case ModuleName.MANAGER:
+      return 'PC';
+    case ModuleName.CATEGORIE_TOOL:
+      return 'Categories materiel';
+    case ModuleName.DEPARTMENT:
+      return 'Departements';
+    case ModuleName.AGENT_TYPE:
+      return 'Types agents';
+    case ModuleName.ZONE:
+      return 'Zones';
+    case ModuleName.ZONE_MEMBER:
+      return 'Chefs de zone';
+    case ModuleName.POINTAGE_SITE:
+      return 'Pointage sites';
+    case ModuleName.POINTAGE_AGENT:
+      return 'Pointage agents';
+    case ModuleName.POINTAGE_RONDIER:
+      return 'Pointage rondiers';
+    case ModuleName.POINTAGE_TOOL:
+      return 'Pointage materiaux';
+    case ModuleName.POINTAGE_ZONE:
+      return 'Pointage zones';
+    case ModuleName.ERROR_LOG:
+      return 'Journal erreurs';
+    case ModuleName.MOBILE_CONFIG:
+      return 'Configuration mobile';
+  }
+}
+
+BoxDecoration _panelDecoration() {
+  return BoxDecoration(
+    color: Colors.white,
+    borderRadius: BorderRadius.circular(8),
+    border: Border.all(color: const Color(0xFFE2E8F0)),
+    boxShadow: [
+      BoxShadow(
+        color: Colors.black.withOpacity(0.04),
+        blurRadius: 18,
+        offset: const Offset(0, 8),
+      ),
+    ],
+  );
 }
