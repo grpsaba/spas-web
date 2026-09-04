@@ -1,10 +1,8 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
-import 'package:flutter_animation_progress_bar/flutter_animation_progress_bar.dart';
+import 'package:spas_web/accueil/widgets/dashboard_progress_bar.dart';
 import 'package:spas_web/const.dart';
-import 'package:spas_web/services/pointerSite.dart';
 import 'package:spas_web/models/date_filter.dart';
+import 'package:spas_web/services/pointerSite.dart';
 
 import '../model.dart';
 import '../services/site.dart';
@@ -14,6 +12,7 @@ class NbPointageStatus extends StatefulWidget {
   final DateFilter dateFilter;
   final DateTime? customStartDate;
   final DateTime? customEndDate;
+  final bool lightTheme;
 
   const NbPointageStatus({
     super.key,
@@ -21,6 +20,7 @@ class NbPointageStatus extends StatefulWidget {
     this.dateFilter = DateFilter.today,
     this.customStartDate,
     this.customEndDate,
+    this.lightTheme = false,
   });
 
   @override
@@ -93,35 +93,61 @@ class _NbAgentStatusState extends State<NbPointageStatus> {
                     int diviseur = nbTotalSites <= 0 ? 1 : nbTotalSites;
                     double percentage = (visitedSitesCount * 100.0 / diviseur)
                         .clamp(0.0, 100.0);
+                    final progressColor = percentage <= 30
+                        ? const Color(0xFFD14343)
+                        : percentage <= 60
+                            ? const Color(0xFFB76E00)
+                            : const Color(0xFF198754);
+                    final primaryTextColor = widget.lightTheme
+                        ? const Color(0xFF172033)
+                        : Colors.white;
+                    final secondaryTextColor = widget.lightTheme
+                        ? const Color(0xFF667085)
+                        : Colors.white.withValues(alpha: 0.6);
 
                     return Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        FAProgressBar(
-                          displayText: "%",
-                          size: 12,
-                          maxValue: 100.0,
-                          currentValue: percentage,
-                          progressColor: percentage <= 30
-                              ? Colors.red
-                              : percentage <= 60
-                                  ? Colors.orange
-                                  : Colors.green,
-                          backgroundColor: AppConstants.bgColor,
+                        Row(
+                          children: [
+                            Expanded(
+                              child: DashboardProgressBar(
+                                value: percentage,
+                                color: progressColor,
+                                trackColor: widget.lightTheme
+                                    ? const Color(0xFFE9EDF4)
+                                    : AppConstants.bgColor,
+                              ),
+                            ),
+                            const SizedBox(width: 10),
+                            SizedBox(
+                              width: 38,
+                              child: Text(
+                                '${percentage.round()}%',
+                                textAlign: TextAlign.right,
+                                style: TextStyle(
+                                  color: progressColor,
+                                  fontSize: 11,
+                                  fontWeight: FontWeight.w800,
+                                ),
+                              ),
+                            ),
+                          ],
                         ),
                         const SizedBox(height: 4),
                         Text(
                           "Sites: $visitedSitesCount/$nbTotalSites",
                           style: TextStyle(
-                            color: Colors.white.withOpacity(0.6),
-                            fontSize: 12,
+                            color: secondaryTextColor,
+                            fontSize: 11,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
                         if (widget.dateFilter != DateFilter.today)
                           Text(
                             widget.dateFilter.label,
                             style: TextStyle(
-                              color: Colors.white.withOpacity(0.4),
+                              color: primaryTextColor.withValues(alpha: 0.45),
                               fontSize: 10,
                             ),
                           ),

@@ -1,137 +1,334 @@
 import 'package:flutter/material.dart';
 import 'package:spas_web/accueil/widgets/site_status_dialog.dart';
-import 'package:spas_web/const.dart';
-import 'package:spas_web/notes/imprime_rapport.dart';
-import 'package:spas_web/search_textField.dart';
+import 'package:spas_web/model.dart';
 import 'package:spas_web/models/date_filter.dart';
+import 'package:spas_web/notes/imprime_rapport.dart';
 
-import '../model.dart';
 import 'nombrePointageStatut.dart';
 
 class SitePointingListWithStatus extends StatefulWidget {
+  const SitePointingListWithStatus({
+    super.key,
+    required this.supList,
+    this.height = 540,
+  });
+
   final List<Supervisor> supList;
-  const SitePointingListWithStatus({super.key, required this.supList});
+  final double height;
 
   @override
-  _SupervisorListState createState() => _SupervisorListState();
+  State<SitePointingListWithStatus> createState() =>
+      _SitePointingListWithStatusState();
 }
 
-class _SupervisorListState extends State<SitePointingListWithStatus> {
-  String _keyword = "";
+class _SitePointingListWithStatusState
+    extends State<SitePointingListWithStatus> {
+  static const _primary = Color(0xFF4657C8);
+  static const _ink = Color(0xFF172033);
+  static const _muted = Color(0xFF667085);
+  static const _border = Color(0xFFE5EAF2);
+  static const _surface = Color(0xFFFBFCFE);
+
+  String _keyword = '';
   DateFilter _selectedDateFilter = DateFilter.today;
   DateTime? _customStartDate;
   DateTime? _customEndDate;
 
   List<Supervisor> get _filteredSupervisors {
-    if (_keyword.isEmpty) return widget.supList;
+    final activeSupervisors =
+        widget.supList.where((supervisor) => supervisor.actif == true).toList();
+    if (_keyword.isEmpty) return activeSupervisors;
+
     final keyword = _keyword.toLowerCase();
-    return widget.supList.where((sup) {
-      final fullName = '${sup.firstName} ${sup.lastName}'.toLowerCase();
-      return fullName.contains(keyword);
+    return activeSupervisors.where((supervisor) {
+      final fullName =
+          '${supervisor.firstName} ${supervisor.lastName}'.toLowerCase();
+      final code = supervisor.code.toLowerCase();
+      return fullName.contains(keyword) || code.contains(keyword);
     }).toList();
   }
+
   @override
   Widget build(BuildContext context) {
+    final supervisors = _filteredSupervisors;
+
     return Container(
-        padding: const EdgeInsets.all(8.0),
-        height: MediaQuery.of(context).size.height - 192,
-        decoration: BoxDecoration(
-            color: AppConstants.secondaryColor,
-            borderRadius: BorderRadius.circular(20.0)),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-             const Text(
-                  "Pointages site",
-                  style: TextStyle(fontSize: 16, color: Colors.white,fontWeight: FontWeight.w500),
-                  textAlign: TextAlign.center,
-                ),
-            Row(
-              children: [
-               
-                Expanded(
-                  child: SearchTextField(
-                      fillColor: AppConstants.bgColor,
-                      hintColor: AppConstants.secondaryColor,
-                      textColor: Colors.white,
-                      onSearch: (value) {
-                        setState(() {
-                          _keyword = value;
-                        });
-                      },
-                      onPress: () {}),
-                ),
-                const SizedBox(width: 5),
-                _buildDateFilterDropdown(),
-              ],
+      height: widget.height,
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08172033),
+            blurRadius: 16,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          _buildHeader(supervisors.length),
+          const SizedBox(height: 16),
+          _buildFilters(),
+          const SizedBox(height: 14),
+          Expanded(
+            child: AnimatedSwitcher(
+              duration: const Duration(milliseconds: 220),
+              child: supervisors.isEmpty
+                  ? const _EmptyProgressList(
+                      key: ValueKey('empty-supervisors'),
+                      label: 'Aucun superviseur trouvé',
+                    )
+                  : ListView.separated(
+                      key: ValueKey(
+                        'supervisors-${_selectedDateFilter.name}-$_keyword',
+                      ),
+                      itemCount: supervisors.length,
+                      separatorBuilder: (_, __) => const SizedBox(height: 8),
+                      itemBuilder: (context, index) =>
+                          _buildSupervisorRow(supervisors[index]),
+                    ),
             ),
-            const Divider(),
-            Expanded(
-              child: _buildSupervisorList(),
-            ),
-          ],
-        ));
+          ),
+        ],
+      ),
+    );
   }
 
-  Widget _buildSupervisorList() {
-    final data = _filteredSupervisors;
-    
-    if (data.isEmpty) {
-      return const Center(
-        child: Text(
-          'Aucun superviseur trouvé',
-          style: TextStyle(color: Colors.white70),
-        ),
-      );
-    }
-
-    return ListView.builder(
-      itemCount: data.length,
-      itemBuilder: (context, index) {
-        final supervisor = data[index];
-        return Card(
-          elevation: 0.2,
-          color: AppConstants.secondaryColor.withValues(alpha: 0.3),
-          margin: const EdgeInsets.symmetric(vertical: 4),
-          child: ListTile(
-            contentPadding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
-            title: Text(
-              '${supervisor.firstName} ${supervisor.lastName}',
-              style: const TextStyle(
-                color: Colors.white,
-                fontSize: 14,
-                fontWeight: FontWeight.w500,
-              ),
-            ),
-            subtitle: NbPointageStatus(
-              supervisor: supervisor,
-              dateFilter: _selectedDateFilter,
-              customStartDate: _customStartDate,
-              customEndDate: _customEndDate,
-            ),
-            trailing: IconButton(
-              tooltip: "Rapport",
-              icon: const Icon(Icons.description, color: Colors.white, size: 20),
-              onPressed: () {
-                Navigator.push(
-                  context,
-                  MaterialPageRoute(
-                    builder: (_) => ImprimeRapport(
-                      source: "${supervisor.firstName} ${supervisor.lastName}",
-                    ),
-                  ),
-                );
-              },
-            ),
-            onTap: () => _showSiteStatusDialog(supervisor),
+  Widget _buildHeader(int count) {
+    return Row(
+      children: [
+        Container(
+          width: 40,
+          height: 40,
+          decoration: BoxDecoration(
+            color: _primary.withValues(alpha: 0.1),
+            borderRadius: BorderRadius.circular(8),
           ),
+          child: const Icon(
+            Icons.supervisor_account_outlined,
+            color: _primary,
+            size: 22,
+          ),
+        ),
+        const SizedBox(width: 12),
+        const Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Text(
+                'Superviseurs',
+                style: TextStyle(
+                  color: _ink,
+                  fontSize: 16,
+                  fontWeight: FontWeight.w800,
+                ),
+              ),
+              SizedBox(height: 3),
+              Text(
+                'Progression journalière des sites pointés',
+                style: TextStyle(color: _muted, fontSize: 12),
+              ),
+            ],
+          ),
+        ),
+        Container(
+          padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
+          decoration: BoxDecoration(
+            color: _surface,
+            borderRadius: BorderRadius.circular(6),
+            border: Border.all(color: _border),
+          ),
+          child: Text(
+            '$count',
+            style: const TextStyle(
+              color: _ink,
+              fontSize: 12,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+        ),
+      ],
+    );
+  }
+
+  Widget _buildFilters() {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final search = TextField(
+          onChanged: (value) => setState(() => _keyword = value.trim()),
+          style: const TextStyle(color: _ink, fontSize: 13),
+          decoration: InputDecoration(
+            hintText: 'Rechercher un superviseur',
+            hintStyle: const TextStyle(color: _muted, fontSize: 12),
+            prefixIcon: const Icon(Icons.search, size: 19, color: _muted),
+            filled: true,
+            fillColor: _surface,
+            isDense: true,
+            contentPadding:
+                const EdgeInsets.symmetric(horizontal: 12, vertical: 12),
+            border: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: _border),
+            ),
+            enabledBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: _border),
+            ),
+            focusedBorder: OutlineInputBorder(
+              borderRadius: BorderRadius.circular(8),
+              borderSide: const BorderSide(color: _primary, width: 1.4),
+            ),
+          ),
+        );
+        if (constraints.maxWidth < 430) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: [
+              search,
+              const SizedBox(height: 8),
+              _buildDateFilterDropdown(),
+            ],
+          );
+        }
+
+        return Row(
+          children: [
+            Expanded(child: search),
+            const SizedBox(width: 10),
+            SizedBox(width: 165, child: _buildDateFilterDropdown()),
+          ],
         );
       },
     );
   }
 
+  Widget _buildDateFilterDropdown() {
+    return Container(
+      constraints: const BoxConstraints(minWidth: 135),
+      padding: const EdgeInsets.symmetric(horizontal: 10),
+      decoration: BoxDecoration(
+        color: _surface,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _border),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<DateFilter>(
+          value: _selectedDateFilter,
+          isExpanded: true,
+          icon: const Icon(Icons.keyboard_arrow_down, color: _muted, size: 18),
+          style: const TextStyle(
+            color: _ink,
+            fontSize: 12,
+            fontWeight: FontWeight.w600,
+          ),
+          items: DateFilter.values.map((filter) {
+            return DropdownMenuItem<DateFilter>(
+              value: filter,
+              child: Text(filter.label, overflow: TextOverflow.ellipsis),
+            );
+          }).toList(),
+          onChanged: (value) async {
+            if (value == null) return;
+            if (value == DateFilter.custom) {
+              await _showCustomDatePicker();
+              return;
+            }
+            setState(() {
+              _selectedDateFilter = value;
+              _customStartDate = null;
+              _customEndDate = null;
+            });
+          },
+        ),
+      ),
+    );
+  }
+
+  Widget _buildSupervisorRow(Supervisor supervisor) {
+    final name = '${supervisor.firstName} ${supervisor.lastName}'.trim();
+    final initials = name
+        .split(' ')
+        .where((part) => part.isNotEmpty)
+        .take(2)
+        .map((part) => part[0].toUpperCase())
+        .join();
+
+    return Material(
+      color: _surface,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () => _showSiteStatusDialog(supervisor),
+        hoverColor: _primary.withValues(alpha: 0.05),
+        borderRadius: BorderRadius.circular(8),
+        child: Container(
+          padding: const EdgeInsets.fromLTRB(12, 11, 6, 11),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _border),
+          ),
+          child: Row(
+            children: [
+              CircleAvatar(
+                radius: 18,
+                backgroundColor: _primary.withValues(alpha: 0.11),
+                child: Text(
+                  initials.isEmpty ? '?' : initials,
+                  style: const TextStyle(
+                    color: _primary,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w800,
+                  ),
+                ),
+              ),
+              const SizedBox(width: 11),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      name.isEmpty ? 'Superviseur sans nom' : name,
+                      maxLines: 1,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                        color: _ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                    const SizedBox(height: 8),
+                    NbPointageStatus(
+                      supervisor: supervisor,
+                      dateFilter: _selectedDateFilter,
+                      customStartDate: _customStartDate,
+                      customEndDate: _customEndDate,
+                      lightTheme: true,
+                    ),
+                  ],
+                ),
+              ),
+              const SizedBox(width: 6),
+              IconButton(
+                tooltip: 'Ouvrir le rapport',
+                onPressed: () => _openReport(supervisor),
+                icon: const Icon(
+                  Icons.description_outlined,
+                  color: _muted,
+                  size: 19,
+                ),
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+
   void _showSiteStatusDialog(Supervisor supervisor) {
-    showDialog(
+    showDialog<void>(
       context: context,
       builder: (_) => SiteStatusDialog.forSupervisor(
         supervisor: supervisor,
@@ -142,65 +339,35 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
     );
   }
 
-  Widget _buildDateFilterDropdown() {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 0),
-      decoration: BoxDecoration(
-        color: AppConstants.bgColor.withValues(alpha: 0.3),
-        borderRadius: BorderRadius.circular(8),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-      ),
-      child: DropdownButtonHideUnderline(
-        child: DropdownButton<DateFilter>(
-          value: _selectedDateFilter,
-          padding: const EdgeInsets.all(0),
-          dropdownColor: AppConstants.bgColor,
-          style: const TextStyle(color: Colors.white, fontSize: 12),
-          icon: const Icon(Icons.arrow_drop_down, color: Colors.white, size: 16),
-          items: DateFilter.values.map((DateFilter filter) {
-            return DropdownMenuItem<DateFilter>(
-              value: filter,
-              child: Text(
-                filter.label,
-                style: const TextStyle(fontSize: 12),
-              ),
-            );
-          }).toList(),
-          onChanged: (DateFilter? newValue) {
-            if (newValue != null) {
-              setState(() {
-                _selectedDateFilter = newValue;
-                if (newValue == DateFilter.custom) {
-                  _showCustomDatePicker();
-                } else {
-                  _customStartDate = null;
-                  _customEndDate = null;
-                }
-              });
-            }
-          },
+  void _openReport(Supervisor supervisor) {
+    Navigator.push(
+      context,
+      MaterialPageRoute(
+        builder: (_) => ImprimeRapport(
+          source: '${supervisor.firstName} ${supervisor.lastName}',
         ),
       ),
     );
   }
 
   Future<void> _showCustomDatePicker() async {
-    final DateTimeRange? picked = await showDateRangePicker(
+    final now = DateTime.now();
+    final picked = await showDateRangePicker(
       context: context,
-      firstDate: DateTime.now().subtract(const Duration(days: 365)),
-      lastDate: DateTime.now().add(const Duration(days: 1)),
+      firstDate: now.subtract(const Duration(days: 365)),
+      lastDate: now.add(const Duration(days: 1)),
       initialDateRange: DateTimeRange(
-        start: _customStartDate ?? DateTime.now().subtract(const Duration(days: 7)),
-        end: _customEndDate ?? DateTime.now(),
+        start: _customStartDate ?? now.subtract(const Duration(days: 7)),
+        end: _customEndDate ?? now,
       ),
       builder: (context, child) {
         return Theme(
           data: Theme.of(context).copyWith(
             colorScheme: const ColorScheme.light(
-              primary: AppConstants.primaryColor,
+              primary: _primary,
               onPrimary: Colors.white,
               surface: Colors.white,
-              onSurface: Colors.black,
+              onSurface: _ink,
             ),
           ),
           child: child!,
@@ -208,16 +375,43 @@ class _SupervisorListState extends State<SitePointingListWithStatus> {
       },
     );
 
-    if (picked != null) {
-      setState(() {
-        _customStartDate = DateTime(picked.start.year, picked.start.month, picked.start.day);
-        _customEndDate = DateTime(picked.end.year, picked.end.month, picked.end.day, 23, 59, 59);
-      });
-    } else {
-      // Si l'utilisateur annule, revenir au filtre précédent
-      setState(() {
-        _selectedDateFilter = DateFilter.today;
-      });
-    }
+    if (!mounted) return;
+    if (picked == null) return;
+    setState(() {
+      _selectedDateFilter = DateFilter.custom;
+      _customStartDate =
+          DateTime(picked.start.year, picked.start.month, picked.start.day);
+      _customEndDate = DateTime(
+        picked.end.year,
+        picked.end.month,
+        picked.end.day,
+        23,
+        59,
+        59,
+      );
+    });
+  }
+}
+
+class _EmptyProgressList extends StatelessWidget {
+  const _EmptyProgressList({super.key, required this.label});
+
+  final String label;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
+        children: [
+          const Icon(Icons.search_off, color: Color(0xFF98A2B3), size: 36),
+          const SizedBox(height: 10),
+          Text(
+            label,
+            style: const TextStyle(color: Color(0xFF667085), fontSize: 13),
+          ),
+        ],
+      ),
+    );
   }
 }
