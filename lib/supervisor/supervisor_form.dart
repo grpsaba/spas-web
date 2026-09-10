@@ -247,10 +247,13 @@ class _AddSupervisorState extends State<AddSupervisor> {
           return Loading(size: 28, inline: true);
         }
 
-        final departments = snapshot.data?.docs
-                .map(DepartmentService.fromSnapshot)
-                .toList() ??
-            [];
+        final departmentsById = <String, Department>{};
+        for (final department
+            in snapshot.data?.docs.map(DepartmentService.fromSnapshot) ??
+                <Department>[]) {
+          departmentsById.putIfAbsent(department.id, () => department);
+        }
+        final departments = departmentsById.values.toList();
 
         Department? initialDepartment;
         if (widget.supervisor.department != null) {
