@@ -24,6 +24,7 @@ class _SupervisorListState extends State<NoteList> {
   final TextEditingController _texController = TextEditingController();
   String _keyword = "";
   String _department = "";
+  String? _selectedDepartmentId;
   List<Note> _dataToprint = [];
   int rowParPage = 0;
   int defauldRowParPage = 10;
@@ -94,39 +95,59 @@ class _SupervisorListState extends State<NoteList> {
                             var docs = snapshot.data?.docs
                                 .map((e) => jsonDecode(jsonEncode(e.data())))
                                 .toList();
-                            List<Department>? data = docs
-                                ?.map((e) => Department.fromJson(e))
-                                .toList();
+                            final departmentsById = <String, Department>{};
+                            for (final department
+                                in docs?.map((e) => Department.fromJson(e)) ??
+                                    <Department>[]) {
+                              departmentsById.putIfAbsent(
+                                department.id,
+                                () => department,
+                              );
+                            }
+                            final departments = departmentsById.values.toList();
+                            final selectedDepartmentId = departmentsById
+                                    .containsKey(_selectedDepartmentId)
+                                ? _selectedDepartmentId
+                                : null;
 
                             return Expanded(
-                              child: DropdownButtonFormField<Department>(
+                              child: DropdownButtonFormField<String>(
                                 hint: const Text("Département"),
                                 decoration: const InputDecoration(
                                   hintText: "Département",
                                   border: InputBorder.none,
                                   prefixIcon: Icon(Icons.apartment),
                                 ),
-                                validator: (value) {
-                                  return value != null
-                                      ? null
-                                      : "Département obligatoir";
-                                },
                                 isExpanded: true,
-                                value: data?.first,
-                                items: data
-                                    ?.map((Department department) =>
-                                        DropdownMenuItem<Department>(
-                                            value: department,
-                                            child: Text(department.label)))
-                                    .toList(),
+                                value: selectedDepartmentId,
+                                items: [
+                                  const DropdownMenuItem<String>(
+                                    value: null,
+                                    child: Text("Tous les départements"),
+                                  ),
+                                  ...departments.map(
+                                    (department) => DropdownMenuItem<String>(
+                                      value: department.id,
+                                      child: Text(department.label),
+                                    ),
+                                  ),
+                                ],
                                 onChanged: (value) {
+                                  final selectedDepartment =
+                                      departmentsById[value];
                                   setState(() {
-                                    _department = value?.label ?? "";
+                                    _selectedDepartmentId = value;
+                                    _department =
+                                        selectedDepartment?.label ?? "";
                                   });
                                 },
                                 onSaved: (value) {
+                                  final selectedDepartment =
+                                      departmentsById[value];
                                   setState(() {
-                                    _department = value?.label ?? "";
+                                    _selectedDepartmentId = value;
+                                    _department =
+                                        selectedDepartment?.label ?? "";
                                   });
                                 },
                               ),
