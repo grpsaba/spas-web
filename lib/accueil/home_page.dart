@@ -10,9 +10,10 @@ import 'package:spas_web/error_logs/providers/error_log_provider.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/providers/home_provider.dart';
 import 'package:spas_web/services/authentication.dart';
-import 'package:spas_web/services/note.dart';
 import 'package:spas_web/services/pointerSite.dart';
 import 'package:spas_web/zone/progression_pointage_zone.dart';
+
+import 'unread_notes_notification.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -144,15 +145,17 @@ class _HomePageState extends State<HomePage> {
           ],
         );
 
-        final actions = Row(
-          mainAxisSize: MainAxisSize.min,
+        final actions = Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
           children: [
+            const UnreadNotesNotification(),
             _HeaderAction(
               tooltip: 'Actualiser les données',
               icon: provider.isLoading ? Icons.sync : Icons.refresh,
               onPressed: provider.isLoading ? null : provider.refresh,
             ),
-            const SizedBox(width: 10),
             FilledButton.icon(
               onPressed: () => context.go('/pointages'),
               icon: const Icon(Icons.fact_check_outlined, size: 18),
@@ -372,20 +375,6 @@ class _HomePageState extends State<HomePage> {
                   ? '—'
                   : '${snapshot.data?.docs.length ?? 0}',
               color: _HomeColors.primary,
-            );
-          },
-        ),
-        const Divider(height: 22, color: _HomeColors.border),
-        StreamBuilder<QuerySnapshot>(
-          stream: NoteService().allNoViewedNote(),
-          builder: (context, snapshot) {
-            return _ActivityMetric(
-              icon: Icons.sticky_note_2_outlined,
-              label: 'Notes non consultées',
-              value: snapshot.hasError
-                  ? '—'
-                  : '${snapshot.data?.docs.length ?? 0}',
-              color: _HomeColors.orange,
             );
           },
         ),
