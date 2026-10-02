@@ -6,24 +6,43 @@ import 'package:spas_web/agent/providers/agent_badge_provider.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/export.dart';
 import 'package:spas_web/services/loading.dart';
+import 'package:spas_web/services/authentication.dart';
+import 'package:spas_web/services/agent_photo_badge.dart';
+import 'widgets/agent_badge_results_list.dart';
+import 'widgets/agent_photo_badge_preview.dart';
 
 class AgentBadgeGenerationPage extends StatelessWidget {
   const AgentBadgeGenerationPage({
     super.key,
     this.currentAgents = const <Agent>[],
+    this.withPhoto = false,
   });
 
   final List<Agent> currentAgents;
+  final bool withPhoto;
 
   @override
   Widget build(BuildContext context) {
+    if (withPhoto &&
+        !(AuthService.currentManager?.profil
+                ?.getModule(ModuleName.AGENT)
+                ?.generBadge ??
+            false)) {
+      return const PageModel(
+          pageIndex: 3,
+          title: 'Badges avec photo',
+          child: Center(
+              child:
+                  Text('Vous n’avez pas accès à la génération des badges.')));
+    }
     return ChangeNotifierProvider<AgentBadgeProvider>(
       create: (_) => AgentBadgeProvider()
         ..initialize(
           currentAgents: currentAgents,
           useCurrentList: currentAgents.isNotEmpty,
         ),
-      child: _AgentBadgeGenerationView(currentAgents: currentAgents),
+      child: _AgentBadgeGenerationView(
+          currentAgents: currentAgents, withPhoto: withPhoto),
     );
   }
 }
@@ -31,9 +50,11 @@ class AgentBadgeGenerationPage extends StatelessWidget {
 class _AgentBadgeGenerationView extends StatefulWidget {
   const _AgentBadgeGenerationView({
     required this.currentAgents,
+    required this.withPhoto,
   });
 
   final List<Agent> currentAgents;
+  final bool withPhoto;
 
   @override
   State<_AgentBadgeGenerationView> createState() =>
@@ -47,7 +68,9 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
       builder: (context, provider, _) {
         return PageModel(
           pageIndex: 3,
-          title: 'Génération des badges agents',
+          title: widget.withPhoto
+              ? 'Badges agents avec photo'
+              : 'Génération des badges agents',
           child: RefreshIndicator(
             onRefresh: () async {
               if (provider.useCurrentList) {
@@ -89,6 +112,10 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
     BuildContext context,
     AgentBadgeProvider provider,
   ) async {
+    if (widget.withPhoto) {
+      await _runPhotoBadgeGeneration(context, provider);
+      return;
+    }
     final navigator = Navigator.of(context, rootNavigator: true);
 
     showDialog<void>(
@@ -162,6 +189,57 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
     }
   }
 
+  Future<void> _runPhotoBadgeGeneration(
+      BuildContext context, AgentBadgeProvider provider) async {
+    if (provider.isGeneratingBadges || !provider.hasSelection) return;
+    final progress = ValueNotifier<String>('Préparation des photos…');
+    final navigator = Navigator.of(context, rootNavigator: true);
+    AgentPhotoBadgeResult? result;
+    provider.clearError();
+    showDialog<void>(
+      context: context,
+      barrierDismissible: false,
+      builder: (_) => PopScope(
+        canPop: false,
+        child: AlertDialog(
+          title: const Text('Préparation des badges'),
+          content: ValueListenableBuilder<String>(
+            valueListenable: progress,
+            builder: (_, message, __) => Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                const CircularProgressIndicator(),
+                const SizedBox(height: 20),
+                Text(message)
+              ],
+            ),
+          ),
+        ),
+      ),
+    );
+    try {
+      await provider.generateSelectedBadges(onGenerate: (agents) async {
+        result = await AgentPhotoBadgeService.generate(
+          agents,
+          departments: provider.departments,
+          onProgress: (completed, total) => progress.value = completed == total
+              ? 'Mise en page du PDF…'
+              : 'Préparation des photos : $completed / $total',
+        );
+      });
+    } catch (_) {
+      // The provider exposes an actionable error with the existing retry UI.
+    } finally {
+      if (navigator.mounted) navigator.pop();
+      progress.dispose();
+    }
+    if (context.mounted && result != null) {
+      await showDialog<void>(
+          context: context,
+          builder: (_) => AgentPhotoBadgePreview(result: result!));
+    }
+  }
+
   Widget _buildIntroCard(BuildContext context, AgentBadgeProvider provider) {
     return Container(
       padding: const EdgeInsets.all(24),
@@ -189,7 +267,9 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
                 Text(
-                  'Sélectionne précisément les agents à imprimer',
+                  widget.withPhoto
+                      ? 'Badges avec photo et site d’affectation'
+                      : 'Sélectionne précisément les agents à imprimer',
                   style: Theme.of(context).textTheme.headlineSmall?.copyWith(
                         fontWeight: FontWeight.w700,
                         color: const Color(0xFF152033),
@@ -197,7 +277,9 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
                 ),
                 const SizedBox(height: 10),
                 Text(
-                  'Tu peux partir de la liste actuellement affichée ou charger une nouvelle sélection complète avec des filtres. Ensuite, tu peux tout sélectionner, tout désélectionner, ou choisir seulement les agents voulus avant génération.',
+                  widget.withPhoto
+                      ? 'Badge horizontal 85,6 × 54 mm : photo d’identité, nom, matricule, QR code et site. Le métier est déterminé par le département. Ajoutez la photo dans la fiche agent, puis sélectionnez les badges à imprimer.'
+                      : 'Tu peux partir de la liste actuellement affichée ou charger une nouvelle sélection complète avec des filtres. Ensuite, tu peux tout sélectionner, tout désélectionner, ou choisir seulement les agents voulus avant génération.',
                   style: Theme.of(context).textTheme.bodyLarge?.copyWith(
                         color: const Color(0xFF667085),
                         height: 1.45,
@@ -219,7 +301,7 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
                     ),
                     _InfoChip(
                       label:
-                          '${provider.visibleCount} visible${provider.visibleCount > 1 ? 's' : ''}',
+                          '${provider.visibleCount} résultat${provider.visibleCount > 1 ? 's' : ''}',
                     ),
                   ],
                 ),
@@ -482,18 +564,17 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
           ),
           _CountPill(
             label:
-                '${provider.visibleCount} visible${provider.visibleCount > 1 ? 's' : ''}',
+                '${provider.visibleCount} résultat${provider.visibleCount > 1 ? 's' : ''}',
           ),
           _CountPill(
             label:
                 '${provider.selectedCount} sélectionné${provider.selectedCount > 1 ? 's' : ''}',
           ),
           FilledButton.tonalIcon(
-            onPressed: provider.visibleAgents.isEmpty
-                ? null
-                : provider.selectAllVisible,
+            onPressed:
+                provider.visibleCount == 0 ? null : provider.selectAllVisible,
             icon: const Icon(Icons.done_all_rounded),
-            label: const Text('Tout sélectionner'),
+            label: const Text('Sélectionner tous les résultats'),
           ),
           OutlinedButton.icon(
             onPressed: provider.hasSelection ? provider.clearSelection : null,
@@ -501,11 +582,10 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
             label: const Text('Tout désélectionner'),
           ),
           OutlinedButton.icon(
-            onPressed: provider.visibleAgents.isEmpty
-                ? null
-                : provider.selectOnlyVisible,
+            onPressed:
+                provider.visibleCount == 0 ? null : provider.selectOnlyVisible,
             icon: const Icon(Icons.filter_alt_rounded),
-            label: const Text('Sélectionner visibles'),
+            label: const Text('Garder seulement les résultats filtrés'),
           ),
           FilledButton.icon(
             onPressed:
@@ -522,7 +602,9 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
             label: Text(
               provider.isGeneratingBadges
                   ? 'Traitement en cours...'
-                  : 'Générer les badges',
+                  : widget.withPhoto
+                      ? 'Générer les badges avec photo'
+                      : 'Générer les badges',
             ),
           ),
         ],
@@ -555,7 +637,7 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
       );
     }
 
-    if (provider.loadedAgents.isEmpty) {
+    if (provider.loadedCount == 0) {
       return _MessageCard(
         icon: Icons.inventory_2_outlined,
         title: provider.useCurrentList
@@ -573,7 +655,7 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
       );
     }
 
-    if (provider.visibleAgents.isEmpty) {
+    if (provider.visibleCount == 0) {
       return _MessageCard(
         icon: Icons.filter_alt_off_rounded,
         title: 'Aucun résultat',
@@ -585,139 +667,9 @@ class _AgentBadgeGenerationViewState extends State<_AgentBadgeGenerationView> {
       );
     }
 
-    return Container(
-      decoration: BoxDecoration(
-        color: Colors.white,
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: const Color(0xFFE7ECF3)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.04),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Padding(
-            padding: const EdgeInsets.fromLTRB(18, 18, 18, 0),
-            child: Wrap(
-              spacing: 12,
-              runSpacing: 12,
-              alignment: WrapAlignment.spaceBetween,
-              crossAxisAlignment: WrapCrossAlignment.center,
-              children: [
-                Text(
-                  'Agents disponibles pour badges',
-                  style: Theme.of(context).textTheme.titleMedium?.copyWith(
-                        fontWeight: FontWeight.w700,
-                        color: const Color(0xFF152033),
-                      ),
-                ),
-                Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 12, vertical: 8),
-                  decoration: BoxDecoration(
-                    color: const Color(0xFFF8FAFC),
-                    borderRadius: BorderRadius.circular(999),
-                    border: Border.all(color: const Color(0xFFE7ECF3)),
-                  ),
-                  child: Text(
-                    '${provider.visibleAgents.length} ligne${provider.visibleAgents.length > 1 ? 's' : ''} affichée${provider.visibleAgents.length > 1 ? 's' : ''}',
-                    style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                          color: const Color(0xFF475467),
-                          fontWeight: FontWeight.w600,
-                        ),
-                  ),
-                ),
-              ],
-            ),
-          ),
-          const SizedBox(height: 12),
-          ListView.separated(
-            shrinkWrap: true,
-            physics: const NeverScrollableScrollPhysics(),
-            padding: const EdgeInsets.fromLTRB(18, 0, 18, 18),
-            itemCount: provider.visibleAgents.length,
-            separatorBuilder: (_, __) => const Divider(height: 1),
-            itemBuilder: (context, index) {
-              final agent = provider.visibleAgents[index];
-              final isSelected = provider.selectedCodes.contains(agent.code);
-
-              return CheckboxListTile(
-                value: isSelected,
-                onChanged: (_) => provider.toggleSelection(agent),
-                contentPadding:
-                    const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
-                controlAffinity: ListTileControlAffinity.leading,
-                title: Text(
-                  '${agent.firstName} ${agent.lastName}',
-                  style: const TextStyle(fontWeight: FontWeight.w700),
-                ),
-                subtitle: Padding(
-                  padding: const EdgeInsets.only(top: 6),
-                  child: Wrap(
-                    spacing: 8,
-                    runSpacing: 8,
-                    children: [
-                      _TagCell(
-                        label: agent.code,
-                        backgroundColor: const Color(0xFFEAF2FF),
-                        foregroundColor: const Color(0xFF1D4ED8),
-                      ),
-                      _TagCell(
-                        label: agent.department?.label ?? 'Non défini',
-                        backgroundColor: const Color(0xFFF2F4F7),
-                        foregroundColor: const Color(0xFF344054),
-                      ),
-                      _TagCell(
-                        label: agent.typeAgent?.label ?? 'Non défini',
-                        backgroundColor: const Color(0xFFFFF1E8),
-                        foregroundColor: const Color(0xFFB54708),
-                      ),
-                      _TagCell(
-                        label: agent.actif == true ? 'Actif' : 'Inactif',
-                        backgroundColor: agent.actif == true
-                            ? const Color(0xFFEAFBF1)
-                            : const Color(0xFFFFF4F4),
-                        foregroundColor: agent.actif == true
-                            ? const Color(0xFF067647)
-                            : const Color(0xFFB42318),
-                      ),
-                    ],
-                  ),
-                ),
-                secondary: SizedBox(
-                  width: 280,
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.end,
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      Text(
-                        agent.phone.isEmpty ? '—' : agent.phone,
-                        style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                              color: const Color(0xFF344054),
-                              fontWeight: FontWeight.w600,
-                            ),
-                      ),
-                      const SizedBox(height: 4),
-                      Text(
-                        agent.site?.name ?? 'Aucun site',
-                        textAlign: TextAlign.right,
-                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                              color: const Color(0xFF667085),
-                            ),
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
+    return AgentBadgeResultsList(
+      provider: provider,
+      withPhoto: widget.withPhoto,
     );
   }
 }
@@ -823,6 +775,7 @@ class _FilterDropdown<T> extends StatelessWidget {
     return SizedBox(
       width: 220,
       child: DropdownButtonFormField<T>(
+        key: ValueKey(value),
         initialValue: value,
         items: items,
         onChanged: onChanged == null
@@ -921,36 +874,6 @@ class _CountPill extends StatelessWidget {
               color: const Color(0xFF344054),
               fontWeight: FontWeight.w600,
             ),
-      ),
-    );
-  }
-}
-
-class _TagCell extends StatelessWidget {
-  const _TagCell({
-    required this.label,
-    required this.backgroundColor,
-    required this.foregroundColor,
-  });
-
-  final String label;
-  final Color backgroundColor;
-  final Color foregroundColor;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
-      decoration: BoxDecoration(
-        color: backgroundColor,
-        borderRadius: BorderRadius.circular(999),
-      ),
-      child: Text(
-        label,
-        style: TextStyle(
-          color: foregroundColor,
-          fontWeight: FontWeight.w600,
-        ),
       ),
     );
   }

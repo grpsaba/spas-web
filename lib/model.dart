@@ -478,6 +478,7 @@ class Agent extends Equatable {
   List<ConactReference>? contacts;
   DateTime? dateEmbauche;
   DateTime? dateArret;
+  String? photoUrl;
   Agent(
       {required this.code,
       required this.firstName,
@@ -494,7 +495,8 @@ class Agent extends Equatable {
       required this.docs,
       required this.contacts,
       required this.dateEmbauche,
-      required this.dateArret});
+      required this.dateArret,
+      this.photoUrl});
 
   factory Agent.fromJson(Map<String, dynamic> json) {
     List docs = json["docs"] ?? [];
@@ -512,6 +514,7 @@ class Agent extends Equatable {
       phone: json["phone"],
       email: json["email"],
       tracking: json["tracking"],
+      photoUrl: json['photoUrl'] as String?,
       docs: docs.map((e) => DocumentFile.fromJson(e)).toList(),
       contacts: contacts.map((e) => ConactReference.fromJson(e)).toList(),
       typeAgent: json["AgentType"] == null
@@ -529,14 +532,15 @@ class Agent extends Equatable {
 
   Map<String, dynamic> toJson() {
     return {
-      "docs": docs?.map((e) => e.toJson()),
-      "contacts": contacts?.map((e) => e.toJson()),
+      "docs": docs?.map((e) => e.toJson()).toList(),
+      "contacts": contacts?.map((e) => e.toJson()).toList(),
       "code": code,
       "firstName": firstName,
       "lastName": lastName,
       "phone": phone,
       "email": email,
       "tracking": tracking,
+      "photoUrl": photoUrl,
       "site": site?.toJson(),
       "actif": actif,
       "tenantId": effectiveTenantId(tenantId, [site?.tenantId]),

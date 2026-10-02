@@ -145,6 +145,16 @@ class _AgentListView extends StatelessWidget {
                   ),
                   outlined: true,
                 ),
+              if (_canGenerateBadge)
+                _HeaderActionButton(
+                  label: 'Badge avec photo',
+                  icon: Icons.portrait_rounded,
+                  onPressed: () => context.go(
+                    '/agents/photo-badges',
+                    extra: provider.exportableAgents,
+                  ),
+                  outlined: true,
+                ),
               if (_canPrint)
                 _HeaderActionButton(
                   label: 'Imprimer',

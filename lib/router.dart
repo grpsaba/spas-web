@@ -236,6 +236,14 @@ GoRouter routeConfig = GoRouter(
                           (state.extra as List<Agent>?) ?? const <Agent>[],
                     )),
             GoRoute(
+                name: "badges agents avec photo",
+                path: "photo-badges",
+                builder: (context, state) => AgentBadgeGenerationPage(
+                      withPhoto: true,
+                      currentAgents:
+                          (state.extra as List<Agent>?) ?? const <Agent>[],
+                    )),
+            GoRoute(
                 name: "import agents",
                 path: "import",
                 builder: (context, state) => const ImportAgent()),
