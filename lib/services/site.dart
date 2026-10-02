@@ -105,6 +105,19 @@ class SiteService {
     }
   }
 
+  /// Loads active and inactive sites in the current tenant/department scope.
+  /// Existing active-only callers continue using [allAsModel].
+  Future<List<Site>> allSitesAsModel() async {
+    final snapshot = await TenantScope.getQuery(
+      'SiteService.allSitesAsModel',
+      _scopedQuery,
+    );
+
+    return snapshot.docs.map((snap) {
+      return Site.fromJson(snap.data() as Map<String, dynamic>);
+    }).toList();
+  }
+
   Future<List<Site>> allActifAsModel() async {
     var snapshot = await TenantScope.getQuery(
       'SiteService.allActifAsModel',

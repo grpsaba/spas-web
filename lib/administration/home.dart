@@ -106,7 +106,7 @@ class _PageModelState extends State<PageModel>
   Widget build(BuildContext context) {
     return Scaffold(
       backgroundColor:
-          widget.pageIndex == 0 ? AppConstants.bgColor : Colors.white,
+          widget.pageIndex == 0 ? const Color(0xFFF5F7FB) : Colors.white,
       appBar: _buildAppBar(context),
       body: Row(
         crossAxisAlignment: CrossAxisAlignment.start,

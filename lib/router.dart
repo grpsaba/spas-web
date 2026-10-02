@@ -16,6 +16,8 @@ import 'package:spas_web/notes/imprime_rapport.dart';
 import 'package:spas_web/notes/note_list.dart';
 import 'package:spas_web/pointage_agent/pointage_agent_list.dart';
 import 'package:spas_web/pointage_agent/pointage_rondier_list.dart';
+import 'package:spas_web/pointage_control/presentation/monthly_pointing_control_page.dart';
+import 'package:spas_web/pointage_control/presentation/monthly_pointing_sheet_page.dart';
 import 'package:spas_web/pointage_site/pointage_site_list.dart';
 import 'package:spas_web/pointage_site/site_monthly_pointage.dart';
 import 'package:spas_web/pointage_site/site_pointage_map.dart';
@@ -191,6 +193,20 @@ GoRouter routeConfig = GoRouter(
                 builder: (context, state) => SiteMonthlyPointage(
                       date: state.extra as DateTime,
                     )),
+            GoRoute(
+              name: "contrôle mensuel des pointages",
+              path: "controle",
+              builder: (context, state) => const MonthlyPointingControlPage(),
+              routes: [
+                GoRoute(
+                  name: "fiche mensuelle de pointage",
+                  path: ":sheetId",
+                  builder: (context, state) => MonthlyPointingSheetPage(
+                    sheetId: state.pathParameters['sheetId'] ?? '',
+                  ),
+                ),
+              ],
+            ),
           ]),
       //routes Agents
       GoRoute(

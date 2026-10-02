@@ -5,6 +5,7 @@ import 'package:flutter/services.dart';
 import 'package:pdf/pdf.dart';
 import 'package:pdf/widgets.dart' as pw;
 import 'package:pdf/widgets.dart';
+import 'package:printing/printing.dart';
 import 'package:spas_web/const.dart';
 import 'package:syncfusion_flutter_xlsio/xlsio.dart';
 import 'package:universal_html/html.dart' as html;
@@ -1641,8 +1642,16 @@ class PointageToolListToPDF {
 }
 
 class NoteListToPDF {
+  static Future<pw.ThemeData> _unicodeTheme() async {
+    return pw.ThemeData.withFont(
+      base: await PdfGoogleFonts.notoSansRegular(),
+      bold: await PdfGoogleFonts.notoSansBold(),
+    );
+  }
+
   static void printNote(List<Note> data) async {
     final pdf = pw.Document();
+    final theme = await _unicodeTheme();
 
     var avatar = pw.MemoryImage(
       (await rootBundle.load("assets/agent.png")).buffer.asUint8List(),
@@ -1676,7 +1685,7 @@ class NoteListToPDF {
                           color: PdfColors.black, fontSize: 12),
                     ),
                     pw.Text(
-                      "Site: ${note.site!.name}",
+                      "Site: ${note.site?.name ?? ''}",
                       style: const pw.TextStyle(
                           color: PdfColors.indigo, fontSize: 15),
                     ),
@@ -1729,11 +1738,7 @@ class NoteListToPDF {
     }).toList());
 
     pdf.addPage(pw.MultiPage(
-      /*theme: pw.ThemeData.withFont(
-        base: await PdfGoogleFonts.varelaRoundRegular(),
-        bold: await PdfGoogleFonts.varelaRoundRegular(),
-        icons: await PdfGoogleFonts.materialIcons(),
-      ),*/
+      theme: theme,
       margin: const pw.EdgeInsets.all(10),
       pageFormat: PdfPageFormat.a4,
       build: (context) {
@@ -1749,6 +1754,7 @@ class NoteListToPDF {
 
   static void printOneNote(Note note) async {
     final pdf = pw.Document();
+    final theme = await _unicodeTheme();
 
     var avatar = pw.MemoryImage(
       (await rootBundle.load("assets/agent.png")).buffer.asUint8List(),
@@ -1783,7 +1789,7 @@ class NoteListToPDF {
                         color: PdfColors.black, fontSize: 12),
                   ),
                   pw.Text(
-                    "Site: ${note.site!.name}",
+                    "Site: ${note.site?.name ?? ''}",
                     style: const pw.TextStyle(
                         color: PdfColors.indigo, fontSize: 15),
                   ),
@@ -1852,11 +1858,7 @@ class NoteListToPDF {
     pw.Widget listCarte = pw.Wrap(children: [header, commentaires]);
 
     pdf.addPage(pw.MultiPage(
-      /*theme: pw.ThemeData.withFont(
-        base: await PdfGoogleFonts.varelaRoundRegular(),
-        bold: await PdfGoogleFonts.varelaRoundRegular(),
-        icons: await PdfGoogleFonts.materialIcons(),
-      ),*/
+      theme: theme,
       margin: const pw.EdgeInsets.all(10),
       pageFormat: PdfPageFormat.a4,
       build: (context) {

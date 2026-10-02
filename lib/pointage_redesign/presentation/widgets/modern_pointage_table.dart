@@ -82,7 +82,7 @@ class ModernPointageTable extends StatelessWidget {
             columns: _buildColumns(),
             rows: _buildRows(context),
             columnSpacing: PointageSpacing.lg,
-            horizontalMargin: PointageSpacing.lg,
+            horizontalMargin: PointageSpacing.sm,
             showCheckboxColumn: false,
             sortColumnIndex: sortConfig != null
                 ? _getSortColumnIndex(sortConfig!.field)
@@ -141,11 +141,11 @@ class ModernPointageTable extends StatelessWidget {
   }
 
   /// Get the column index for a given sort field
-  /// Column order: Superviseur(0), Site(1), Zone(2), Date(3), Heure(4), evidence columns after.
+  /// Column order: Superviseur(0), Site(1), Zone(2), Date(3), Heure(4).
   int? _getSortColumnIndex(String field) {
     switch (field) {
       case 'datetimestamp':
-        return 3; // Date column (index 3)
+        return 3;
       default:
         return null;
     }
@@ -220,6 +220,18 @@ class ModernPointageTable extends StatelessWidget {
           DataCell(
             Row(
               children: [
+                SizedBox(
+                  width: 32,
+                  child: Text(
+                    '${entry.key + 1}.',
+                    textAlign: TextAlign.right,
+                    style: PointageTextStyles.body2.copyWith(
+                      color: PointageColors.textSecondary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ),
+                const SizedBox(width: PointageSpacing.sm),
                 CircleAvatar(
                   radius: 16,
                   backgroundColor:

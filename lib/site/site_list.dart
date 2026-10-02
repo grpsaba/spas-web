@@ -82,7 +82,8 @@ class _SiteListState extends State<SiteList> {
               }
 
               final allSites = snapshot.data?.docs
-                      .map((e) => Site.fromJson(e.data() as Map<String, dynamic>))
+                      .map((e) =>
+                          Site.fromJson(e.data() as Map<String, dynamic>))
                       .toList() ??
                   <Site>[];
               final activeCount =
@@ -407,7 +408,8 @@ class _SitesHeader extends StatelessWidget {
         LayoutBuilder(
           builder: (context, constraints) {
             final columns = constraints.maxWidth < 980 ? 2 : 4;
-            final width = (constraints.maxWidth - ((columns - 1) * 12)) / columns;
+            final width =
+                (constraints.maxWidth - ((columns - 1) * 12)) / columns;
 
             return Wrap(
               spacing: 12,
@@ -563,11 +565,9 @@ class _SitesTableCard extends StatelessWidget {
                 child: SizedBox(
                   width: tableWidth,
                   child: PaginatedDataTable(
-                  
                     sortColumnIndex: sortColumnIndex,
                     sortAscending: sortAscending,
-                    headingRowColor:
-                        WidgetStateProperty.all( Colors.white),
+                    headingRowColor: WidgetStateProperty.all(Colors.white),
                     horizontalMargin: 20,
                     columnSpacing: 30,
                     dataRowMinHeight: 60,
@@ -577,13 +577,13 @@ class _SitesTableCard extends StatelessWidget {
                     showEmptyRows: false,
                     showCheckboxColumn: false,
                     header: Container(
-                      height: 100,
-                     width: double.infinity,
-                      color: Colors.white,
-                      child: _TableHeader(
-                      icon: HugeIcons.strokeRoundedLayoutTable01,
-                      title: 'Liste des sites',
-                    )) ,
+                        height: 100,
+                        width: double.infinity,
+                        color: Colors.white,
+                        child: _TableHeader(
+                          icon: HugeIcons.strokeRoundedLayoutTable01,
+                          title: 'Liste des sites',
+                        )),
                     actions: [
                       RowPerPageWidget(
                         controller: rowsController,
@@ -669,9 +669,9 @@ class _SiteDataSource extends DataTableSource {
     return DataRow(
       color: WidgetStateProperty.resolveWith<Color?>((states) {
         if (states.contains(WidgetState.hovered)) {
-          return Theme.of(context).primaryColor.withOpacity(0.04);
+          return const Color(0xFFF8FAFC);
         }
-        return null;
+        return Colors.white;
       }),
       onSelectChanged: (_) => onOpenDetails(site),
       cells: [
@@ -742,7 +742,8 @@ class _SiteActionsMenu extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final module = AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!;
+    final module =
+        AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!;
     final isActive = site.actif == true;
 
     return PopupMenuButton<_SiteRowAction>(
@@ -1395,7 +1396,9 @@ class _StatusFilterItem extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final color = selected
-        ? (label == 'Actifs' ? const Color(0xFF059669) : const Color(0xFFDC2626))
+        ? (label == 'Actifs'
+            ? const Color(0xFF059669)
+            : const Color(0xFFDC2626))
         : const Color(0xFF64748B);
 
     return Material(
@@ -1743,7 +1746,8 @@ class _StatusChip extends StatelessWidget {
         color: dark ? Colors.white.withOpacity(0.1) : color.withOpacity(0.1),
         borderRadius: BorderRadius.circular(999),
         border: Border.all(
-          color: dark ? Colors.white.withOpacity(0.22) : color.withOpacity(0.25),
+          color:
+              dark ? Colors.white.withOpacity(0.22) : color.withOpacity(0.25),
         ),
       ),
       child: Row(
@@ -1962,7 +1966,8 @@ class _DialogActionButton extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = danger ? const Color(0xFFDC2626) : Theme.of(context).primaryColor;
+    final color =
+        danger ? const Color(0xFFDC2626) : Theme.of(context).primaryColor;
 
     return OutlinedButton.icon(
       onPressed: onPressed,
@@ -1991,7 +1996,8 @@ class _MenuItemLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color =
+        destructive ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [

@@ -1,24 +1,19 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
-import 'package:skeletonizer/skeletonizer.dart';
-import 'package:spas_web/accueil/pointage_site_card.dart';
-import 'package:spas_web/accueil/site_card.dart';
-import 'package:spas_web/accueil/site_pointing_staus_list.dart';
-import 'package:spas_web/accueil/site_staus_list.dart';
-import 'package:spas_web/accueil/supervisor_card.dart';
-import 'package:spas_web/accueil/tool_status_card.dart';
+
 import 'package:spas_web/administration/home.dart';
-import 'package:spas_web/const.dart';
+import 'package:spas_web/accueil/site_pointing_staus_list.dart';
+import 'package:spas_web/error_logs/models/error_log_model.dart';
 import 'package:spas_web/error_logs/providers/error_log_provider.dart';
-import 'package:spas_web/error_logs/widgets/error_stats_card.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/providers/home_provider.dart';
-import 'package:spas_web/services/agentType.dart';
 import 'package:spas_web/services/authentication.dart';
+import 'package:spas_web/services/pointerSite.dart';
+import 'package:spas_web/zone/progression_pointage_zone.dart';
 
-import '../zone/progression_pointage_zone.dart';
-import 'agent_card.dart';
-import 'note_card.dart';
+import 'unread_notes_notification.dart';
 
 class HomePage extends StatefulWidget {
   const HomePage({super.key});
@@ -28,63 +23,39 @@ class HomePage extends StatefulWidget {
 }
 
 class _HomePageState extends State<HomePage> {
-  late HomeProvider homeProvider;
+  late final HomeProvider _homeProvider;
   final manager = AuthService.currentManager;
-
-  bool isStatsHiden = false;
-  List<AgentType> _agentTypes = [];
-  bool _isLoadingAgentTypes = true;
 
   @override
   void initState() {
     super.initState();
-    homeProvider = Provider.of<HomeProvider>(context, listen: false);
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _initializeData();
-    });
+    _homeProvider = Provider.of<HomeProvider>(context, listen: false);
+    WidgetsBinding.instance.addPostFrameCallback((_) => _initializeData());
   }
 
   Future<void> _initializeData() async {
-    if (homeProvider.needsRefresh) {
-      await homeProvider.loadData();
+    if (_homeProvider.needsRefresh) {
+      await _homeProvider.loadData();
     }
-    _fetchAgentTypes();
     if (mounted) {
       context.read<ErrorLogProvider>().loadStats();
     }
   }
 
-  Future<void> _fetchAgentTypes() async {
-    try {
-      final agentTypes = await AgentTypeService().allFuture();
-      if (!mounted) return;
-      setState(() {
-        _agentTypes = agentTypes;
-        _isLoadingAgentTypes = false;
-      });
-    } catch (e) {
-      if (!mounted) return;
-      setState(() {
-        _isLoadingAgentTypes = false;
-      });
-    }
-  }
-
-  void hideStats() {
-    setState(() {
-      isStatsHiden = !isStatsHiden;
-    });
-  }
-
   @override
   Widget build(BuildContext context) {
     return Consumer<HomeProvider>(
-      builder: (context, provider, child) {
+      builder: (context, provider, _) {
         return PageModel(
           title: 'SPAS GROUPE SABA',
           pageIndex: 0,
           child: RefreshIndicator(
-            onRefresh: () => provider.refresh(),
+            color: _HomeColors.primary,
+            onRefresh: () async {
+              await provider.refresh();
+              if (!context.mounted) return;
+              await context.read<ErrorLogProvider>().loadStats();
+            },
             child: _buildContent(context, provider),
           ),
         );
@@ -93,420 +64,183 @@ class _HomePageState extends State<HomePage> {
   }
 
   Widget _buildContent(BuildContext context, HomeProvider provider) {
-    if (provider.hasError) {
-      return _buildErrorState(provider);
+    if (provider.hasError) return _ErrorState(provider: provider);
+    if (provider.isLoading && provider.allSites.isEmpty) {
+      return const _LoadingState();
     }
-
-    if (provider.isLoading && provider.sites.isEmpty) {
-      return _buildLoadingState();
-    }
-
     return _buildDashboard(context, provider);
   }
 
-  Widget _buildErrorState(HomeProvider provider) {
-    return Center(
-      child: Container(
-        margin: const EdgeInsets.all(24),
-        padding: const EdgeInsets.all(24),
-        decoration: BoxDecoration(
-          color: Colors.red.shade50,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: Colors.red.shade200),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Icon(
-              Icons.error_outline,
-              size: 64,
-              color: Colors.red.shade400,
-            ),
-            const SizedBox(height: 16),
-            Text(
-              'Erreur de chargement',
-              style: TextStyle(
-                fontSize: 20,
-                fontWeight: FontWeight.bold,
-                color: Colors.red.shade700,
-              ),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              provider.errorMessage,
-              textAlign: TextAlign.center,
-              style: TextStyle(
-                fontSize: 14,
-                color: Colors.red.shade600,
-              ),
-            ),
-            const SizedBox(height: 24),
-            ElevatedButton.icon(
-              onPressed: () => provider.refresh(),
-              icon: const Icon(Icons.refresh),
-              label: const Text('Réessayer'),
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.red.shade600,
-                foregroundColor: Colors.white,
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 24,
-                  vertical: 12,
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  Widget _buildLoadingState() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          if (manager != null && !homeProvider.greeting)
-            Container(
-              margin: const EdgeInsets.only(bottom: 32),
-              padding: const EdgeInsets.all(24),
-              decoration: BoxDecoration(
-                color: Colors.white.withValues(alpha: 0.1),
-                borderRadius: BorderRadius.circular(16),
-                border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-              ),
-              child: Text(
-                'Bienvenue ${manager!.lastName}',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontWeight: FontWeight.w800,
-                  fontSize: 28,
-                ),
-              ),
-            ),
-          Container(
-            padding: const EdgeInsets.all(32),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.1),
-              borderRadius: BorderRadius.circular(20),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.2)),
-            ),
-            child: const Column(
-              mainAxisSize: MainAxisSize.min,
-              children: [
-                SizedBox(
-                  width: 48,
-                  height: 48,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 3,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                ),
-                SizedBox(height: 24),
-                Text(
-                  'Chargement du tableau de bord...',
-                  style: TextStyle(
-                    color: Colors.white,
-                    fontWeight: FontWeight.w600,
-                    fontSize: 18,
-                  ),
-                ),
-              ],
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildDashboard(BuildContext context, HomeProvider provider) {
-    final screenWidth = MediaQuery.of(context).size.width;
-    final isDesktop = screenWidth > 1200;
-    final isTablet = screenWidth > 768 && screenWidth <= 1200;
-    final pagePadding = isDesktop ? 24.0 : 16.0;
+    final width = MediaQuery.sizeOf(context).width;
+    final contentPadding = width >= 1400
+        ? 32.0
+        : width >= 900
+            ? 24.0
+            : 16.0;
 
     return ListView(
-      padding: EdgeInsets.all(pagePadding),
+      padding: EdgeInsets.fromLTRB(contentPadding, 24, contentPadding, 32),
       children: [
-        _buildDashboardHeader(context, provider),
-        const SizedBox(height: 18),
-        AnimatedSwitcher(
-          duration: const Duration(milliseconds: 200),
-          child: isStatsHiden
-              ? _buildHiddenStatsNotice()
-              : _buildStatsCards(context, provider, isDesktop, isTablet),
+        _buildHeader(context, provider),
+        const SizedBox(height: 28),
+        _buildSectionTitle(
+          title: 'Vue d’ensemble',
+          subtitle: 'Les chiffres clés de votre organisation',
         ),
-        const SizedBox(height: 22),
-        _buildSectionHeader(
+        const SizedBox(height: 14),
+        _buildStatsGrid(provider),
+        const SizedBox(height: 30),
+        _buildSectionTitle(
+          title: 'Progression des pointages',
+          subtitle:
+              'Suivi journalier des superviseurs et mensuel des chefs de zone',
+        ),
+        const SizedBox(height: 14),
+        _buildPointingProgressGrid(provider),
+        const SizedBox(height: 30),
+        _buildMainGrid(context),
+        const SizedBox(height: 30),
+        _buildSectionTitle(
           title: 'Suivi opérationnel',
-          subtitle: 'Sites, superviseurs et chefs de zone',
-          icon: Icons.monitor_heart_outlined,
-          onDark: true,
+          subtitle: 'Les sites actifs disponibles aujourd’hui',
         ),
-        const SizedBox(height: 12),
-        _buildDataGrids(context, provider, isDesktop, isTablet),
+        const SizedBox(height: 14),
+        _buildOperationalGrid(provider),
       ],
     );
   }
 
-  Widget _buildDashboardHeader(BuildContext context, HomeProvider provider) {
-    final managerName = manager == null
-        ? 'Tableau de bord'
-        : 'Bonjour ${manager!.lastName}'.trim();
-
-    return Container(
-      padding: const EdgeInsets.all(20),
-      decoration: BoxDecoration(
-        gradient: const LinearGradient(
-          colors: [
-            AppConstants.primaryColor,
-            Color(0xFF303236),
-          ],
-          begin: Alignment.topLeft,
-          end: Alignment.bottomRight,
-        ),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.18),
-            blurRadius: 20,
-            offset: const Offset(0, 10),
-          ),
-        ],
-      ),
-      child: Wrap(
-        spacing: 18,
-        runSpacing: 16,
-        alignment: WrapAlignment.spaceBetween,
-        crossAxisAlignment: WrapCrossAlignment.center,
-        children: [
-          ConstrainedBox(
-            constraints: const BoxConstraints(maxWidth: 560),
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  managerName,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        color: Colors.white,
-                        fontWeight: FontWeight.w800,
-                      ),
-                ),
-                const SizedBox(height: 6),
-                Text(
-                  'SPAS GROUPE SABA',
-                  style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                        color: Colors.white.withValues(alpha: 0.72),
-                        fontWeight: FontWeight.w600,
-                      ),
-                ),
-              ],
-            ),
-          ),
-          Wrap(
-            spacing: 10,
-            runSpacing: 10,
-            crossAxisAlignment: WrapCrossAlignment.center,
-            children: [
-              _DashboardMetricChip(
-                icon: Icons.location_city_rounded,
-                label: 'Sites actifs',
-                value: provider.nbSite.toString(),
-                color: const Color(0xFFB8C7FF),
-              ),
-              _DashboardMetricChip(
-                icon: Icons.supervisor_account_rounded,
-                label: 'Superviseurs',
-                value: provider.supervisors.length.toString(),
-                color: const Color(0xFF9FE7DD),
-              ),
-              _buildHideButton(),
-              _buildRefreshButton(provider),
-            ],
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildStatsCards(
-    BuildContext context,
-    HomeProvider provider,
-    bool isDesktop,
-    bool isTablet,
-  ) {
-    return Container(
-      key: const ValueKey('stats-visible'),
-      padding: const EdgeInsets.all(18),
-      decoration: BoxDecoration(
-        color: const Color(0xFF303236),
-        borderRadius: BorderRadius.circular(18),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.16),
-            blurRadius: 18,
-            offset: const Offset(0, 8),
-          ),
-        ],
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          _buildSectionHeader(
-            title: 'Indicateurs clés',
-            subtitle: 'Activité et alertes',
-            icon: Icons.dashboard_customize_outlined,
-            onDark: true,
-            compact: true,
-          ),
-          const SizedBox(height: 14),
-          _buildStatsGrid(context, provider, isDesktop, isTablet),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHiddenStatsNotice() {
-    return Container(
-      key: const ValueKey('stats-hidden'),
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.08),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.12)),
-      ),
-      child: Row(
-        children: [
-          const Icon(
-            Icons.visibility_off_outlined,
-            color: Colors.white70,
-            size: 18,
-          ),
-          const SizedBox(width: 10),
-          const Expanded(
-            child: Text(
-              'Indicateurs masqués',
-              style: TextStyle(
-                color: Colors.white,
-                fontWeight: FontWeight.w600,
-              ),
-            ),
-          ),
-          TextButton.icon(
-            onPressed: hideStats,
-            icon: const Icon(Icons.visibility_outlined, size: 18),
-            label: const Text('Afficher'),
-            style: TextButton.styleFrom(foregroundColor: Colors.white),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Widget _buildHideButton() {
-    return Tooltip(
-      message:
-          isStatsHiden ? 'Afficher les indicateurs' : 'Masquer les indicateurs',
-      child: Material(
-        color: Colors.transparent,
-        child: InkWell(
-          onTap: hideStats,
-          borderRadius: BorderRadius.circular(12),
-          child: Container(
-            padding: const EdgeInsets.all(11),
-            decoration: BoxDecoration(
-              color: Colors.white.withValues(alpha: 0.12),
-              borderRadius: BorderRadius.circular(12),
-              border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-            ),
-            child: Icon(
-              isStatsHiden ? Icons.visibility : Icons.visibility_off,
-              color: Colors.white,
-              size: 20,
-            ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildRefreshButton(HomeProvider provider) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: provider.isLoading ? null : () => provider.refresh(),
-        borderRadius: BorderRadius.circular(12),
-        child: Container(
-          padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 11),
-          decoration: BoxDecoration(
-            color: Colors.white.withValues(alpha: 0.12),
-            borderRadius: BorderRadius.circular(12),
-            border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              if (provider.isLoading)
-                const SizedBox(
-                  width: 16,
-                  height: 16,
-                  child: CircularProgressIndicator(
-                    strokeWidth: 2,
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  ),
-                )
-              else
-                const Icon(
-                  Icons.refresh_rounded,
-                  size: 20,
-                  color: Colors.white,
-                ),
-              const SizedBox(width: 8),
-              Text(
-                provider.isLoading ? 'Actualisation...' : 'Actualiser',
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 14,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildStatsGrid(
-    BuildContext context,
-    HomeProvider provider,
-    bool isDesktop,
-    bool isTablet,
-  ) {
-    final statsWidgets = _buildStatsWidgets(provider);
+  Widget _buildHeader(BuildContext context, HomeProvider provider) {
+    final managerName = manager?.lastName.trim();
+    final greeting = managerName == null || managerName.isEmpty
+        ? 'Bonjour'
+        : 'Bonjour, $managerName';
+    final today = DateTime.now();
 
     return LayoutBuilder(
       builder: (context, constraints) {
-        final availableWidth = constraints.maxWidth;
-        final columns = isDesktop
+        final compact = constraints.maxWidth < 680;
+        final content = Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              greeting,
+              style: const TextStyle(
+                color: _HomeColors.ink,
+                fontSize: 28,
+                fontWeight: FontWeight.w800,
+                height: 1.15,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              'Voici l’état de SPAS GROUPE SABA pour le ${_formatDate(today)}.',
+              style: const TextStyle(
+                color: _HomeColors.muted,
+                fontSize: 14,
+                height: 1.4,
+              ),
+            ),
+          ],
+        );
+
+        final actions = Wrap(
+          spacing: 10,
+          runSpacing: 10,
+          crossAxisAlignment: WrapCrossAlignment.center,
+          children: [
+            const UnreadNotesNotification(),
+            _HeaderAction(
+              tooltip: 'Actualiser les données',
+              icon: provider.isLoading ? Icons.sync : Icons.refresh,
+              onPressed: provider.isLoading ? null : provider.refresh,
+            ),
+            FilledButton.icon(
+              onPressed: () => context.go('/pointages'),
+              icon: const Icon(Icons.fact_check_outlined, size: 18),
+              label: const Text('Voir les pointages'),
+              style: FilledButton.styleFrom(
+                backgroundColor: _HomeColors.primary,
+                foregroundColor: Colors.white,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 16,
+                  vertical: 13,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(8),
+                ),
+              ),
+            ),
+          ],
+        );
+
+        if (compact) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [content, const SizedBox(height: 18), actions],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.center,
+          children: [Expanded(child: content), actions],
+        );
+      },
+    );
+  }
+
+  Widget _buildStatsGrid(HomeProvider provider) {
+    final stats = [
+      _StatData(
+        label: 'Sites actifs',
+        value: provider.activeSites,
+        detail: '${provider.totalSites} sites au total',
+        icon: Icons.location_on_outlined,
+        color: _HomeColors.green,
+      ),
+      _StatData(
+        label: 'Sites inactifs',
+        value: provider.inactiveSites,
+        detail: 'À vérifier si nécessaire',
+        icon: Icons.location_off_outlined,
+        color: _HomeColors.orange,
+      ),
+      _StatData(
+        label: 'Superviseurs actifs',
+        value: provider.activeSupervisors,
+        detail: '${provider.supervisors.length} superviseurs au total',
+        icon: Icons.supervisor_account_outlined,
+        color: _HomeColors.primary,
+      ),
+      _StatData(
+        label: 'Agents actifs',
+        value: provider.activeAgents,
+        detail: '${provider.agents.length} agents au total',
+        icon: Icons.groups_outlined,
+        color: _HomeColors.teal,
+      ),
+    ];
+
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 1200
             ? 4
-            : isTablet
-                ? 3
+            : constraints.maxWidth >= 680
+                ? 2
                 : 1;
-        final rawWidth = (availableWidth - (columns - 1) * 12) / columns;
-        final cardWidth = availableWidth < 210
-            ? availableWidth
-            : rawWidth.clamp(210.0, 260.0).toDouble();
+        const gap = 14.0;
+        final cardWidth =
+            (constraints.maxWidth - gap * (columns - 1)) / columns;
 
         return Wrap(
-          spacing: 12,
-          runSpacing: 12,
-          children: statsWidgets
+          spacing: gap,
+          runSpacing: gap,
+          children: stats
               .map(
-                (widget) => SizedBox(
+                (stat) => SizedBox(
                   width: cardWidth,
-                  child: widget,
+                  child: _StatCard(data: stat),
                 ),
               )
               .toList(),
@@ -515,240 +249,705 @@ class _HomePageState extends State<HomePage> {
     );
   }
 
-  List<Widget> _buildStatsWidgets(HomeProvider provider) {
-    return [
-      PointageSiteCard(nombreSite: provider.nbSite),
-      SiteCard(nombreSites: provider.nbSite),
-      Skeletonizer(
-        enabled: provider.supervisors.isEmpty && provider.isLoading,
-        child: SupervisorCard(superviseur: provider.supervisors),
-      ),
-      ..._buildAgentCards(),
-      NoteCard(),
-      const ToolStatusCard(),
-      Consumer<ErrorLogProvider>(
-        builder: (context, errorProvider, _) => ErrorStatsCard(
-          stats: errorProvider.stats,
-          isLoading: errorProvider.isLoading,
-        ),
-      ),
-    ];
-  }
+  Widget _buildMainGrid(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final compact = constraints.maxWidth < 900;
+        final quickActions = _HomePanel(
+          title: 'Accès rapides',
+          subtitle: 'Les espaces les plus utilisés',
+          child: LayoutBuilder(
+            builder: (context, actionConstraints) {
+              final columns = actionConstraints.maxWidth >= 520 ? 4 : 2;
+              const gap = 10.0;
+              final width =
+                  (actionConstraints.maxWidth - gap * (columns - 1)) / columns;
+              const actions = [
+                _QuickActionData(
+                  label: 'Pointages',
+                  icon: Icons.fact_check_outlined,
+                  route: '/pointages',
+                  color: _HomeColors.primary,
+                ),
+                _QuickActionData(
+                  label: 'Sites',
+                  icon: Icons.business_outlined,
+                  route: '/sites',
+                  color: _HomeColors.green,
+                ),
+                _QuickActionData(
+                  label: 'Utilisateurs',
+                  icon: Icons.manage_accounts_outlined,
+                  route: '/users',
+                  color: _HomeColors.orange,
+                ),
+                _QuickActionData(
+                  label: 'Agents',
+                  icon: Icons.groups_outlined,
+                  route: '/agents',
+                  color: _HomeColors.teal,
+                ),
+              ];
 
-  List<Widget> _buildAgentCards() {
-    if (_isLoadingAgentTypes) {
-      return [
-        const Skeletonizer(
-          enabled: true,
-          child: SupervisorCard(superviseur: []),
-        ),
-      ];
-    }
-
-    if (_agentTypes.isEmpty) {
-      return const [
-        _DashboardPlaceholderTile(label: "Aucun type d'agent"),
-      ];
-    }
-
-    return _agentTypes
-        .map(
-          (type) => AgentCard(domaine: type.label),
-        )
-        .toList();
-  }
-
-  Widget _buildDataGrids(
-    BuildContext context,
-    HomeProvider provider,
-    bool isDesktop,
-    bool isTablet,
-  ) {
-    final dataWidgets = [
-      SiteListWithStatus(sites: provider.sites),
-      SitePointingListWithStatus(supList: provider.supervisors),
-      const ZonePointageProgressionList(),
-    ];
-
-    if (isDesktop) {
-      return Row(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Expanded(child: dataWidgets[0]),
-          const SizedBox(width: 16),
-          Expanded(child: dataWidgets[1]),
-          const SizedBox(width: 16),
-          Expanded(child: dataWidgets[2]),
-        ],
-      );
-    }
-
-    if (isTablet) {
-      return Column(
-        children: [
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Expanded(child: dataWidgets[0]),
-              const SizedBox(width: 16),
-              Expanded(child: dataWidgets[1]),
-            ],
+              return Wrap(
+                spacing: gap,
+                runSpacing: gap,
+                children: actions
+                    .map(
+                      (action) => SizedBox(
+                        width: width,
+                        child: _QuickAction(data: action),
+                      ),
+                    )
+                    .toList(),
+              );
+            },
           ),
-          const SizedBox(height: 16),
-          dataWidgets[2],
-        ],
-      );
-    }
+        );
 
+        final activity = _HomePanel(
+          title: 'Aujourd’hui',
+          subtitle: 'Les derniers signaux de l’application',
+          child: _buildTodayActivity(context),
+        );
+
+        if (compact) {
+          return Column(
+            children: [quickActions, const SizedBox(height: 14), activity],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(flex: 3, child: quickActions),
+            const SizedBox(width: 14),
+            Expanded(flex: 2, child: activity),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildPointingProgressGrid(HomeProvider provider) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        const panelHeight = 560.0;
+        final stacked = constraints.maxWidth < 1120;
+        final supervisorProgress = SitePointingListWithStatus(
+          supList: provider.supervisors,
+          height: panelHeight,
+        );
+        const zoneProgress = ZonePointageProgressionList(height: panelHeight);
+
+        if (stacked) {
+          return Column(
+            children: [
+              supervisorProgress,
+              const SizedBox(height: 14),
+              zoneProgress,
+            ],
+          );
+        }
+
+        return Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Expanded(child: supervisorProgress),
+            const SizedBox(width: 14),
+            const Expanded(child: zoneProgress),
+          ],
+        );
+      },
+    );
+  }
+
+  Widget _buildTodayActivity(BuildContext context) {
     return Column(
       children: [
-        dataWidgets[0],
-        const SizedBox(height: 16),
-        dataWidgets[1],
-        const SizedBox(height: 16),
-        dataWidgets[2],
+        StreamBuilder<QuerySnapshot>(
+          stream: PointingSiteService().all(),
+          builder: (context, snapshot) {
+            return _ActivityMetric(
+              icon: Icons.fact_check_outlined,
+              label: 'Pointages enregistrés',
+              value: snapshot.hasError
+                  ? '—'
+                  : '${snapshot.data?.docs.length ?? 0}',
+              color: _HomeColors.primary,
+            );
+          },
+        ),
+        const Divider(height: 22, color: _HomeColors.border),
+        Consumer<ErrorLogProvider>(
+          builder: (context, errorProvider, _) {
+            final ErrorLogStats stats = errorProvider.stats;
+            return _ActivityMetric(
+              icon: Icons.warning_amber_outlined,
+              label: 'Erreurs non résolues',
+              value: errorProvider.isLoading ? '…' : '${stats.unresolved}',
+              color: stats.unresolved > 0 ? _HomeColors.red : _HomeColors.green,
+              onTap: () => context.go('/errorlogs'),
+            );
+          },
+        ),
       ],
     );
   }
 
-  Widget _buildSectionHeader({
-    required String title,
-    required String subtitle,
-    required IconData icon,
-    required bool onDark,
-    bool compact = false,
-  }) {
-    final foreground = onDark ? Colors.white : const Color(0xFF152033);
-    final muted =
-        onDark ? Colors.white.withValues(alpha: 0.68) : const Color(0xFF697586);
-    final iconBackground = onDark
-        ? Colors.white.withValues(alpha: 0.1)
-        : AppConstants.primaryColor.withValues(alpha: 0.1);
-    final iconColor = onDark ? Colors.white : AppConstants.primaryColor;
+  Widget _buildOperationalGrid(HomeProvider provider) {
+    return _SitesPanel(sites: provider.sites);
+  }
 
-    return Row(
+  Widget _buildSectionTitle({required String title, required String subtitle}) {
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
       children: [
-        Container(
-          width: compact ? 32 : 38,
-          height: compact ? 32 : 38,
-          decoration: BoxDecoration(
-            color: iconBackground,
-            borderRadius: BorderRadius.circular(10),
-            border: Border.all(
-              color: onDark
-                  ? Colors.white.withValues(alpha: 0.12)
-                  : const Color(0xFFE7ECF3),
-            ),
-          ),
-          child: Icon(
-            icon,
-            color: iconColor,
-            size: compact ? 18 : 21,
+        Text(
+          title,
+          style: const TextStyle(
+            color: _HomeColors.ink,
+            fontSize: 19,
+            fontWeight: FontWeight.w800,
           ),
         ),
-        const SizedBox(width: 12),
-        Expanded(
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                title,
-                style: TextStyle(
-                  color: foreground,
-                  fontSize: compact ? 16 : 18,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              const SizedBox(height: 2),
-              Text(
-                subtitle,
-                style: TextStyle(
-                  color: muted,
-                  fontSize: 13,
-                  fontWeight: FontWeight.w500,
-                ),
-              ),
-            ],
-          ),
+        const SizedBox(height: 4),
+        Text(
+          subtitle,
+          style: const TextStyle(color: _HomeColors.muted, fontSize: 13),
         ),
       ],
+    );
+  }
+
+  String _formatDate(DateTime date) {
+    const weekdays = [
+      'lundi',
+      'mardi',
+      'mercredi',
+      'jeudi',
+      'vendredi',
+      'samedi',
+      'dimanche',
+    ];
+    const months = [
+      'janvier',
+      'février',
+      'mars',
+      'avril',
+      'mai',
+      'juin',
+      'juillet',
+      'août',
+      'septembre',
+      'octobre',
+      'novembre',
+      'décembre',
+    ];
+    return '${weekdays[date.weekday - 1]} ${date.day} ${months[date.month - 1]} ${date.year}';
+  }
+}
+
+class _HomeColors {
+  static const primary = Color(0xFF4657C8);
+  static const ink = Color(0xFF172033);
+  static const muted = Color(0xFF667085);
+  static const border = Color(0xFFE5EAF2);
+  static const green = Color(0xFF198754);
+  static const orange = Color(0xFFB76E00);
+  static const red = Color(0xFFD14343);
+  static const teal = Color(0xFF087F8C);
+  static const softSurface = Color(0xFFFBFCFE);
+}
+
+class _StatData {
+  const _StatData({
+    required this.label,
+    required this.value,
+    required this.detail,
+    required this.icon,
+    required this.color,
+  });
+
+  final String label;
+  final int value;
+  final String detail;
+  final IconData icon;
+  final Color color;
+}
+
+class _StatCard extends StatelessWidget {
+  const _StatCard({required this.data});
+
+  final _StatData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _HomeColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x0A172033),
+            blurRadius: 16,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Row(
+        children: [
+          Container(
+            width: 42,
+            height: 42,
+            decoration: BoxDecoration(
+              color: data.color.withValues(alpha: 0.1),
+              borderRadius: BorderRadius.circular(8),
+            ),
+            child: Icon(data.icon, color: data.color, size: 22),
+          ),
+          const SizedBox(width: 13),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Text(
+                  data.label,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: _HomeColors.muted,
+                    fontSize: 12,
+                    fontWeight: FontWeight.w600,
+                  ),
+                ),
+                const SizedBox(height: 3),
+                Text(
+                  '${data.value}',
+                  style: const TextStyle(
+                    color: _HomeColors.ink,
+                    fontSize: 25,
+                    fontWeight: FontWeight.w800,
+                    height: 1,
+                  ),
+                ),
+                const SizedBox(height: 5),
+                Text(
+                  data.detail,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style:
+                      const TextStyle(color: _HomeColors.muted, fontSize: 11),
+                ),
+              ],
+            ),
+          ),
+        ],
+      ),
     );
   }
 }
 
-class _DashboardMetricChip extends StatelessWidget {
-  const _DashboardMetricChip({
+class _HomePanel extends StatelessWidget {
+  const _HomePanel({
+    required this.title,
+    required this.subtitle,
+    required this.child,
+  });
+
+  final String title;
+  final String subtitle;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.all(18),
+      decoration: BoxDecoration(
+        color: Colors.white,
+        borderRadius: BorderRadius.circular(8),
+        border: Border.all(color: _HomeColors.border),
+        boxShadow: const [
+          BoxShadow(
+            color: Color(0x08172033),
+            blurRadius: 16,
+            offset: Offset(0, 5),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Text(
+            title,
+            style: const TextStyle(
+              color: _HomeColors.ink,
+              fontSize: 16,
+              fontWeight: FontWeight.w800,
+            ),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            subtitle,
+            style: const TextStyle(color: _HomeColors.muted, fontSize: 12),
+          ),
+          const SizedBox(height: 16),
+          child,
+        ],
+      ),
+    );
+  }
+}
+
+class _QuickActionData {
+  const _QuickActionData({
+    required this.label,
+    required this.icon,
+    required this.route,
+    required this.color,
+  });
+
+  final String label;
+  final IconData icon;
+  final String route;
+  final Color color;
+}
+
+class _QuickAction extends StatelessWidget {
+  const _QuickAction({required this.data});
+
+  final _QuickActionData data;
+
+  @override
+  Widget build(BuildContext context) {
+    return Material(
+      color: _HomeColors.softSurface,
+      borderRadius: BorderRadius.circular(8),
+      child: InkWell(
+        onTap: () => context.go(data.route),
+        borderRadius: BorderRadius.circular(8),
+        hoverColor: data.color.withValues(alpha: 0.08),
+        child: Container(
+          constraints: const BoxConstraints(minHeight: 92),
+          padding: const EdgeInsets.all(14),
+          decoration: BoxDecoration(
+            borderRadius: BorderRadius.circular(8),
+            border: Border.all(color: _HomeColors.border),
+          ),
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            mainAxisAlignment: MainAxisAlignment.spaceBetween,
+            children: [
+              Icon(data.icon, color: data.color, size: 24),
+              const SizedBox(height: 14),
+              Row(
+                children: [
+                  Expanded(
+                    child: Text(
+                      data.label,
+                      style: const TextStyle(
+                        color: _HomeColors.ink,
+                        fontSize: 13,
+                        fontWeight: FontWeight.w700,
+                      ),
+                    ),
+                  ),
+                  const Icon(
+                    Icons.arrow_forward,
+                    color: _HomeColors.muted,
+                    size: 16,
+                  ),
+                ],
+              ),
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}
+
+class _HeaderAction extends StatelessWidget {
+  const _HeaderAction({
+    required this.tooltip,
+    required this.icon,
+    required this.onPressed,
+  });
+
+  final String tooltip;
+  final IconData icon;
+  final VoidCallback? onPressed;
+
+  @override
+  Widget build(BuildContext context) {
+    return IconButton(
+      tooltip: tooltip,
+      onPressed: onPressed,
+      icon: Icon(icon),
+      color: _HomeColors.ink,
+      style: IconButton.styleFrom(
+        backgroundColor: Colors.white,
+        foregroundColor: _HomeColors.ink,
+        side: const BorderSide(color: _HomeColors.border),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+      ),
+    );
+  }
+}
+
+class _ActivityMetric extends StatelessWidget {
+  const _ActivityMetric({
     required this.icon,
     required this.label,
     required this.value,
     required this.color,
+    this.onTap,
   });
 
   final IconData icon;
   final String label;
   final String value;
   final Color color;
+  final VoidCallback? onTap;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: Colors.white.withValues(alpha: 0.12),
-        borderRadius: BorderRadius.circular(14),
-        border: Border.all(color: Colors.white.withValues(alpha: 0.18)),
-      ),
-      child: Row(
-        mainAxisSize: MainAxisSize.min,
-        children: [
-          Icon(icon, color: color, size: 20),
-          const SizedBox(width: 10),
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Text(
-                value,
-                style: const TextStyle(
-                  color: Colors.white,
-                  fontSize: 17,
-                  fontWeight: FontWeight.w800,
-                ),
-              ),
-              Text(
-                label,
-                style: TextStyle(
-                  color: Colors.white.withValues(alpha: 0.72),
-                  fontSize: 12,
-                  fontWeight: FontWeight.w600,
-                ),
-              ),
-            ],
+    final child = Row(
+      children: [
+        Icon(icon, color: color, size: 22),
+        const SizedBox(width: 12),
+        Expanded(
+          child: Text(
+            label,
+            style: const TextStyle(
+              color: _HomeColors.ink,
+              fontSize: 13,
+              fontWeight: FontWeight.w600,
+            ),
           ),
-        ],
+        ),
+        Text(
+          value,
+          style: TextStyle(
+            color: color,
+            fontSize: 20,
+            fontWeight: FontWeight.w800,
+          ),
+        ),
+      ],
+    );
+
+    return onTap == null
+        ? child
+        : InkWell(
+            onTap: onTap,
+            borderRadius: BorderRadius.circular(6),
+            child: Padding(
+              padding: const EdgeInsets.symmetric(vertical: 4),
+              child: child,
+            ),
+          );
+  }
+}
+
+class _SitesPanel extends StatelessWidget {
+  const _SitesPanel({required this.sites});
+
+  final List<Site> sites;
+
+  @override
+  Widget build(BuildContext context) {
+    final visibleSites = sites.take(6).toList();
+    return _HomePanel(
+      title: 'Sites actifs',
+      subtitle: 'Accès rapide aux sites suivis',
+      child: visibleSites.isEmpty
+          ? const _EmptyPanelState(label: 'Aucun site actif')
+          : Column(
+              children: [
+                for (var index = 0; index < visibleSites.length; index++) ...[
+                  _SiteRow(site: visibleSites[index]),
+                  if (index != visibleSites.length - 1)
+                    const Divider(height: 18, color: _HomeColors.border),
+                ],
+                if (sites.length > 6) ...[
+                  const SizedBox(height: 14),
+                  _PanelLink(
+                    label: 'Voir tous les sites',
+                    onTap: () => context.go('/sites'),
+                  ),
+                ],
+              ],
+            ),
+    );
+  }
+}
+
+class _SiteRow extends StatelessWidget {
+  const _SiteRow({required this.site});
+
+  final Site site;
+
+  @override
+  Widget build(BuildContext context) {
+    return InkWell(
+      onTap: () => context.go('/sites'),
+      borderRadius: BorderRadius.circular(6),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(vertical: 3),
+        child: Row(
+          children: [
+            Container(
+              width: 32,
+              height: 32,
+              decoration: BoxDecoration(
+                color: _HomeColors.green.withValues(alpha: 0.1),
+                borderRadius: BorderRadius.circular(6),
+              ),
+              child: const Icon(
+                Icons.business_outlined,
+                color: _HomeColors.green,
+                size: 18,
+              ),
+            ),
+            const SizedBox(width: 10),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text(
+                    site.name,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _HomeColors.ink,
+                      fontSize: 13,
+                      fontWeight: FontWeight.w700,
+                    ),
+                  ),
+                  const SizedBox(height: 2),
+                  Text(
+                    site.zone?.name ?? site.adresse,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: const TextStyle(
+                      color: _HomeColors.muted,
+                      fontSize: 11,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Text(
+              '${site.nbAgent} agents',
+              style: const TextStyle(color: _HomeColors.muted, fontSize: 11),
+            ),
+          ],
+        ),
       ),
     );
   }
 }
 
-class _DashboardPlaceholderTile extends StatelessWidget {
-  const _DashboardPlaceholderTile({required this.label});
+class _PanelLink extends StatelessWidget {
+  const _PanelLink({required this.label, required this.onTap});
+
+  final String label;
+  final VoidCallback onTap;
+
+  @override
+  Widget build(BuildContext context) {
+    return Align(
+      alignment: Alignment.centerLeft,
+      child: TextButton.icon(
+        onPressed: onTap,
+        icon: const Icon(Icons.arrow_forward, size: 16),
+        label: Text(label),
+        style: TextButton.styleFrom(
+          foregroundColor: _HomeColors.primary,
+          padding: EdgeInsets.zero,
+          visualDensity: VisualDensity.compact,
+        ),
+      ),
+    );
+  }
+}
+
+class _EmptyPanelState extends StatelessWidget {
+  const _EmptyPanelState({required this.label});
 
   final String label;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(
-        color: AppConstants.secondaryColor,
-        borderRadius: BorderRadius.circular(20),
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 14),
+      child: Text(label, style: const TextStyle(color: _HomeColors.muted)),
+    );
+  }
+}
+
+class _LoadingState extends StatelessWidget {
+  const _LoadingState();
+
+  @override
+  Widget build(BuildContext context) {
+    return const Center(
+      child: SizedBox(
+        width: 32,
+        height: 32,
+        child: CircularProgressIndicator(strokeWidth: 3),
       ),
-      child: Text(
-        label,
-        style: const TextStyle(
+    );
+  }
+}
+
+class _ErrorState extends StatelessWidget {
+  const _ErrorState({required this.provider});
+
+  final HomeProvider provider;
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Container(
+        constraints: const BoxConstraints(maxWidth: 460),
+        margin: const EdgeInsets.all(24),
+        padding: const EdgeInsets.all(24),
+        decoration: BoxDecoration(
           color: Colors.white,
-          fontWeight: FontWeight.w600,
+          borderRadius: BorderRadius.circular(8),
+          border: Border.all(color: const Color(0xFFF3C5C5)),
+        ),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(Icons.error_outline, color: _HomeColors.red, size: 42),
+            const SizedBox(height: 14),
+            const Text(
+              'Impossible de charger le tableau de bord',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                color: _HomeColors.ink,
+                fontSize: 17,
+                fontWeight: FontWeight.w800,
+              ),
+            ),
+            const SizedBox(height: 8),
+            Text(
+              provider.errorMessage,
+              textAlign: TextAlign.center,
+              style: const TextStyle(color: _HomeColors.muted, fontSize: 13),
+            ),
+            const SizedBox(height: 18),
+            FilledButton.icon(
+              onPressed: provider.refresh,
+              icon: const Icon(Icons.refresh, size: 18),
+              label: const Text('Réessayer'),
+            ),
+          ],
         ),
       ),
     );

@@ -125,6 +125,15 @@ class MenuItemModel {
       section: MenuSection.pointage,
     ),
     MenuItemModel(
+      icon: HugeIcons.strokeRoundedChartEvaluation,
+      configKey: 'controle_pointages',
+      title: "Contrôle mensuel",
+      route: "/pointages/controle",
+      index: 21,
+      moduleName: ModuleName.POINTAGE_SITE,
+      section: MenuSection.pointage,
+    ),
+    MenuItemModel(
       icon: HugeIcons.strokeRoundedUserCheck01,
       configKey: 'pointage_agents',
       title: "Pointage Agents",

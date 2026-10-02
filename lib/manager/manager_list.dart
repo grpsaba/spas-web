@@ -54,8 +54,8 @@ class _ManagerListState extends State<ManagerList> {
         final docs = snapshot.data?.docs
             .map((e) => jsonDecode(jsonEncode(e.data())))
             .toList();
-        final managers = docs?.map((e) => Manager.fromJson(e)).toList() ??
-            <Manager>[];
+        final managers =
+            docs?.map((e) => Manager.fromJson(e)).toList() ?? <Manager>[];
         managers.sort((a, b) {
           final lastNameCompare = a.lastName.compareTo(b.lastName);
           return lastNameCompare != 0
@@ -302,16 +302,20 @@ class _ManagerTableCard extends StatelessWidget {
                   width: tableWidth,
                   child: PaginatedDataTable(
                     headingRowColor: WidgetStateProperty.all(
-                      const Color(0xFFF8FAFC),
+                      Colors.white,
                     ),
                     horizontalMargin: 20,
+
                     columnSpacing: 34,
                     rowsPerPage: rowsPerPage,
                     showFirstLastButtons: true,
                     showEmptyRows: false,
-                    header: _TableHeader(
-                      icon: HugeIcons.strokeRoundedUserList,
-                      title: 'Liste des utilisateurs',
+                    header: Container(
+                      color: Colors.white,
+                      child: const _TableHeader(
+                        icon: HugeIcons.strokeRoundedUserGroup,
+                        title: 'Liste des utilisateurs',
+                      ),
                     ),
                     actions: [
                       RowPerPageWidget(
@@ -376,6 +380,12 @@ class _ManagerDataSource extends DataTableSource {
     final hasActions = canEdit || canToggle;
 
     return DataRow(
+      color: WidgetStateProperty.resolveWith<Color?>((states) {
+        if (states.contains(WidgetState.hovered)) {
+          return const Color(0xFFF8FAFC);
+        }
+        return Colors.white;
+      }),
       cells: [
         DataCell(_UserIdentity(manager: manager)),
         DataCell(Text(manager.email)),
@@ -707,7 +717,16 @@ class _TableHeader extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Container(
+      height: double.infinity,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        color: Colors.white,
+        border: Border(
+          bottom: BorderSide(color: Color(0xFFE2E8F0)),
+        ),
+      ),
+    child: Row(
       children: [
         Icon(icon, color: Theme.of(context).primaryColor, size: 20),
         const SizedBox(width: 8),
@@ -720,7 +739,7 @@ class _TableHeader extends StatelessWidget {
           ),
         ),
       ],
-    );
+    ),);
   }
 }
 
@@ -808,7 +827,8 @@ class _MenuItemLabel extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final color = destructive ? const Color(0xFFDC2626) : const Color(0xFF334155);
+    final color =
+        destructive ? const Color(0xFFDC2626) : const Color(0xFF334155);
 
     return Row(
       children: [
