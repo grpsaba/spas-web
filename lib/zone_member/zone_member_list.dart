@@ -15,6 +15,7 @@ import '../pointage_redesign/presentation/widgets/error_display.dart';
 import '../pointage_redesign/models/pointage_exception.dart';
 import '../pointage_redesign/presentation/design_system.dart';
 import 'manual_zone_pointing_dialog.dart';
+import 'zone_member_card.dart';
 
 class ZoneMemberList extends StatefulWidget {
   const ZoneMemberList({super.key});
@@ -27,7 +28,7 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
   final ZoneMemberService _service = ZoneMemberService();
   final TextEditingController _searchController = TextEditingController();
   String _searchQuery = "";
-  
+
   @override
   void initState() {
     super.initState();
@@ -235,7 +236,8 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
           var docs = snapshot.data?.docs
               .map((e) => jsonDecode(jsonEncode(e.data())))
               .toList();
-          var allMembers = docs?.map((e) => ZoneMember.fromJson(e)).toList() ?? [];
+          var allMembers =
+              docs?.map((e) => ZoneMember.fromJson(e)).toList() ?? [];
 
           // Filter members based on search
           var filteredMembers = allMembers.where((member) {
@@ -244,6 +246,7 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
             return member.firstName.toLowerCase().contains(query) ||
                 member.lastName.toLowerCase().contains(query) ||
                 member.code.toLowerCase().contains(query) ||
+                member.email.toLowerCase().contains(query) ||
                 member.phone.toLowerCase().contains(query) ||
                 member.zoneScopeLabel.toLowerCase().contains(query);
           }).toList();
@@ -256,15 +259,15 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
                 // Header with actions
                 _buildHeader(context, allMembers),
                 const SizedBox(height: PointageSpacing.lg),
-                
+
                 // Search bar
                 _buildSearchBar(),
                 const SizedBox(height: PointageSpacing.lg),
-                
+
                 // Stats cards
                 _buildStatsCards(allMembers),
                 const SizedBox(height: PointageSpacing.lg),
-                
+
                 // Members grid
                 _buildMembersGrid(filteredMembers),
               ],
@@ -276,8 +279,9 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
   }
 
   Widget _buildHeader(BuildContext context, List<ZoneMember> allMembers) {
-    final canAdd = AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!.add;
-    
+    final canAdd =
+        AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!.add;
+
     return Container(
       padding: const EdgeInsets.all(PointageSpacing.lg),
       decoration: PointageCardDecorations.standard,
@@ -352,7 +356,7 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
       child: TextField(
         controller: _searchController,
         decoration: PointageInputDecorations.standard(
-          hintText: 'Rechercher par nom, prénom, code, téléphone ou zone...',
+          hintText: 'Rechercher par nom, email, code, téléphone ou zone...',
           prefixIcon: const Icon(Icons.search),
           suffixIcon: _searchQuery.isNotEmpty
               ? IconButton(
@@ -378,52 +382,51 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
   Widget _buildStatsCards(List<ZoneMember> allMembers) {
     final activeCount = allMembers.where((m) => m.actif == true).length;
     final inactiveCount = allMembers.length - activeCount;
-    final zones = allMembers.where((m) => m.zone != null).map((m) => m.zone!.codeZone).toSet().length;
+    final zones = allMembers
+        .where((m) => m.zone != null)
+        .map((m) => m.zone!.codeZone)
+        .toSet()
+        .length;
 
-    return Row(
-      children: [
-        Expanded(
-          child: _buildStatCard(
-            'Total',
-            allMembers.length.toString(),
-            Icons.people,
-            PointageColors.primary,
-          ),
-        ),
-        const SizedBox(width: PointageSpacing.md),
-        Expanded(
-          child: _buildStatCard(
-            'Actifs',
-            activeCount.toString(),
-            Icons.check_circle,
-            PointageColors.success,
-          ),
-        ),
-        const SizedBox(width: PointageSpacing.md),
-        Expanded(
-          child: _buildStatCard(
-            'Inactifs',
-            inactiveCount.toString(),
-            Icons.cancel,
-            PointageColors.error,
-          ),
-        ),
-        const SizedBox(width: PointageSpacing.md),
-        Expanded(
-          child: _buildStatCard(
-            'Zones',
-            zones.toString(),
-            Icons.location_on,
-            PointageColors.secondary,
-          ),
-        ),
-      ],
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final columns = constraints.maxWidth >= 980
+            ? 4
+            : constraints.maxWidth >= 560
+                ? 2
+                : 1;
+        final gap = PointageSpacing.md;
+        final cardWidth =
+            (constraints.maxWidth - (columns - 1) * gap) / columns;
+        final cards = [
+          _buildStatCard('Total', allMembers.length.toString(), Icons.people,
+              PointageColors.primary),
+          _buildStatCard('Actifs', activeCount.toString(), Icons.check_circle,
+              PointageColors.success),
+          _buildStatCard('Inactifs', inactiveCount.toString(), Icons.cancel,
+              PointageColors.error),
+          _buildStatCard('Zones', zones.toString(), Icons.location_on,
+              PointageColors.secondary),
+        ];
+
+        return Wrap(
+          spacing: gap,
+          runSpacing: gap,
+          children: cards
+              .map((card) => SizedBox(width: cardWidth, child: card))
+              .toList(),
+        );
+      },
     );
   }
 
-  Widget _buildStatCard(String label, String value, IconData icon, Color color) {
+  Widget _buildStatCard(
+      String label, String value, IconData icon, Color color) {
     return Container(
-      padding: const EdgeInsets.all(PointageSpacing.lg),
+      padding: const EdgeInsets.symmetric(
+        horizontal: PointageSpacing.md,
+        vertical: PointageSpacing.sm,
+      ),
       decoration: PointageCardDecorations.standard,
       child: Row(
         children: [
@@ -482,184 +485,23 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
       );
     }
 
-    return GridView.builder(
-      shrinkWrap: true,
-      physics: const NeverScrollableScrollPhysics(),
-      gridDelegate: const SliverGridDelegateWithFixedCrossAxisCount(
-        crossAxisCount: 3,
-        childAspectRatio: 1.5,
-        crossAxisSpacing: PointageSpacing.md,
-        mainAxisSpacing: PointageSpacing.md,
-      ),
-      itemCount: members.length,
-      itemBuilder: (context, index) {
-        return _buildMemberCard(members[index]);
-      },
+    return ZoneMemberCardGrid(
+      children: members.map(_buildMemberCard).toList(),
     );
   }
 
   Widget _buildMemberCard(ZoneMember member) {
-    final canEdit = AuthService.currentManager!.profil!.getModule(ModuleName.SUPERVISEUR)!.validation;
-    
-    return Container(
-      decoration: PointageCardDecorations.standard,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: [
-          // Header with status
-          Container(
-            padding: const EdgeInsets.all(PointageSpacing.md),
-            decoration: BoxDecoration(
-              color: member.actif == true 
-                  ? PointageColors.success.withValues(alpha: 0.1)
-                  : PointageColors.error.withValues(alpha: 0.1),
-              borderRadius: const BorderRadius.only(
-                topLeft: Radius.circular(12),
-                topRight: Radius.circular(12),
-              ),
-            ),
-            child: Row(
-              children: [
-                Container(
-                  padding: const EdgeInsets.all(PointageSpacing.sm),
-                  decoration: BoxDecoration(
-                    color: member.actif == true 
-                        ? PointageColors.success
-                        : PointageColors.error,
-                    shape: BoxShape.circle,
-                  ),
-                  child: Icon(
-                    member.actif == true ? Icons.check : Icons.close,
-                    color: Colors.white,
-                    size: 16,
-                  ),
-                ),
-                const SizedBox(width: PointageSpacing.sm),
-                Expanded(
-                  child: Text(
-                    member.actif == true ? 'Actif' : 'Inactif',
-                    style: PointageTextStyles.label.copyWith(
-                      color: member.actif == true 
-                          ? PointageColors.success
-                          : PointageColors.error,
-                    ),
-                  ),
-                ),
-                if (member.actif == true && canEdit)
-                  IconButton(
-                    icon: const Icon(Icons.edit, size: 18),
-                    onPressed: () {
-                      context.go("/chefszone/add", extra: member);
-                    },
-                    color: PointageColors.primary,
-                    tooltip: 'Modifier',
-                  ),
-              ],
-            ),
-          ),
-          
-          // Content
-          Expanded(
-            child: Padding(
-              padding: const EdgeInsets.all(PointageSpacing.md),
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  // Name
-                  Text(
-                    '${member.firstName} ${member.lastName}',
-                    style: PointageTextStyles.headline4,
-                    maxLines: 1,
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  const SizedBox(height: PointageSpacing.xs),
-                  
-                  // Zone
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.location_on,
-                        size: 16,
-                        color: PointageColors.textSecondary,
-                      ),
-                      const SizedBox(width: PointageSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          member.zoneScopeLabel,
-                          style: PointageTextStyles.body2.copyWith(
-                            color: PointageColors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  const SizedBox(height: PointageSpacing.xs),
-                  
-                  // Phone
-                  Row(
-                    children: [
-                      const Icon(
-                        Icons.phone,
-                        size: 16,
-                        color: PointageColors.textSecondary,
-                      ),
-                      const SizedBox(width: PointageSpacing.xs),
-                      Expanded(
-                        child: Text(
-                          member.phone,
-                          style: PointageTextStyles.body2.copyWith(
-                            color: PointageColors.textSecondary,
-                          ),
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                        ),
-                      ),
-                    ],
-                  ),
-                  
-                  if (member.poste != null && member.poste!.isNotEmpty) ...[
-                    const SizedBox(height: PointageSpacing.xs),
-                    Row(
-                      children: [
-                        const Icon(
-                          Icons.work_outline,
-                          size: 16,
-                          color: PointageColors.textSecondary,
-                        ),
-                        const SizedBox(width: PointageSpacing.xs),
-                        Expanded(
-                          child: Text(
-                            member.poste!,
-                            style: PointageTextStyles.body2.copyWith(
-                              color: PointageColors.textSecondary,
-                            ),
-                            maxLines: 1,
-                            overflow: TextOverflow.ellipsis,
-                          ),
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
-              ),
-            ),
-          ),
-          
-          // Footer with toggle
-          if (canEdit)
-            Container(
-              padding: const EdgeInsets.all(PointageSpacing.sm),
-              decoration: BoxDecoration(
-                border: Border(
-                  top: BorderSide(color: PointageColors.divider),
-                ),
-              ),
-              child: ZoneMemberStatut(zoneMember: member),
-            ),
-        ],
-      ),
+    final canEdit = AuthService.currentManager!.profil!
+        .getModule(ModuleName.SUPERVISEUR)!
+        .validation;
+
+    return ZoneMemberCard(
+      key: ValueKey(member.UID),
+      member: member,
+      onEdit: member.actif == true && canEdit
+          ? () => context.go('/chefszone/add', extra: member)
+          : null,
+      statusControl: canEdit ? ZoneMemberStatut(zoneMember: member) : null,
     );
   }
 }
@@ -667,7 +509,7 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
 /// Widget for zone member status toggle
 class ZoneMemberStatut extends StatefulWidget {
   final ZoneMember zoneMember;
-  
+
   const ZoneMemberStatut({super.key, required this.zoneMember});
 
   @override
@@ -676,64 +518,42 @@ class ZoneMemberStatut extends StatefulWidget {
 
 class _ZoneMemberStatutState extends State<ZoneMemberStatut> {
   bool _updating = false;
-  
+
   @override
   Widget build(BuildContext context) {
-    if (_updating) {
-      return const Center(
-        child: SizedBox(
-          width: 20,
-          height: 20,
-          child: CircularProgressIndicator(strokeWidth: 2),
-        ),
-      );
-    }
-
     final canToggle = AuthService.currentManager!.profil!
         .getModule(ModuleName.SUPERVISEUR)!
         .validation;
 
-    return SwitchListTile(
-      value: widget.zoneMember.actif ?? false,
-      onChanged: canToggle ? (value) => actifInactifAgent() : null,
-      title: Text(
-        widget.zoneMember.actif == true ? 'Activer' : 'Désactiver',
-        style: PointageTextStyles.body2,
-      ),
-      dense: true,
-      contentPadding: EdgeInsets.zero,
-      activeTrackColor: PointageColors.success.withValues(alpha: 0.5),
-      inactiveTrackColor: PointageColors.divider,
-      thumbColor: WidgetStateProperty.resolveWith((states) {
-        if (states.contains(WidgetState.selected)) {
-          return PointageColors.success;
-        }
-        return Colors.grey;
-      }),
+    return ZoneMemberStatusControl(
+      active: widget.zoneMember.actif == true,
+      updating: _updating,
+      onChanged: canToggle ? _setActive : null,
     );
   }
 
-  void actifInactifAgent() {
+  Future<void> _setActive(bool active) async {
+    if (_updating) return;
+    final member = widget.zoneMember;
+    final previous = member.actif;
     setState(() {
       _updating = true;
+      member.actif = active;
     });
 
-    // Detect if we're activating the zone member (wasInactive → actif)
-    final bool wasInactive = !widget.zoneMember.actif!;
-    widget.zoneMember.actif = widget.zoneMember.actif! ? false : true;
-
-    ZoneMemberService().update(widget.zoneMember).then((value) {
-      setState(() {
-        _updating = false;
-      });
-
-      // Activation only changes account availability. Pointings must come from
-      // mobile/manual pointing flows, never from status toggles.
-    }).onError((error, stackTrace) {
-      setState(() {
-        _updating = false;
-      });
-    });
+    // Activation only changes account availability, never pointings.
+    try {
+      await ZoneMemberService().update(member);
+    } catch (_) {
+      member.actif = previous;
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Impossible de modifier le statut.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _updating = false);
+    }
   }
 
   /// Generate monthly pointings for a newly activated zone member
@@ -836,7 +656,6 @@ class _ZoneMemberStatutState extends State<ZoneMemberStatut> {
   }
 }
 
-
 /// Button widget for manual pointing with glass smooth hover effect
 /// Uses design system styles for consistency
 class _ManualPointingButton extends StatefulWidget {
@@ -867,7 +686,7 @@ class _ManualPointingButtonState extends State<_ManualPointingButton> {
             vertical: PointageSpacing.md,
           ),
           decoration: BoxDecoration(
-            color: _isHovered 
+            color: _isHovered
                 ? PointageColors.warning.withValues(alpha: 0.1)
                 : Colors.transparent,
             border: Border.all(
@@ -882,8 +701,7 @@ class _ManualPointingButtonState extends State<_ManualPointingButton> {
             children: [
               AnimatedContainer(
                 duration: PointageAnimations.fast,
-                transform: Matrix4.identity()
-                  ..scale(_isHovered ? 1.1 : 1.0),
+                transform: Matrix4.identity()..scale(_isHovered ? 1.1 : 1.0),
                 child: Icon(
                   Icons.add_location_alt,
                   color: PointageColors.warning,
