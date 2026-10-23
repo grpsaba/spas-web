@@ -12,6 +12,11 @@ import 'package:spas_web/pointage_redesign/presentation/dialogs/modern_dialog.da
 import '../model.dart';
 import '../services/zone.dart';
 import '../services/zoneMember.dart';
+import '../agent/widgets/agent_department_field.dart';
+import '../services/department.dart';
+import '../services/tenant.dart';
+import '../services/tenant_scope.dart';
+import 'zone_member_scope_field.dart';
 
 /// Modern zone member form with design system
 /// Implements Requirements 7.1-7.7
@@ -40,6 +45,9 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
   bool _obscurePass = true;
   bool _isSubmitting = false;
   Zone? _selectedZone;
+  String? _selectedTenantId;
+  String? _selectedDepartmentId;
+  String _zoneScope = ZoneMemberScope.assigned;
   List<String> _validationErrors = [];
   
   // Animation state for sections
@@ -65,6 +73,11 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     _phoneCtrl.text = widget.zoneMember.phone;
     _passCtrl.text = widget.zoneMember.code;
     _selectedZone = widget.zoneMember.zone;
+    _selectedTenantId = widget.zoneMember.hasTenantId
+        ? widget.zoneMember.tenantId
+        : TenantScope.tenantIdForWrite;
+    _selectedDepartmentId = widget.zoneMember.departmentId;
+    _zoneScope = ZoneMemberScope.normalize(widget.zoneMember.zoneScope);
   }
 
   @override
@@ -98,8 +111,18 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
 
   void _collectValidationErrors() {
     _validationErrors.clear();
-    
-    if (_selectedZone == null) {
+
+    if (_selectedTenantId == null) {
+      _validationErrors.add('Pays obligatoire');
+    }
+    if (normalizeDepartmentId(_selectedDepartmentId).isEmpty) {
+      _validationErrors.add('Département obligatoire');
+    }
+    if (_zoneScope == ZoneMemberScope.global &&
+        normalizeDepartmentId(_selectedDepartmentId) != 'security') {
+      _validationErrors.add('Le périmètre global est réservé à la Sécurité');
+    }
+    if (_zoneScope != ZoneMemberScope.global && _selectedZone == null) {
       _validationErrors.add('Zone obligatoire');
     }
     if (_codeCtrl.text.trim().isEmpty) {
@@ -139,7 +162,13 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     });
 
     // Update zone member data
-    widget.zoneMember.zone = _selectedZone;
+    final isNewMember = _isNewMember;
+    widget.zoneMember.tenantId = _selectedTenantId!;
+    widget.zoneMember.hasTenantId = true;
+    widget.zoneMember.departmentId = _selectedDepartmentId;
+    widget.zoneMember.zoneScope = _zoneScope;
+    widget.zoneMember.zone =
+        _zoneScope == ZoneMemberScope.global ? null : _selectedZone;
     widget.zoneMember.poste = _postCtrl.text;
     widget.zoneMember.code = _codeCtrl.text;
     widget.zoneMember.firstName = _firstNameCtrl.text;
@@ -158,7 +187,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
 
       SuccessSnackbar.show(
         context,
-        message: _isNewMember
+        message: isNewMember
             ? 'Chef de zone créé avec succès'
             : 'Chef de zone mis à jour avec succès',
         icon: Icons.check_circle,
@@ -298,7 +327,25 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                 isExpanded: _assignmentExpanded,
                 onToggle: () => setState(() => _assignmentExpanded = !_assignmentExpanded),
                 children: [
-                  _buildZoneDropdown(),
+                  _buildTenantDropdown(),
+                  const SizedBox(height: PointageSpacing.md),
+                  _buildDepartmentDropdown(),
+                  const SizedBox(height: PointageSpacing.md),
+                  ZoneMemberScopeField(
+                    departmentId: _selectedDepartmentId,
+                    scope: _zoneScope,
+                    onChanged: (value) => setState(() => _zoneScope = value),
+                  ),
+                  if (_zoneScope == ZoneMemberScope.global)
+                    const Padding(
+                      padding: EdgeInsets.only(top: PointageSpacing.sm),
+                      child: Text(
+                          'Accès aux sites Sécurité de toutes les zones du pays sélectionné.'),
+                    )
+                  else ...[
+                    const SizedBox(height: PointageSpacing.md),
+                    _buildZoneDropdown(),
+                  ],
                   const SizedBox(height: PointageSpacing.md),
                   _buildTextField(
                     controller: _postCtrl,
@@ -393,27 +440,28 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
           ),
           const SizedBox(height: PointageSpacing.sm),
           ...(_validationErrors.map((error) => Padding(
-            padding: const EdgeInsets.only(left: PointageSpacing.lg, top: PointageSpacing.xs),
-            child: Row(
-              children: [
-                Container(
-                  width: 4,
-                  height: 4,
-                  decoration: const BoxDecoration(
-                    color: PointageColors.error,
-                    shape: BoxShape.circle,
-                  ),
+                padding: const EdgeInsets.only(
+                    left: PointageSpacing.lg, top: PointageSpacing.xs),
+                child: Row(
+                  children: [
+                    Container(
+                      width: 4,
+                      height: 4,
+                      decoration: const BoxDecoration(
+                        color: PointageColors.error,
+                        shape: BoxShape.circle,
+                      ),
+                    ),
+                    const SizedBox(width: PointageSpacing.sm),
+                    Text(
+                      error,
+                      style: PointageTextStyles.caption.copyWith(
+                        color: PointageColors.error,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(width: PointageSpacing.sm),
-                Text(
-                  error,
-                  style: PointageTextStyles.caption.copyWith(
-                    color: PointageColors.error,
-                  ),
-                ),
-              ],
-            ),
-          ))),
+              ))),
         ],
       ),
     );
@@ -587,6 +635,71 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     );
   }
 
+  Widget _buildTenantDropdown() {
+    return StreamBuilder(
+      stream: TenantService().all(),
+      builder: (context, snapshot) {
+        final tenants = snapshot.data?.docs
+                .map((doc) => Tenant.fromJson({
+                      ...Map<String, dynamic>.from(doc.data() as Map),
+                      'id': doc.id,
+                    }))
+                .where((tenant) =>
+                    TenantScope.matchesTenant(tenant.id) &&
+                    (tenant.active || tenant.id == _selectedTenantId))
+                .toList() ??
+            <Tenant>[];
+        final selected = tenants.any((tenant) => tenant.id == _selectedTenantId)
+            ? _selectedTenantId
+            : null;
+        return DropdownButtonFormField<String>(
+          key: ValueKey('tenant:$selected'),
+          initialValue: selected,
+          decoration: const InputDecoration(
+            labelText: 'Pays',
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.flag_outlined),
+          ),
+          items: tenants
+              .map((tenant) => DropdownMenuItem(
+                    value: tenant.id,
+                    child: Text(tenant.label),
+                  ))
+              .toList(),
+          onChanged: !_isNewMember && widget.zoneMember.hasTenantId
+              ? null
+              : (value) {
+                  setState(() {
+                    _selectedTenantId = value;
+                    _selectedZone = null;
+                  });
+                },
+          validator: (value) => value == null ? 'Pays obligatoire' : null,
+        );
+      },
+    );
+  }
+
+  Widget _buildDepartmentDropdown() {
+    return StreamBuilder(
+      stream: DepartmentService().all(),
+      builder: (context, snapshot) => AgentDepartmentField(
+        departments:
+            snapshot.data?.docs.map(DepartmentService.fromSnapshot) ?? [],
+        departmentId: _selectedDepartmentId,
+        onChanged: (department) {
+          setState(() {
+            _selectedDepartmentId = department.id;
+            if (normalizeDepartmentId(department.id) != 'security') {
+              _zoneScope = ZoneMemberScope.assigned;
+            }
+          });
+        },
+        onSaved: (department) => _selectedDepartmentId = department.id,
+      ),
+    );
+  }
+
   Widget _buildZoneDropdown() {
     return _AnimatedFormField(
       child: StreamBuilder(
@@ -621,7 +734,11 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
           final docs = snapshot.data?.docs
               .map((e) => jsonDecode(jsonEncode(e.data())))
               .toList();
-          final zones = docs?.map((e) => Zone.fromJson(e)).toList() ?? [];
+          final zones = docs
+                  ?.map((e) => Zone.fromJson(e))
+                  .where((zone) => zone.tenantId == _selectedTenantId)
+                  .toList() ??
+              [];
 
           // Find the currently selected zone in the list
           Zone? currentZone;
@@ -636,6 +753,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
           }
 
           return DropdownButtonFormField<Zone>(
+            key: ValueKey('zone:$_selectedTenantId:${currentZone?.codeZone}'),
             decoration: PointageInputDecorations.standard(
               labelText: 'Zone',
               prefixIcon: const Icon(Icons.location_city),

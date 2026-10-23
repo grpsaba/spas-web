@@ -395,7 +395,7 @@ class ZoneRapportPointage {
       
       summaryData.add({
         'zoneMember': zoneMember,
-        'manager': zoneMember.zone?.name ?? '-',
+        'manager': zoneMember.zoneScopeLabel,
         'assignedSites': nbSite,
         'completedVisits': completedVisits,
         'expected': expected,

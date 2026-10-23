@@ -414,14 +414,16 @@ class _PointageZoneState extends State<PointageZone> {
                               if (_sortAscending == true) {
                                 _sortAscending = false;
                                 data?.sort((p1, p2) {
-                                  return p1.zoneMember!.zone!.codeZone
-                                      .compareTo(p2.zoneMember!.zone!.codeZone);
+                                  return (p1.site.zone?.codeZone ?? '')
+                                      .compareTo(
+                                          (p2.site.zone?.codeZone ?? ''));
                                 });
                               } else {
                                 _sortAscending = true;
                                 data?.sort((p1, p2) {
-                                  return p2.zoneMember!.zone!.codeZone!
-                                      .compareTo(p1.zoneMember!.zone!.codeZone);
+                                  return (p2.site.zone?.codeZone ?? '')
+                                      .compareTo(
+                                          (p1.site.zone?.codeZone ?? ''));
                                 });
                               }
                             });
@@ -468,7 +470,7 @@ class _DataSource extends DataTableSource {
     data = data
         .where((element) =>
             (element.site.name.toLowerCase().contains(keyword.toLowerCase()) ||
-                element.zoneMember!.zone!.name
+                (element.site.zone?.name ?? '')
                     .toLowerCase()
                     .contains(keyword.toLowerCase()) ||
                 "${element.zoneMember!.firstName} ${element.zoneMember!.lastName}"
@@ -508,7 +510,7 @@ class _DataSource extends DataTableSource {
       DataCell(Text(pointage.site.name)),
       DataCell(Text(
           "${pointage.zoneMember!.firstName} ${pointage.zoneMember!.lastName}")),
-      DataCell(Text(pointage.zoneMember!.zone?.name ?? "")),
+      DataCell(Text(pointage.site.zone?.name ?? "")),
       DataCell(Text(pointage.zoneMember!.phone)),
     ]);
   }

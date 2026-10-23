@@ -825,7 +825,7 @@ class _ZoneMemberFilterDialogState extends State<_ZoneMemberFilterDialog> {
     final query = _searchQuery.toLowerCase();
     return widget.zoneMembers.where((zm) {
       final name = '${zm.firstName} ${zm.lastName}'.toLowerCase();
-      final zoneName = zm.zone?.name.toLowerCase() ?? '';
+      final zoneName = zm.zoneScopeLabel.toLowerCase();
       return name.contains(query) || zoneName.contains(query);
     }).toList();
   }
@@ -911,12 +911,10 @@ class _ZoneMemberFilterDialogState extends State<_ZoneMemberFilterDialog> {
                       '${zoneMember.firstName} ${zoneMember.lastName}',
                       style: PointageTextStyles.body2,
                     ),
-                    subtitle: zoneMember.zone != null
-                        ? Text(
-                            zoneMember.zone!.name,
-                            style: PointageTextStyles.caption,
-                          )
-                        : null,
+                    subtitle: Text(
+                      zoneMember.zoneScopeLabel,
+                      style: PointageTextStyles.caption,
+                    ),
                     activeColor: PointageColors.primary,
                   );
                 },

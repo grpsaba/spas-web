@@ -28,7 +28,7 @@ class _ZonePointageProgressBarState extends State<ZonePointageProgressBar> {
   }
 
   /*getNbSite() async {
-    List<Site> sites = await SiteService().allByZone(widget.zoneMember.zone!);
+    List<Site> sites = await SiteService().allSitesForZoneMember(widget.zoneMember);
 
     nbSite = sites.length;
   }*/
@@ -48,7 +48,7 @@ class _ZonePointageProgressBarState extends State<ZonePointageProgressBar> {
             final siteIds =
                 collection.map((pointing) => pointing.site.UID).toSet();
             return FutureBuilder(
-                future: SiteService().allByZone(widget.zoneMember.zone!),
+                future: SiteService().allSitesForZoneMember(widget.zoneMember),
                 builder: (context, snapshot) {
                   if (snapshot.hasData) {
                     var data = snapshot.data ?? [];

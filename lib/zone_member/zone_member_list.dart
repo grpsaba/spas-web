@@ -245,7 +245,7 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
                 member.lastName.toLowerCase().contains(query) ||
                 member.code.toLowerCase().contains(query) ||
                 member.phone.toLowerCase().contains(query) ||
-                (member.zone?.name.toLowerCase().contains(query) ?? false);
+                member.zoneScopeLabel.toLowerCase().contains(query);
           }).toList();
 
           return SingleChildScrollView(
@@ -585,7 +585,7 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
                       const SizedBox(width: PointageSpacing.xs),
                       Expanded(
                         child: Text(
-                          member.zone?.name ?? 'Aucune zone',
+                          member.zoneScopeLabel,
                           style: PointageTextStyles.body2.copyWith(
                             color: PointageColors.textSecondary,
                           ),
