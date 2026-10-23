@@ -20,10 +20,15 @@ class ZoneMemberScopeField extends StatelessWidget {
     return DropdownButtonFormField<String>(
       key: ValueKey('$departmentId:$scope'),
       initialValue: scope,
-      decoration: const InputDecoration(
+      isExpanded: true,
+      decoration: InputDecoration(
         labelText: 'Périmètre des sites',
-        border: OutlineInputBorder(),
-        prefixIcon: Icon(Icons.public),
+        border: const OutlineInputBorder(),
+        prefixIcon: const Icon(Icons.public),
+        helperText: isSecurity
+            ? 'Une zone précise ou toutes les zones du pays sélectionné.'
+            : 'Sélectionnez le département Sécurité pour accéder à toutes les zones.',
+        helperMaxLines: 3,
       ),
       items: [
         const DropdownMenuItem(

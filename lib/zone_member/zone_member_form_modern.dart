@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:email_validator/email_validator.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -16,7 +14,8 @@ import '../agent/widgets/agent_department_field.dart';
 import '../services/department.dart';
 import '../services/tenant.dart';
 import '../services/tenant_scope.dart';
-import 'zone_member_scope_field.dart';
+import '../services/department_scope.dart';
+import 'zone_member_site_scope_fields.dart';
 
 /// Modern zone member form with design system
 /// Implements Requirements 7.1-7.7
@@ -31,7 +30,11 @@ class ZoneMemberFormModern extends StatefulWidget {
 
 class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
-  
+  late final _tenantStream = TenantService().all();
+  late final _departmentStream = DepartmentService().all();
+  Stream<List<Zone>>? _zoneStream;
+  String? _zoneStreamTenantId;
+
   // Controllers
   final TextEditingController _codeCtrl = TextEditingController();
   final TextEditingController _firstNameCtrl = TextEditingController();
@@ -40,7 +43,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
   final TextEditingController _emailCtrl = TextEditingController();
   final TextEditingController _passCtrl = TextEditingController();
   final TextEditingController _postCtrl = TextEditingController();
-  
+
   // State
   bool _obscurePass = true;
   bool _isSubmitting = false;
@@ -49,7 +52,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
   String? _selectedDepartmentId;
   String _zoneScope = ZoneMemberScope.assigned;
   List<String> _validationErrors = [];
-  
+
   // Animation state for sections
   bool _personalInfoExpanded = true;
   bool _assignmentExpanded = true;
@@ -75,8 +78,13 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     _selectedZone = widget.zoneMember.zone;
     _selectedTenantId = widget.zoneMember.hasTenantId
         ? widget.zoneMember.tenantId
-        : TenantScope.tenantIdForWrite;
+        : (TenantScope.tenantIdForWrite ?? TenantScope.currentTenantId);
     _selectedDepartmentId = widget.zoneMember.departmentId;
+    if (_isNewMember &&
+        normalizeDepartmentId(_selectedDepartmentId).isEmpty &&
+        DepartmentScope.matchesDepartment('security')) {
+      _selectedDepartmentId = 'security';
+    }
     _zoneScope = ZoneMemberScope.normalize(widget.zoneMember.zoneScope);
   }
 
@@ -150,7 +158,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
 
   Future<void> _submit() async {
     _collectValidationErrors();
-    
+
     if (!_formKey.currentState!.validate() || _validationErrors.isNotEmpty) {
       setState(() {});
       return;
@@ -193,10 +201,10 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
         icon: Icons.check_circle,
       );
 
-      context.pop();
+      context.go('/chefszone');
     } catch (error) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString()),
@@ -250,10 +258,10 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
         icon: Icons.delete,
       );
 
-      context.pop();
+      context.go('/chefszone');
     } catch (error) {
       if (!mounted) return;
-      
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: Text(error.toString()),
@@ -281,18 +289,30 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: [
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed:
+                      _isSubmitting ? null : () => context.go('/chefszone'),
+                  icon: const Icon(Icons.arrow_back),
+                  label: const Text('Retour à la liste'),
+                  style: PointageButtonStyles.text,
+                ),
+              ),
+              const SizedBox(height: PointageSpacing.sm),
               // Validation errors summary
               if (_validationErrors.isNotEmpty) ...[
                 _buildErrorSummary(),
                 const SizedBox(height: PointageSpacing.lg),
               ],
-              
+
               // Personal Information Section
               _buildSectionCard(
                 title: 'Informations personnelles',
                 icon: Icons.person_outline,
                 isExpanded: _personalInfoExpanded,
-                onToggle: () => setState(() => _personalInfoExpanded = !_personalInfoExpanded),
+                onToggle: () => setState(
+                    () => _personalInfoExpanded = !_personalInfoExpanded),
                 children: [
                   _buildFormRow([
                     _buildTextField(
@@ -317,35 +337,34 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: PointageSpacing.lg),
-              
+
               // Assignment Section
               _buildSectionCard(
                 title: 'Affectation',
                 icon: Icons.location_on_outlined,
                 isExpanded: _assignmentExpanded,
-                onToggle: () => setState(() => _assignmentExpanded = !_assignmentExpanded),
+                onToggle: () =>
+                    setState(() => _assignmentExpanded = !_assignmentExpanded),
                 children: [
                   _buildTenantDropdown(),
                   const SizedBox(height: PointageSpacing.md),
                   _buildDepartmentDropdown(),
                   const SizedBox(height: PointageSpacing.md),
-                  ZoneMemberScopeField(
+                  ZoneMemberSiteScopeFields(
+                    tenantId: _selectedTenantId,
                     departmentId: _selectedDepartmentId,
                     scope: _zoneScope,
-                    onChanged: (value) => setState(() => _zoneScope = value),
+                    selectedZone: _selectedZone,
+                    zones: _zonesForSelectedTenant(),
+                    onScopeChanged: (value) => setState(() {
+                      _zoneScope = value;
+                      if (value == ZoneMemberScope.global) _selectedZone = null;
+                    }),
+                    onZoneChanged: (value) =>
+                        setState(() => _selectedZone = value),
                   ),
-                  if (_zoneScope == ZoneMemberScope.global)
-                    const Padding(
-                      padding: EdgeInsets.only(top: PointageSpacing.sm),
-                      child: Text(
-                          'Accès aux sites Sécurité de toutes les zones du pays sélectionné.'),
-                    )
-                  else ...[
-                    const SizedBox(height: PointageSpacing.md),
-                    _buildZoneDropdown(),
-                  ],
                   const SizedBox(height: PointageSpacing.md),
                   _buildTextField(
                     controller: _postCtrl,
@@ -355,15 +374,16 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                   ),
                 ],
               ),
-              
+
               const SizedBox(height: PointageSpacing.lg),
-              
+
               // Contact Section
               _buildSectionCard(
                 title: 'Contact',
                 icon: Icons.contact_phone_outlined,
                 isExpanded: _contactExpanded,
-                onToggle: () => setState(() => _contactExpanded = !_contactExpanded),
+                onToggle: () =>
+                    setState(() => _contactExpanded = !_contactExpanded),
                 children: [
                   _buildTextField(
                     controller: _phoneCtrl,
@@ -382,7 +402,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                   ),
                 ],
               ),
-              
+
               // Authentication Section (only for new members)
               if (_isNewMember) ...[
                 const SizedBox(height: PointageSpacing.lg),
@@ -390,15 +410,16 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                   title: 'Authentification',
                   icon: Icons.lock_outline,
                   isExpanded: _authExpanded,
-                  onToggle: () => setState(() => _authExpanded = !_authExpanded),
+                  onToggle: () =>
+                      setState(() => _authExpanded = !_authExpanded),
                   children: [
                     _buildPasswordField(),
                   ],
                 ),
               ],
-              
+
               const SizedBox(height: PointageSpacing.xl),
-              
+
               // Action Buttons
               _buildActionButtons(),
             ],
@@ -407,7 +428,6 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
       ),
     );
   }
-
 
   Widget _buildErrorSummary() {
     return AnimatedContainer(
@@ -486,8 +506,10 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
             borderRadius: BorderRadius.only(
               topLeft: Radius.circular(PointageBorderRadius.lg),
               topRight: Radius.circular(PointageBorderRadius.lg),
-              bottomLeft: Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
-              bottomRight: Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
+              bottomLeft:
+                  Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
+              bottomRight:
+                  Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
             ),
             child: Container(
               padding: const EdgeInsets.all(PointageSpacing.md),
@@ -496,8 +518,10 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                 borderRadius: BorderRadius.only(
                   topLeft: Radius.circular(PointageBorderRadius.lg),
                   topRight: Radius.circular(PointageBorderRadius.lg),
-                  bottomLeft: Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
-                  bottomRight: Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
+                  bottomLeft:
+                      Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
+                  bottomRight:
+                      Radius.circular(isExpanded ? 0 : PointageBorderRadius.lg),
                 ),
               ),
               child: Row(
@@ -533,7 +557,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
               ),
             ),
           ),
-          
+
           // Section content
           AnimatedCrossFade(
             firstChild: Padding(
@@ -559,16 +583,18 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
       padding: const EdgeInsets.only(bottom: PointageSpacing.md),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
-        children: children.map((child) => Expanded(
-          child: Padding(
-            padding: EdgeInsets.only(
-              right: children.indexOf(child) < children.length - 1
-                  ? PointageSpacing.md
-                  : 0,
-            ),
-            child: child,
-          ),
-        )).toList(),
+        children: children
+            .map((child) => Expanded(
+                  child: Padding(
+                    padding: EdgeInsets.only(
+                      right: children.indexOf(child) < children.length - 1
+                          ? PointageSpacing.md
+                          : 0,
+                    ),
+                    child: child,
+                  ),
+                ))
+            .toList(),
       ),
     );
   }
@@ -637,7 +663,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
 
   Widget _buildTenantDropdown() {
     return StreamBuilder(
-      stream: TenantService().all(),
+      stream: _tenantStream,
       builder: (context, snapshot) {
         final tenants = snapshot.data?.docs
                 .map((doc) => Tenant.fromJson({
@@ -655,10 +681,20 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
         return DropdownButtonFormField<String>(
           key: ValueKey('tenant:$selected'),
           initialValue: selected,
-          decoration: const InputDecoration(
+          isExpanded: true,
+          hint: const Text('Choisir un pays'),
+          decoration: InputDecoration(
             labelText: 'Pays',
-            border: OutlineInputBorder(),
-            prefixIcon: Icon(Icons.flag_outlined),
+            border: const OutlineInputBorder(),
+            prefixIcon: const Icon(Icons.flag_outlined),
+            helperText: snapshot.hasError
+                ? 'Impossible de charger les pays. Rechargez la page.'
+                : !snapshot.hasData
+                    ? 'Chargement des pays…'
+                    : tenants.isEmpty
+                        ? 'Aucun pays disponible.'
+                        : null,
+            helperMaxLines: 3,
           ),
           items: tenants
               .map((tenant) => DropdownMenuItem(
@@ -682,7 +718,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
 
   Widget _buildDepartmentDropdown() {
     return StreamBuilder(
-      stream: DepartmentService().all(),
+      stream: _departmentStream,
       builder: (context, snapshot) => AgentDepartmentField(
         departments:
             snapshot.data?.docs.map(DepartmentService.fromSnapshot) ?? [],
@@ -700,106 +736,39 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     );
   }
 
-  Widget _buildZoneDropdown() {
-    return _AnimatedFormField(
-      child: StreamBuilder(
-        stream: ZoneService().all(),
-        builder: (context, snapshot) {
-          if (!snapshot.hasData) {
-            return Container(
-              padding: const EdgeInsets.all(PointageSpacing.md),
-              decoration: BoxDecoration(
-                border: Border.all(color: PointageColors.divider),
-                borderRadius: PointageBorderRadius.medium,
-              ),
-              child: Row(
-                children: [
-                  const SizedBox(
-                    width: 20,
-                    height: 20,
-                    child: CircularProgressIndicator(strokeWidth: 2),
-                  ),
-                  const SizedBox(width: PointageSpacing.md),
-                  Text(
-                    'Chargement des zones...',
-                    style: PointageTextStyles.body2.copyWith(
-                      color: PointageColors.textSecondary,
-                    ),
-                  ),
-                ],
-              ),
-            );
-          }
-
-          final docs = snapshot.data?.docs
-              .map((e) => jsonDecode(jsonEncode(e.data())))
-              .toList();
-          final zones = docs
-                  ?.map((e) => Zone.fromJson(e))
-                  .where((zone) => zone.tenantId == _selectedTenantId)
-                  .toList() ??
-              [];
-
-          // Find the currently selected zone in the list
-          Zone? currentZone;
-          if (_selectedZone != null) {
-            try {
-              currentZone = zones.firstWhere(
-                (z) => z.codeZone == _selectedZone!.codeZone,
-              );
-            } catch (_) {
-              currentZone = null;
-            }
-          }
-
-          return DropdownButtonFormField<Zone>(
-            key: ValueKey('zone:$_selectedTenantId:${currentZone?.codeZone}'),
-            decoration: PointageInputDecorations.standard(
-              labelText: 'Zone',
-              prefixIcon: const Icon(Icons.location_city),
-            ),
-            value: currentZone,
-            isExpanded: true,
-            items: zones.map((Zone zone) => DropdownMenuItem<Zone>(
-              value: zone,
-              child: Text(zone.name),
-            )).toList(),
-            onChanged: (value) {
-              setState(() {
-                _selectedZone = value;
-              });
-            },
-            validator: (value) {
-              if (value == null) {
-                return 'Zone obligatoire';
-              }
-              return null;
-            },
+  Stream<List<Zone>> _zonesForSelectedTenant() {
+    if (_zoneStream == null || _zoneStreamTenantId != _selectedTenantId) {
+      _zoneStreamTenantId = _selectedTenantId;
+      _zoneStream = ZoneService().all(tenantId: _selectedTenantId).map(
+            (snapshot) => snapshot.docs
+                .map((doc) =>
+                    Zone.fromJson(Map<String, dynamic>.from(doc.data() as Map)))
+                .toList(),
           );
-        },
-      ),
-    );
+    }
+    return _zoneStream!;
   }
 
   Widget _buildActionButtons() {
     final canDelete = !_isNewMember &&
         AuthService.currentManager?.profil
-            ?.getModule(ModuleName.SUPERVISEUR)
-            ?.delete == true;
+                ?.getModule(ModuleName.SUPERVISEUR)
+                ?.delete ==
+            true;
 
     return Row(
       mainAxisAlignment: MainAxisAlignment.end,
       children: [
         // Cancel button
         OutlinedButton.icon(
-          onPressed: _isSubmitting ? null : () => context.pop(),
+          onPressed: _isSubmitting ? null : () => context.go('/chefszone'),
           icon: const Icon(Icons.close),
           label: const Text('Annuler'),
           style: PointageButtonStyles.outlined,
         ),
-        
+
         const SizedBox(width: PointageSpacing.md),
-        
+
         // Delete button (only for existing members with permission)
         if (canDelete) ...[
           _HoverButton(
@@ -816,7 +785,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
           ),
           const SizedBox(width: PointageSpacing.md),
         ],
-        
+
         // Submit button
         ElevatedButton.icon(
           onPressed: _isSubmitting ? null : _submit,
@@ -837,7 +806,6 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     );
   }
 }
-
 
 /// Animated form field with glass smooth hover effect
 class _AnimatedFormField extends StatefulWidget {
@@ -888,9 +856,8 @@ class _HoverButtonState extends State<_HoverButton> {
 
   @override
   Widget build(BuildContext context) {
-    final baseColor = widget.isDestructive
-        ? PointageColors.error
-        : PointageColors.primary;
+    final baseColor =
+        widget.isDestructive ? PointageColors.error : PointageColors.primary;
 
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),

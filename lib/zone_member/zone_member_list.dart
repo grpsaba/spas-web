@@ -16,6 +16,7 @@ import '../pointage_redesign/models/pointage_exception.dart';
 import '../pointage_redesign/presentation/design_system.dart';
 import 'manual_zone_pointing_dialog.dart';
 import 'zone_member_card.dart';
+import 'zone_member_list_actions.dart';
 
 class ZoneMemberList extends StatefulWidget {
   const ZoneMemberList({super.key});
@@ -281,71 +282,72 @@ class _ZoneMemberListState extends State<ZoneMemberList> {
   Widget _buildHeader(BuildContext context, List<ZoneMember> allMembers) {
     final canAdd =
         AuthService.currentManager!.profil!.getModule(ModuleName.SITE)!.add;
+    final heading = Row(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(PointageSpacing.md),
+          decoration: BoxDecoration(
+            color: PointageColors.primary.withValues(alpha: 0.1),
+            borderRadius: PointageBorderRadius.medium,
+          ),
+          child: const Icon(Icons.people_outline,
+              color: PointageColors.primary, size: 32),
+        ),
+        const SizedBox(width: PointageSpacing.md),
+        Expanded(
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              const Text('Chefs de zone', style: PointageTextStyles.headline3),
+              Text('Gérez les chefs de zone et leurs pointages',
+                  style: PointageTextStyles.body2.copyWith(
+                    color: PointageColors.textSecondary,
+                  )),
+            ],
+          ),
+        ),
+      ],
+    );
+    final actions = ZoneMemberListActions(
+      onManualPointing: () => context.go('/chefszone/pointing'),
+      onAdd: () {
+        final member = ZoneMember(
+          UID: '',
+          code: '',
+          firstName: '',
+          lastName: '',
+          phone: '',
+          email: '',
+          actif: false,
+          poste: '',
+          zone: null,
+        );
+        context.go('/chefszone/add', extra: member);
+      },
+    );
 
     return Container(
       padding: const EdgeInsets.all(PointageSpacing.lg),
       decoration: PointageCardDecorations.standard,
-      child: Row(
-        children: [
-          Container(
-            padding: const EdgeInsets.all(PointageSpacing.md),
-            decoration: BoxDecoration(
-              color: PointageColors.primary.withValues(alpha: 0.1),
-              borderRadius: PointageBorderRadius.medium,
-            ),
-            child: const Icon(
-              Icons.people_outline,
-              color: PointageColors.primary,
-              size: 32,
-            ),
-          ),
+      child: LayoutBuilder(builder: (context, constraints) {
+        if (!canAdd) return heading;
+        if (constraints.maxWidth < 800 ||
+            MediaQuery.textScalerOf(context).scale(14) > 18) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              heading,
+              const SizedBox(height: PointageSpacing.md),
+              actions,
+            ],
+          );
+        }
+        return Row(children: [
+          Expanded(child: heading),
           const SizedBox(width: PointageSpacing.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                const Text(
-                  'Chefs de zone',
-                  style: PointageTextStyles.headline3,
-                ),
-                Text(
-                  'Gérez les chefs de zone et leurs pointages',
-                  style: PointageTextStyles.body2.copyWith(
-                    color: PointageColors.textSecondary,
-                  ),
-                ),
-              ],
-            ),
-          ),
-          if (canAdd) ...[
-            _ManualPointingButton(
-              onPressed: () {
-                context.go('/chefszone/pointing');
-              },
-            ),
-            const SizedBox(width: PointageSpacing.md),
-            ElevatedButton.icon(
-              onPressed: () {
-                ZoneMember zm = ZoneMember(
-                  UID: '',
-                  code: '',
-                  firstName: '',
-                  lastName: '',
-                  phone: '',
-                  email: '',
-                  actif: false,
-                  poste: '',
-                  zone: null,
-                );
-                context.go("/chefszone/add", extra: zm);
-              },
-              icon: const Icon(Icons.add),
-              label: const Text('Ajouter'),
-              style: PointageButtonStyles.primary,
-            ),
-          ],
-        ],
-      ),
+          actions,
+        ]);
+      }),
     );
   }
 
@@ -653,72 +655,5 @@ class _ZoneMemberStatutState extends State<ZoneMemberStatut> {
         );
       }
     }
-  }
-}
-
-/// Button widget for manual pointing with glass smooth hover effect
-/// Uses design system styles for consistency
-class _ManualPointingButton extends StatefulWidget {
-  final VoidCallback onPressed;
-
-  const _ManualPointingButton({required this.onPressed});
-
-  @override
-  State<_ManualPointingButton> createState() => _ManualPointingButtonState();
-}
-
-class _ManualPointingButtonState extends State<_ManualPointingButton> {
-  bool _isHovered = false;
-
-  @override
-  Widget build(BuildContext context) {
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      cursor: SystemMouseCursors.click,
-      child: GestureDetector(
-        onTap: widget.onPressed,
-        child: AnimatedContainer(
-          duration: PointageAnimations.fast,
-          curve: PointageAnimations.defaultCurve,
-          padding: const EdgeInsets.symmetric(
-            horizontal: PointageSpacing.lg,
-            vertical: PointageSpacing.md,
-          ),
-          decoration: BoxDecoration(
-            color: _isHovered
-                ? PointageColors.warning.withValues(alpha: 0.1)
-                : Colors.transparent,
-            border: Border.all(
-              color: PointageColors.warning,
-              width: _isHovered ? 2.0 : 1.5,
-            ),
-            borderRadius: PointageBorderRadius.medium,
-            boxShadow: _isHovered ? PointageShadows.sm : null,
-          ),
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              AnimatedContainer(
-                duration: PointageAnimations.fast,
-                transform: Matrix4.identity()..scale(_isHovered ? 1.1 : 1.0),
-                child: Icon(
-                  Icons.add_location_alt,
-                  color: PointageColors.warning,
-                  size: _isHovered ? 22 : 20,
-                ),
-              ),
-              const SizedBox(width: PointageSpacing.sm),
-              Text(
-                'Pointage manuel',
-                style: PointageTextStyles.button.copyWith(
-                  color: PointageColors.warning,
-                ),
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
   }
 }
