@@ -14,6 +14,7 @@ import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/agent_photo.dart';
 import 'widgets/agent_photo_field.dart';
+import 'widgets/agent_department_field.dart';
 
 class AddAgent extends StatefulWidget {
   AddAgent({
@@ -121,6 +122,11 @@ class _AddSupervisorState extends State<AddAgent> {
     }
   }
 
+  void _setDepartment(Department department) {
+    widget.agent.department = department;
+    widget.agent.departmentId = normalizeDepartmentId(department.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
@@ -151,46 +157,13 @@ class _AddSupervisorState extends State<AddAgent> {
                     stream: DepartmentService().all(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        List<Department>? data = snapshot.data?.docs
-                            .map(DepartmentService.fromSnapshot)
-                            .toList();
-
-                        final matches = data
-                            ?.where((department) =>
-                                department.id ==
-                                (widget.agent.departmentId ??
-                                    widget.agent.department?.id))
-                            .toList();
-
-                        return DropdownButtonFormField<Department>(
-                          hint: const Text("Département"),
-                          decoration: const InputDecoration(
-                              hintText: "Département",
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.apartment)),
-                          validator: (value) {
-                            return value != null
-                                ? null
-                                : "Département obligatoir";
-                          },
-                          isExpanded: true,
-                          value: matches != null && matches.isNotEmpty
-                              ? matches.first
-                              : null,
-                          items: data
-                              ?.map((Department department) =>
-                                  DropdownMenuItem<Department>(
-                                      value: department,
-                                      child: Text(department.label)))
-                              .toList(),
-                          onChanged: (value) {
-                            widget.agent.department = value!;
-                            widget.agent.departmentId = value.id;
-                          },
-                          onSaved: (value) {
-                            widget.agent.department = value!;
-                            widget.agent.departmentId = value.id;
-                          },
+                        return AgentDepartmentField(
+                          departments: snapshot.data!.docs
+                              .map(DepartmentService.fromSnapshot),
+                          departmentId: widget.agent.departmentId ??
+                              widget.agent.department?.id,
+                          onChanged: _setDepartment,
+                          onSaved: _setDepartment,
                         );
                       } else {
                         return const Text(
