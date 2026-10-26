@@ -979,11 +979,10 @@ class ReportGenerator {
 
       final Map<String, int> siteCounts = {};
       for (var zoneMember in zoneMembers) {
-        if (zoneMember.zone != null) {
+        if (zoneMember.hasSiteScope) {
           // Count sites in this zone
-          final count =
-              await _siteService.allSitesCountByZone(zoneMember.zone!);
-          siteCounts[zoneMember.UID] = count ?? 0;
+          final count = await _siteService.countSitesForZoneMember(zoneMember);
+          siteCounts[zoneMember.UID] = count;
         } else {
           siteCounts[zoneMember.UID] = 0;
         }
@@ -1271,7 +1270,7 @@ class ReportGenerator {
         // Zone name and site count
         sheet
             .getRangeByIndex(rowIndex, 5)
-            .setText("${zoneMember.zone?.name ?? 'N/A'} ($nbSite sites)");
+            .setText("${zoneMember.zoneScopeLabel} ($nbSite sites)");
         sheet.getRangeByIndex(rowIndex, 5).cellStyle = rowStyle;
 
         // Daily pointages
@@ -1355,7 +1354,7 @@ class ReportGenerator {
           maxPointage.toString(),
           nbPointages.toString(),
           "${performance.toStringAsFixed(1)}%",
-          "${zoneMember.zone?.name ?? 'N/A'} ($nbSite sites)",
+          "${zoneMember.zoneScopeLabel} ($nbSite sites)",
         ];
 
         // Add daily pointages

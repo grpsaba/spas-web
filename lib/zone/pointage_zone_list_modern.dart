@@ -595,7 +595,7 @@ class ModernZonePointageTable extends StatelessWidget {
         cells: [
           DataCell(_ZoneMemberCell(zoneMember: pointage.zoneMember)),
           DataCell(_SiteCell(site: pointage.site)),
-          DataCell(_ZoneCell(zone: pointage.zoneMember?.zone)),
+          DataCell(_ZoneCell(zone: pointage.site.zone)),
           DataCell(_DateChip(date: pointage.date)),
           DataCell(_TimeChip(date: pointage.date)),
           DataCell(_DistanceChip(distance: pointage.distance)),

@@ -741,6 +741,15 @@ class Zone extends Equatable {
 //
 }
 
+class ZoneMemberScope {
+  static const String assigned = 'assigned';
+  static const String global = 'global';
+
+  static String normalize(Object? value) {
+    return value == global ? global : assigned;
+  }
+}
+
 class ZoneMember extends Equatable {
   String UID;
   String code;
@@ -753,7 +762,9 @@ class ZoneMember extends Equatable {
   Zone? zone;
   String token;
   String tenantId;
+  bool hasTenantId;
   String? departmentId;
+  String zoneScope;
   ZoneMember(
       {required this.UID,
       required this.code,
@@ -765,7 +776,9 @@ class ZoneMember extends Equatable {
       required this.poste,
       required this.zone,
       this.tenantId = TenantDefaults.defaultTenantId,
+      this.hasTenantId = false,
       this.departmentId,
+      this.zoneScope = ZoneMemberScope.assigned,
       this.token = ""});
 
   factory ZoneMember.fromJson(Map<String, dynamic> json) {
@@ -778,10 +791,12 @@ class ZoneMember extends Equatable {
       email: json["email"],
       token: json["token"],
       actif: json['actif'] ?? true,
-      tenantId: tenantIdFromJson(json),
-      departmentId: departmentIdFromJson(json),
       poste: json['poste'],
-      zone: Zone.fromJson(json['zone']),
+      zone: json['zone'] == null ? null : Zone.fromJson(json['zone']),
+      tenantId: tenantIdFromJson(json),
+      hasTenantId: hasTenantIdInJson(json),
+      departmentId: departmentIdFromJson(json),
+      zoneScope: ZoneMemberScope.normalize(json['zoneScope']),
     );
   }
 
@@ -797,10 +812,27 @@ class ZoneMember extends Equatable {
       "zone": zone?.toJson(),
       "tenantId": effectiveTenantId(tenantId, [zone?.tenantId]),
       "departmentId": departmentId,
+      "zoneScope": zoneScope,
       'actif': actif,
       "poste": poste
     };
   }
+
+  bool get hasGlobalZoneAccess =>
+      ZoneMemberScope.normalize(zoneScope) == ZoneMemberScope.global &&
+      normalizeDepartmentId(departmentId) == 'security';
+
+  bool get hasSiteScope =>
+      hasTenantId &&
+      tenantId.trim().isNotEmpty &&
+      normalizeDepartmentId(departmentId).isNotEmpty &&
+      (zoneScope == ZoneMemberScope.global
+          ? hasGlobalZoneAccess
+          : (zone?.codeZone.trim().isNotEmpty ?? false));
+
+  String get zoneScopeLabel => hasGlobalZoneAccess
+      ? 'Toutes les zones · Sécurité'
+      : (zone?.name ?? 'Aucune zone');
 
   @override
   // TODO: implement props

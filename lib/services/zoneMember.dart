@@ -17,15 +17,15 @@ class ZoneMemberService {
       );
 
   Future<User?> add(ZoneMember zoneMember, password) async {
-    TenantScope.applyTenantIdForWrite(zoneMember);
+    _prepareForWrite(zoneMember);
     var user =
         await AuthService().createUserWithEmail(zoneMember.email, password);
     if (user != null) {
       zoneMember.UID = user.uid;
-      _collectionReference
-          .doc(user.uid)
-          .set(zoneMember.toJson())
-          .onError((error, stackTrace) => print(error));
+      await _collectionReference.doc(user.uid).set(zoneMember.toJson());
+    }
+    if (user == null) {
+      throw StateError('Impossible de créer le compte du chef de zone');
     }
     return user;
   }
@@ -76,8 +76,28 @@ class ZoneMemberService {
   }
 
   Future<void> update(ZoneMember zoneMember) {
-    TenantScope.applyTenantIdForWrite(zoneMember);
+    _prepareForWrite(zoneMember);
     return _collectionReference.doc(zoneMember.UID).update(zoneMember.toJson());
+  }
+
+  void _prepareForWrite(ZoneMember member) {
+    // Existing profiles must not silently move countries when an admin changes
+    // the country filter while their edit form is open.
+    if (member.UID.isEmpty && !member.hasTenantId) {
+      TenantScope.applyTenantIdForWrite(member);
+    }
+    member.departmentId = normalizeDepartmentId(member.departmentId);
+    if (!member.hasSiteScope ||
+        !TenantScope.matchesTenant(member.tenantId) ||
+        !DepartmentScope.matchesDepartment(member.departmentId)) {
+      throw StateError(
+          'Affectation invalide : pays, département et périmètre requis. Le mode global est réservé à la Sécurité.');
+    }
+    if (!member.hasGlobalZoneAccess &&
+        member.zone?.tenantId != member.tenantId) {
+      throw StateError('La zone doit appartenir au pays du chef de zone');
+    }
+    if (member.hasGlobalZoneAccess) member.zone = null;
   }
 
   Future<void> saveToken(String? token, String UID) {

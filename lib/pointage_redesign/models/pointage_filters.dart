@@ -202,12 +202,12 @@ class PointageFilters {
       }
     }
 
-    // Apply zone filter (using zone code from zoneMember)
+    // Apply zone filter (using the visited site zone)
     if (zoneIds != null && zoneIds!.isNotEmpty) {
       if (zoneIds!.length == 1) {
-        query = query.where('zoneMember.zone.codeZone', isEqualTo: zoneIds!.first);
+        query = query.where('site.zone.codeZone', isEqualTo: zoneIds!.first);
       } else {
-        query = query.where('zoneMember.zone.codeZone', whereIn: zoneIds);
+        query = query.where('site.zone.codeZone', whereIn: zoneIds);
       }
     }
 
