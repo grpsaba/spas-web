@@ -14,36 +14,33 @@ class AgentPhotoService {
     if (bytes.isEmpty || bytes.length > maxFileBytes) {
       throw const FormatException('La photo doit peser moins de 5 Mo.');
     }
-    final descriptor = await ui.ImmutableBuffer.fromUint8List(bytes);
-    try {
-      final image = await ui.ImageDescriptor.encoded(descriptor);
-      try {
-        final width = image.width;
-        final height = image.height;
+    final buffer = await ui.ImmutableBuffer.fromUint8List(bytes);
+    // This API obtains intrinsic dimensions on web as well as native platforms.
+    // ImageDescriptor.encoded(...).width/height are unsupported on web.
+    // instantiateImageCodecWithSize takes ownership of the buffer.
+    final codec = await ui.instantiateImageCodecWithSize(
+      buffer,
+      getTargetSize: (width, height) {
         final longest = width > height ? width : height;
         final scale = longest > 900 ? 900 / longest : 1.0;
-        final codec = await image.instantiateCodec(
-          targetWidth: (width * scale).round().clamp(1, 900),
-          targetHeight: (height * scale).round().clamp(1, 900),
+        return ui.TargetImageSize(
+          width: (width * scale).round().clamp(1, 900),
+          height: (height * scale).round().clamp(1, 900),
         );
-        try {
-          final frame = await codec.getNextFrame();
-          try {
-            final png =
-                await frame.image.toByteData(format: ui.ImageByteFormat.png);
-            if (png == null) throw const FormatException('Photo illisible.');
-            return png.buffer.asUint8List();
-          } finally {
-            frame.image.dispose();
-          }
-        } finally {
-          codec.dispose();
-        }
+      },
+    );
+    try {
+      final frame = await codec.getNextFrame();
+      try {
+        final png =
+            await frame.image.toByteData(format: ui.ImageByteFormat.png);
+        if (png == null) throw const FormatException('Photo illisible.');
+        return png.buffer.asUint8List(png.offsetInBytes, png.lengthInBytes);
       } finally {
-        image.dispose();
+        frame.image.dispose();
       }
     } finally {
-      descriptor.dispose();
+      codec.dispose();
     }
   }
 

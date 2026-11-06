@@ -54,7 +54,7 @@ class _AgentPhotoFieldState extends State<AgentPhotoField> {
       if (mounted) {
         setState(() => _error = error is FormatException
             ? error.message.toString()
-            : 'Impossible de lire cette photo. Choisissez une image JPG ou PNG.');
+            : 'Impossible de lire cette photo. Choisissez une image JPG, JPEG ou PNG.');
       }
     } finally {
       if (mounted) {
@@ -104,7 +104,7 @@ class _AgentPhotoFieldState extends State<AgentPhotoField> {
                     style: TextStyle(fontWeight: FontWeight.w700)),
                 const SizedBox(height: 6),
                 const Text(
-                    'JPG ou PNG, 5 Mo maximum. Choisissez un portrait avec le visage centré.'),
+                    'JPG, JPEG ou PNG, 5 Mo maximum. Choisissez un portrait avec le visage centré.'),
                 const SizedBox(height: 8),
                 Wrap(spacing: 8, runSpacing: 8, children: [
                   OutlinedButton.icon(
