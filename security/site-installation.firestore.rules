@@ -1,0 +1,222 @@
+// Standalone emulator policy. Merge these helpers and matches into the live
+// policy before deployment; this file intentionally grants no legacy access.
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    function bmpsManager() { return get(/databases/$(database)/documents/Managers/$(request.auth.uid)).data; }
+    function bmpsProfile() { return get(/databases/$(database)/documents/Profils/$(bmpsManager().profil.name)).data; }
+    function bmpsAdmin() { return bmpsProfile().name == 'Administrateur'; }
+    function bmpsDepartment(d) {
+      let m = bmpsManager();
+      return m.get('departmentScope', 'all') == 'all' ||
+        m.get('departmentIds', []).hasAny(['direction', d.departmentId]);
+    }
+    function bmpsWeb(d, right) {
+      let m = bmpsManager();
+      let p = get(/databases/$(database)/documents/Profils/$(m.profil.name)).data;
+      let admin = p.name == 'Administrateur';
+      let access = p.get('installationAccess', {});
+      return request.auth != null && exists(/databases/$(database)/documents/Managers/$(request.auth.uid)) &&
+        m.get('actif', true) == true &&
+        (admin || (access.get('view', false) == true && access.get(right, false) == true)) &&
+        (admin || p.name == 'Directeur General' || m.tenantId == d.tenantId) &&
+        (m.get('departmentScope', 'all') == 'all' || m.get('departmentIds', []).hasAny(['direction', d.departmentId]));
+    }
+    function bmpsMobileAccount(d, collection) {
+      let path = /databases/$(database)/documents/$(collection)/$(request.auth.uid);
+      let m = get(path).data;
+      return exists(path) && m.get('actif', true) == true && m.get('isPortal', false) != true &&
+        m.tenantId == d.tenantId && m.get('departmentId', m.get('department', {}).get('id', '')) == d.departmentId;
+    }
+    function bmpsMobile(d) {
+      return request.auth != null && d.departmentId in ['security', 'cleaning'] &&
+        (bmpsMobileAccount(d, 'Supervisors') || bmpsMobileAccount(d, 'ZoneMembers'));
+    }
+    function bmpsOwner(d) {
+      return request.auth != null && d.createdBy.uid == request.auth.uid &&
+        (bmpsMobile(d) || bmpsWeb(d, 'add'));
+    }
+    function bmpsRead(d) { return bmpsOwner(d) || bmpsWeb(d, 'view'); }
+    function bmpsTenantReference(d) {
+      let security = {'tenantId': d.tenantId, 'departmentId': 'security'};
+      let cleaning = {'tenantId': d.tenantId, 'departmentId': 'cleaning'};
+      return bmpsWeb(security, 'view') || bmpsWeb(cleaning, 'view') || bmpsMobile(security) || bmpsMobile(cleaning);
+    }
+    function bmpsAccountCheck() {
+      let tenant = bmpsManager().tenantId;
+      return bmpsWeb({'tenantId': tenant, 'departmentId': 'security'}, 'validation') ||
+        bmpsWeb({'tenantId': tenant, 'departmentId': 'cleaning'}, 'validation');
+    }
+    function bmpsShape(d) {
+      return d.keys().hasOnly(['schemaVersion', 'tenantId', 'departmentId', 'createdBy', 'status', 'revision',
+        'siteName', 'clientName', 'address', 'phone', 'bonNumber', 'latitude', 'longitude', 'contractDate',
+        'zone', 'supervisor', 'supervisor2', 'agentCount', 'roundCount', 'pointageType', 'agents', 'equipment',
+        'createdAt', 'updatedAt', 'siteId', 'attachments', 'lastMobileMutation', 'finalizedBy', 'finalizedAt']) &&
+        d.schemaVersion == 1 && d.tenantId is string && d.tenantId.size() > 0 &&
+        d.departmentId in ['security', 'cleaning'] && d.revision is int && d.createdBy.uid is string &&
+        d.siteName is string && d.siteName.size() <= 500 && d.clientName is string && d.clientName.size() <= 500 &&
+        d.address is string && d.address.size() <= 2000 && d.phone is string && d.bonNumber is string &&
+        d.agents is list && d.agents.size() <= 300 && d.equipment is list && d.equipment.size() <= 300 &&
+        d.attachments is list && d.attachments.size() <= 30 && d.updatedAt == request.time;
+    }
+    function bmpsComplete(d) {
+      return d.siteName.size() > 0 && d.clientName.size() > 0 && d.address.size() > 0;
+    }
+    function bmpsOperational(d) {
+      return bmpsComplete(d) && d.bonNumber.size() > 0 && d.zone.codeZone is string && d.supervisor.UID is string &&
+        d.contractDate is string && d.agentCount is int && d.agentCount > 0 && d.roundCount is int && d.roundCount > 0 &&
+        d.latitude is number && d.latitude >= -90 && d.latitude <= 90 &&
+        d.longitude is number && d.longitude >= -180 && d.longitude <= 180 && d.pointageType in ['jour', 'nuit', 'jour_nuit'];
+    }
+    function bmpsContentKeys() { return ['departmentId', 'siteName', 'clientName', 'address', 'phone',
+      'latitude', 'longitude', 'contractDate', 'zone', 'supervisor', 'supervisor2', 'agentCount', 'roundCount',
+      'pointageType', 'agents', 'equipment', 'revision', 'updatedAt', 'lastMobileMutation', 'status']; }
+    function bmpsContentChange(old, next) {
+      let changed = next.diff(old).affectedKeys();
+      return changed.hasOnly(bmpsContentKeys()) &&
+        (next.status == old.status || (old.status in ['draft', 'changesRequested'] && next.status == 'submitted' && bmpsComplete(next))) &&
+        ((bmpsWeb(old, 'validation') && bmpsWeb(next, 'validation') && old.status in ['draft', 'changesRequested', 'submitted']) ||
+          (bmpsOwner(old) && bmpsOwner(next) && old.status in ['draft', 'changesRequested'] && next.bonNumber == old.bonNumber));
+    }
+    function bmpsAllocatedNumber(id, next) {
+      let before = get(/databases/$(database)/documents/installationOrderCounters/global).data;
+      let after = getAfter(/databases/$(database)/documents/installationOrderCounters/global).data;
+      return after.lastNumber == before.lastNumber + 1 && after.lastOrderId == id &&
+        after.updatedAt == request.time && after.updatedBy == request.auth.uid &&
+        next.bonNumber == string(after.lastNumber);
+    }
+    function bmpsReviewChange(id, old, next) {
+      let changed = next.diff(old).affectedKeys();
+      return bmpsWeb(old, 'validation') &&
+        ((old.status == 'submitted' && next.status == 'approved' && bmpsOperational(next) &&
+          changed.hasOnly(['status', 'bonNumber', 'revision', 'updatedAt']) &&
+          (old.bonNumber == '' ? bmpsAllocatedNumber(id, next) : next.bonNumber == old.bonNumber)) ||
+        (changed.hasOnly(['status', 'revision', 'updatedAt']) &&
+          ((old.status == 'approved' && next.status == 'awaitingSignature') ||
+          (old.status == 'awaitingSignature' && next.status == 'signedReturned') ||
+          (old.status in ['submitted', 'approved', 'awaitingSignature', 'signedReturned'] && next.status == 'changesRequested'))));
+    }
+    function bmpsAttachmentChange(old, next) {
+      return (bmpsOwner(old) || bmpsWeb(old, 'validation')) && old.status != 'finalized' &&
+        next.diff(old).affectedKeys().hasOnly(['attachments', 'revision', 'updatedAt']) &&
+        next.attachments.size() == old.attachments.size() + 1 && next.attachments.hasAll(old.attachments);
+    }
+    function bmpsFinalChange(id, old, next) {
+      let site = getAfter(/databases/$(database)/documents/Sites/$(next.siteId)).data;
+      return bmpsWeb(old, 'validation') && old.status == 'signedReturned' && next.status == 'finalized' && bmpsOperational(next) &&
+        next.diff(old).affectedKeys().hasOnly(['status', 'siteId', 'revision', 'updatedAt', 'finalizedBy', 'finalizedAt']) &&
+        next.finalizedBy == request.auth.uid && next.finalizedAt == request.time &&
+        !exists(/databases/$(database)/documents/Sites/$(next.siteId)) &&
+        site.installationOrderId == id && site.UID == next.siteId && site.tenantId == next.tenantId && site.actif == true;
+    }
+    function bmpsUpdate(id, old, next) {
+      let changed = next.diff(old).affectedKeys();
+      return changed.hasAny(['siteId']) ? bmpsFinalChange(id, old, next) :
+        changed.hasAny(['attachments']) ? bmpsAttachmentChange(old, next) :
+        next.status != old.status && next.status != 'submitted' ? bmpsReviewChange(id, old, next) : bmpsContentChange(old, next);
+    }
+    // One global sequence. Initialization is one-time and administrator-only.
+    // Every increment must accompany the first approval of exactly one order.
+    function bmpsCounterShape(d) {
+      return d.keys().hasAll(['lastNumber', 'lastOrderId', 'updatedBy', 'updatedAt']) &&
+        d.keys().hasOnly(['lastNumber', 'lastOrderId', 'updatedBy', 'updatedAt']) &&
+        d.lastNumber is int && d.lastNumber >= 0 && d.lastNumber <= 9007199254740991 &&
+        d.lastOrderId is string && d.updatedBy == request.auth.uid && d.updatedAt == request.time;
+    }
+    function bmpsCounterIncrement(old, next) {
+      let before = get(/databases/$(database)/documents/siteInstallationOrders/$(next.lastOrderId)).data;
+      let after = getAfter(/databases/$(database)/documents/siteInstallationOrders/$(next.lastOrderId)).data;
+      return bmpsWeb(before, 'validation') && next.lastNumber == old.lastNumber + 1 &&
+        before.status == 'submitted' && before.bonNumber == '' &&
+        after.status == 'approved' && after.bonNumber == string(next.lastNumber) &&
+        after.revision == before.revision + 1;
+    }
+    match /installationOrderCounters/{id} {
+      allow get: if id == 'global' && bmpsAccountCheck();
+      allow create: if id == 'global' && bmpsAccountCheck() && bmpsAdmin() &&
+        bmpsCounterShape(request.resource.data) && request.resource.data.lastOrderId == '' &&
+        request.resource.data.lastNumber < 9007199254740991;
+      allow update: if id == 'global' && bmpsCounterShape(request.resource.data) &&
+        bmpsCounterIncrement(resource.data, request.resource.data);
+      allow delete: if false;
+    }
+    match /siteInstallationOrders/{id} {
+      allow read: if bmpsRead(resource.data);
+      allow create: if bmpsShape(request.resource.data) && bmpsOwner(request.resource.data) &&
+        request.resource.data.createdAt == request.time && request.resource.data.revision == 1 &&
+        request.resource.data.siteId == null && request.resource.data.attachments.size() == 0 &&
+        !request.resource.data.keys().hasAny(['finalizedBy', 'finalizedAt']) &&
+        request.resource.data.bonNumber == '' &&
+        (request.resource.data.status == 'draft' || (request.resource.data.status == 'submitted' && bmpsComplete(request.resource.data)));
+      allow update: if bmpsShape(request.resource.data) && request.resource.data.revision == resource.data.revision + 1 &&
+        request.resource.data.tenantId == resource.data.tenantId && request.resource.data.createdBy == resource.data.createdBy &&
+        request.resource.data.createdAt == resource.data.createdAt &&
+        bmpsUpdate(id, resource.data, request.resource.data);
+      allow delete: if false;
+      match /uploads/{filename} {
+        function parent() { return get(/databases/$(database)/documents/siteInstallationOrders/$(id)).data; }
+        allow create: if (bmpsOwner(parent()) || bmpsWeb(parent(), 'validation')) && parent().status != 'finalized' &&
+          request.resource.data.keys().hasOnly(['uid', 'tenantId', 'path', 'contentType', 'at', 'expiresAt']) &&
+          request.resource.data.uid == request.auth.uid && request.resource.data.tenantId == parent().tenantId &&
+          request.resource.data.path == 'site-installation-orders/' + parent().tenantId + '/' + id + '/' + filename &&
+          request.resource.data.contentType in ['image/jpeg', 'image/png', 'application/pdf'] &&
+          request.resource.data.at == request.time && request.resource.data.expiresAt > request.time &&
+          request.resource.data.expiresAt <= request.time + duration.value(16, 'm');
+        allow read: if bmpsRead(parent());
+        allow update, delete: if false;
+      }
+      match /events/{eventId} {
+        function order() { return getAfter(/databases/$(database)/documents/siteInstallationOrders/$(id)).data; }
+        allow read: if bmpsRead(get(/databases/$(database)/documents/siteInstallationOrders/$(id)).data);
+        allow create: if (bmpsOwner(order()) || bmpsWeb(order(), 'validation')) &&
+          request.resource.data.keys().hasOnly(['kind', 'message', 'author', 'at', 'from', 'to']) &&
+          request.resource.data.author.uid == request.auth.uid && request.resource.data.at == request.time &&
+          request.resource.data.message is string && request.resource.data.message.size() > 0 && request.resource.data.message.size() <= 4000 &&
+          (request.resource.data.kind == 'comment' || (request.resource.data.kind in ['created', 'updated', 'attachment', 'status'] &&
+            (!exists(/databases/$(database)/documents/siteInstallationOrders/$(id)) ||
+              order().revision == get(/databases/$(database)/documents/siteInstallationOrders/$(id)).data.revision + 1)));
+        allow update, delete: if false;
+      }
+    }
+    // Merge the installation clause into the existing Sites create rule. Existing
+    // direct creation must remain restricted to documents without this marker.
+    match /Sites/{uid} {
+      allow get: if (!exists(/databases/$(database)/documents/Sites/$(uid)) && bmpsAccountCheck()) ||
+        (resource.data.keys().hasAny(['installationOrderId']) && bmpsRead(get(/databases/$(database)/documents/siteInstallationOrders/$(resource.data.installationOrderId)).data));
+      allow create: if request.resource.data.keys().hasAny(['installationOrderId']) && bmpsSiteCreate(uid, request.resource.data);
+    }
+    match /Zones/{zoneId} {
+      allow read: if bmpsTenantReference(resource.data);
+    }
+    match /Supervisors/{uid} {
+      allow read: if bmpsMobile(resource.data) || bmpsWeb(resource.data, 'view');
+    }
+    function bmpsSiteCreate(uid, site) {
+      let before = get(/databases/$(database)/documents/siteInstallationOrders/$(site.installationOrderId)).data;
+      let after = getAfter(/databases/$(database)/documents/siteInstallationOrders/$(site.installationOrderId)).data;
+      return bmpsWeb(before, 'validation') && before.status == 'signedReturned' && after.status == 'finalized' &&
+        after.siteId == uid && site.UID == uid && site.actif == true && site.tenantId == before.tenantId &&
+        site.departmentIds == [before.departmentId] && site.name == before.siteName && site.adresse == before.address &&
+        site.nbAgent == before.agentCount && site.nbRonde == before.roundCount && site.dateContrat == before.contractDate &&
+        site.pointageType == before.pointageType && site.latLng.lat == before.latitude && site.latLng.lng == before.longitude &&
+        site.zone == get(/databases/$(database)/documents/Zones/$(before.zone.codeZone)).data && site.zone.tenantId == before.tenantId &&
+        site.supervisor == get(/databases/$(database)/documents/Supervisors/$(before.supervisor.UID)).data &&
+        site.supervisor.get('actif', true) == true && site.supervisor.get('isPortal', false) == false && site.supervisor.tenantId == before.tenantId &&
+        site.supervisor.get('departmentId', site.supervisor.get('department', {}).get('id', '')) == before.departmentId &&
+        (site.supervisor_2 == null || (site.supervisor_2.UID != site.supervisor.UID &&
+          site.supervisor_2 == get(/databases/$(database)/documents/Supervisors/$(before.supervisor2.UID)).data &&
+          site.supervisor_2.get('actif', true) == true && site.supervisor_2.get('isPortal', false) == false && site.supervisor_2.tenantId == before.tenantId &&
+          site.supervisor_2.get('departmentId', site.supervisor_2.get('department', {}).get('id', '')) == before.departmentId));
+    }
+    // Add these grants to the existing catalog rule without relaxing its other
+    // write paths. New quick-created entries are immutable through this grant.
+    match /categorieTools/{label} {
+      allow list: if bmpsMobile(resource.data) || bmpsWeb(resource.data, 'view');
+      allow get: if request.auth != null && (!exists(/databases/$(database)/documents/categorieTools/$(label)) ||
+        bmpsMobile(resource.data) || bmpsWeb(resource.data, 'view'));
+      allow create: if request.resource.data.keys().hasOnly(['label', 'tenantId', 'departmentId', 'department']) &&
+        request.resource.data.label == label && label.size() <= 120 && request.resource.data.department.id == request.resource.data.departmentId &&
+        (bmpsMobile(request.resource.data) || bmpsWeb(request.resource.data, 'add') || bmpsWeb(request.resource.data, 'validation'));
+    }
+  }
+}

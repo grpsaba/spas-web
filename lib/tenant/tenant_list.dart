@@ -1,5 +1,3 @@
-import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/model.dart';
@@ -45,8 +43,7 @@ class _TenantListPageState extends State<TenantListPage> {
           }
 
           final tenants = snapshot.data!.docs.map((doc) {
-            final data =
-                jsonDecode(jsonEncode(doc.data())) as Map<String, dynamic>;
+            final data = Map<String, dynamic>.from(doc.data() as Map);
             return Tenant.fromJson({
               'id': doc.id,
               ...data,

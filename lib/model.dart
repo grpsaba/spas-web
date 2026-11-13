@@ -1575,6 +1575,9 @@ class Module {
       case "MOBILE_CONFIG":
         moduleName = ModuleName.MOBILE_CONFIG;
         break;
+      case "BON_MISE_EN_PLACE":
+        moduleName = ModuleName.BON_MISE_EN_PLACE;
+        break;
       default:
         moduleName = ModuleName.MANAGER;
     }
@@ -1620,7 +1623,8 @@ enum ModuleName {
   POINTAGE_TOOL,
   POINTAGE_ZONE,
   ERROR_LOG,
-  MOBILE_CONFIG
+  MOBILE_CONFIG,
+  BON_MISE_EN_PLACE
 }
 
 class PushNotification {

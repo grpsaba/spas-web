@@ -1,0 +1,25 @@
+// Merge with live Storage rules; do not replace unrelated existing grants.
+// Protected Firestore upload tickets keep access to two cross-service reads.
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /site-installation-orders/{tenant}/{id}/{filename} {
+      function ticket() {
+        return firestore.get(/databases/(default)/documents/siteInstallationOrders/$(id)/uploads/$(filename)).data;
+      }
+      function ownTicket() {
+        return request.auth != null && ticket().uid == request.auth.uid && ticket().tenantId == tenant &&
+          ticket().path == 'site-installation-orders/' + tenant + '/' + id + '/' + filename && request.time < ticket().expiresAt;
+      }
+      function editable() {
+        return firestore.get(/databases/(default)/documents/siteInstallationOrders/$(id)).data.status != 'finalized';
+      }
+      // The download URL is saved on the protected order for its participants.
+      allow get: if ownTicket();
+      allow create: if resource == null && ownTicket() && editable() && request.resource.size > 0 && request.resource.size <= 10 * 1024 * 1024 &&
+        request.resource.contentType == ticket().contentType && request.resource.contentType in ['image/jpeg', 'image/png', 'application/pdf'];
+      allow delete: if ownTicket() && editable();
+      allow list, update: if false;
+    }
+  }
+}

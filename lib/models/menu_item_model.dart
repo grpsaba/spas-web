@@ -67,6 +67,14 @@ class MenuItemModel {
   // Configuration centralisée du menu
   static const List<MenuItemModel> menuItems = [
     MenuItemModel(
+      icon: HugeIcons.strokeRoundedNoteEdit,
+      configKey: 'bons_mise_en_place',
+      title: 'Bons de mise en place',
+      route: '/bons-mise-en-place',
+      index: 22,
+      moduleName: ModuleName.BON_MISE_EN_PLACE,
+    ),
+    MenuItemModel(
       icon: HugeIcons.strokeRoundedDashboardSquare01,
       configKey: 'home',
       title: "Accueil",

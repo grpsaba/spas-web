@@ -15,6 +15,14 @@ class AppConstants {
   static BitmapDescriptor defaultMarkerIcon = BitmapDescriptor.defaultMarker;
   static List<Module> moduleList = [
     Module(
+        moduleName: ModuleName.BON_MISE_EN_PLACE,
+        add: false,
+        delete: false,
+        validation: false,
+        view: false,
+        print: false,
+        generBadge: false),
+    Module(
         moduleName: ModuleName.MANAGER,
         add: true,
         delete: false,
