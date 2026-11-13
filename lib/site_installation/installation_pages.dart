@@ -100,6 +100,8 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
   bool _busy = false;
   bool _persisted = false;
   int _formVersion = 0;
+  final _validationKey = GlobalKey<FormState>();
+  int _validationAttempt = 0;
   int _tab = 0;
   bool _dirty = false;
 
@@ -170,7 +172,35 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
 
   Future<void> _move(InstallationStatus next, {String message = ''}) =>
       _run(() async {
-        if (_service.canEdit(_order!)) await _save();
+        if (next == InstallationStatus.submitted ||
+            next == InstallationStatus.approved) {
+          setState(() {
+            _validationAttempt++;
+            _tab = 0;
+          });
+          final fieldsValid = _validationKey.currentState?.validate() ?? true;
+          final errors = _order!.validate();
+          if (!fieldsValid || errors.isNotEmpty) {
+            throw StateError(errors.isEmpty
+                ? 'Vérifier les champs indiqués dans le formulaire.'
+                : errors.join('\n'));
+          }
+        }
+        // Return first so even an incomplete older request can be sent back.
+        // Keep any reviewer edits and save them in the editable correction state.
+        if (next == InstallationStatus.changesRequested && _dirty) {
+          final edited = _order!;
+          final returned = await _service.move(edited, next, message: message);
+          edited.status = returned.status;
+          edited.revision = returned.revision;
+          _order = edited;
+          await _save();
+          return;
+        }
+        if (_service.canEdit(_order!) &&
+            next != InstallationStatus.changesRequested) {
+          await _save();
+        }
         final order = await _service.move(_order!, next, message: message);
         if (mounted) {
           setState(() {
@@ -390,6 +420,10 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                                                           !_busy,
                                                                       guided:
                                                                           true,
+                                                                      validationKey:
+                                                                          _validationKey,
+                                                                      validationAttempt:
+                                                                          _validationAttempt,
                                                                       departments:
                                                                           _service
                                                                               .departments,

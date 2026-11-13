@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import 'installation_order.dart';
 import 'installation_ui.dart';
+import 'installation_catalog.dart';
 
 /// Same fields and wire schema in the web and mobile applications.
 class InstallationForm extends StatefulWidget {
@@ -16,6 +17,8 @@ class InstallationForm extends StatefulWidget {
     this.createEquipment,
     this.onChanged,
     this.guided = false,
+    this.validationAttempt = 0,
+    this.validationKey,
   });
 
   final InstallationOrder order;
@@ -27,6 +30,8 @@ class InstallationForm extends StatefulWidget {
   final Future<InstallationOption> Function(String, String)? createEquipment;
   final VoidCallback? onChanged;
   final bool guided;
+  final int validationAttempt;
+  final GlobalKey<FormState>? validationKey;
 
   @override
   State<InstallationForm> createState() => _InstallationFormState();
@@ -38,6 +43,29 @@ class _InstallationFormState extends State<InstallationForm> {
   final List<InstallationOption> _newCatalog = [];
   int _step = 0;
   final Set<String> _freeEntry = {};
+  final _formKey = GlobalKey<FormState>();
+
+  @override
+  void didUpdateWidget(covariant InstallationForm oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.validationAttempt != oldWidget.validationAttempt &&
+        widget.guided) {
+      if ([order.siteName, order.clientName, order.address, order.phone]
+          .any((v) => v.trim().isEmpty)) {
+        _step = 0;
+      } else if (order.agents.isEmpty ||
+          order.agents.any(
+              (a) => [a.name, a.type, a.phone].any((v) => v.trim().isEmpty))) {
+        _step = 1;
+      } else if (order.equipment.isEmpty ||
+          order.equipment
+              .any((e) => e.designation.trim().isEmpty || e.quantity <= 0)) {
+        _step = 2;
+      } else {
+        _step = 3;
+      }
+    }
+  }
 
   void _change(VoidCallback action) {
     setState(action);
@@ -62,6 +90,8 @@ class _InstallationFormState extends State<InstallationForm> {
                 ? order.departmentId
                 : null,
             decoration: _decoration('Prestation'),
+            validator: (value) =>
+                value == null ? 'Choisir une prestation.' : null,
             items: widget.departments
                 .map((id) => DropdownMenuItem(
                       value: id,
@@ -90,9 +120,16 @@ class _InstallationFormState extends State<InstallationForm> {
                 : 'Bon n° ${order.bonNumber} · Ce numéro est définitif.'),
       ]),
       _section('Agents prévus', [
+        const InstallationNotice(
+            message:
+                'Au moins un agent est obligatoire. Renseignez son nom, son type et son contact.'),
+        if (widget.validationAttempt > 0 && order.agents.isEmpty)
+          const InstallationNotice(
+              warning: true,
+              message: 'Ajouter au moins un agent avant de transmettre.'),
         if (order.agents.isEmpty)
           _empty(Icons.people_outline, 'Qui interviendra sur ce site ?',
-              'Ajoutez les noms prévus sur le bon. Vous pourrez compléter cette liste plus tard.'),
+              'Ajoutez au moins un agent avec son type et son contact.'),
         for (final agent in order.agents)
           Padding(
             key: ValueKey(agent.id),
@@ -144,6 +181,14 @@ class _InstallationFormState extends State<InstallationForm> {
               )),
       ]),
       _section('Équipements', [
+        if (widget.catalog.isEmpty)
+          const InstallationNotice(
+              message:
+                  'Aucun équipement du catalogue disponible pour cette prestation. Vous pouvez saisir une désignation et une quantité.'),
+        if (widget.validationAttempt > 0 && order.equipment.isEmpty)
+          const InstallationNotice(
+              warning: true,
+              message: 'Ajouter au moins un équipement avant de transmettre.'),
         for (final item in order.equipment) _equipmentRow(item),
         if (order.equipment.isEmpty)
           _empty(Icons.inventory_2_outlined, 'Préparez les équipements',
@@ -161,7 +206,7 @@ class _InstallationFormState extends State<InstallationForm> {
       _section('Préparation du site', [
         const InstallationNotice(
             message:
-                'Ces informations peuvent être complétées au bureau avant la validation du bon.'),
+                'Ces informations sont obligatoires dès la transmission. Le deuxième superviseur et les coordonnées GPS sont facultatifs.'),
         const SizedBox(height: 22),
         _grid([
           _choice(
@@ -197,6 +242,9 @@ class _InstallationFormState extends State<InstallationForm> {
             initialValue:
                 order.contractDate == null ? '' : _date(order.contractDate!),
             decoration: _decoration('Date du contrat'),
+            validator: (_) => order.contractDate == null
+                ? 'Renseigner la date du contrat.'
+                : null,
             onTap: widget.enabled
                 ? () async {
                     final date = await showDatePicker(
@@ -242,75 +290,89 @@ class _InstallationFormState extends State<InstallationForm> {
         ]),
       ]),
     ];
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      if (widget.guided) ...[
-        LayoutBuilder(
-            builder: (context, c) => c.maxWidth < 560
-                ? Column(
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
-                    children: [
-                        Row(children: [
-                          Text('ÉTAPE ${_step + 1} SUR 4',
-                              style: const TextStyle(
-                                  color: InstallationStyle.primary,
-                                  fontSize: 10,
-                                  letterSpacing: 1.3,
-                                  fontWeight: FontWeight.w700)),
-                          const Spacer(),
-                          Text('${((_step + 1) / 4 * 100).round()} %',
-                              style: const TextStyle(
-                                  color: InstallationStyle.muted, fontSize: 11))
-                        ]),
-                        const SizedBox(height: 10),
-                        ClipRRect(
-                            borderRadius: BorderRadius.circular(4),
-                            child: LinearProgressIndicator(
-                                value: (_step + 1) / 4,
-                                minHeight: 4,
-                                color: InstallationStyle.primary,
-                                backgroundColor: InstallationStyle.line)),
-                        const SizedBox(height: 14),
-                        SingleChildScrollView(
-                            scrollDirection: Axis.horizontal,
-                            child:
-                                Row(children: List.generate(4, _stepButton))),
-                      ])
-                : Row(
-                    children: List.generate(
-                        4, (i) => Expanded(child: _stepButton(i))))),
-        const SizedBox(height: 18),
-      ],
-      for (var i = 0; i < sections.length; i++)
-        Visibility(
-            visible: !widget.guided || _step == i,
-            maintainState: true,
-            child: sections[i]),
-      if (widget.guided)
-        Padding(
-            padding: const EdgeInsets.only(top: 4, bottom: 8),
-            child: Row(children: [
-              if (_step > 0)
-                TextButton.icon(
-                    onPressed: () => setState(() => _step--),
-                    icon: const Icon(Icons.arrow_back, size: 17),
-                    label: const Text('Précédent')),
-              const Spacer(),
-              if (_step < 3)
-                OutlinedButton.icon(
-                    onPressed: () {
-                      FocusScope.of(context).unfocus();
-                      setState(() => _step++);
-                    },
-                    icon: const Icon(Icons.arrow_forward, size: 17),
-                    label: const Text('Continuer')),
-              if (_step == 3)
-                const Flexible(
-                    child: Text('Vous pouvez transmettre la demande au bureau.',
-                        textAlign: TextAlign.right,
-                        style: TextStyle(
-                            fontSize: 12, color: InstallationStyle.muted))),
-            ])),
-    ]);
+    return Form(
+        key: widget.validationKey ?? _formKey,
+        autovalidateMode: widget.validationAttempt > 0
+            ? AutovalidateMode.always
+            : AutovalidateMode.disabled,
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          const Padding(
+              padding: EdgeInsets.only(bottom: 16),
+              child: Text(
+                  'Les champs marqués * sont obligatoires pour transmettre la demande. Le brouillon peut être enregistré à tout moment.',
+                  style:
+                      TextStyle(fontSize: 12, color: InstallationStyle.muted))),
+          if (widget.guided) ...[
+            LayoutBuilder(
+                builder: (context, c) => c.maxWidth < 560
+                    ? Column(
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: [
+                            Row(children: [
+                              Text('ÉTAPE ${_step + 1} SUR 4',
+                                  style: const TextStyle(
+                                      color: InstallationStyle.primary,
+                                      fontSize: 10,
+                                      letterSpacing: 1.3,
+                                      fontWeight: FontWeight.w700)),
+                              const Spacer(),
+                              Text('${((_step + 1) / 4 * 100).round()} %',
+                                  style: const TextStyle(
+                                      color: InstallationStyle.muted,
+                                      fontSize: 11))
+                            ]),
+                            const SizedBox(height: 10),
+                            ClipRRect(
+                                borderRadius: BorderRadius.circular(4),
+                                child: LinearProgressIndicator(
+                                    value: (_step + 1) / 4,
+                                    minHeight: 4,
+                                    color: InstallationStyle.primary,
+                                    backgroundColor: InstallationStyle.line)),
+                            const SizedBox(height: 14),
+                            SingleChildScrollView(
+                                scrollDirection: Axis.horizontal,
+                                child: Row(
+                                    children: List.generate(4, _stepButton))),
+                          ])
+                    : Row(
+                        children: List.generate(
+                            4, (i) => Expanded(child: _stepButton(i))))),
+            const SizedBox(height: 18),
+          ],
+          for (var i = 0; i < sections.length; i++)
+            Visibility(
+                visible: !widget.guided || _step == i,
+                maintainState: true,
+                child: sections[i]),
+          if (widget.guided)
+            Padding(
+                padding: const EdgeInsets.only(top: 4, bottom: 8),
+                child: Row(children: [
+                  if (_step > 0)
+                    TextButton.icon(
+                        onPressed: () => setState(() => _step--),
+                        icon: const Icon(Icons.arrow_back, size: 17),
+                        label: const Text('Précédent')),
+                  const Spacer(),
+                  if (_step < 3)
+                    OutlinedButton.icon(
+                        onPressed: () {
+                          FocusScope.of(context).unfocus();
+                          setState(() => _step++);
+                        },
+                        icon: const Icon(Icons.arrow_forward, size: 17),
+                        label: const Text('Continuer')),
+                  if (_step == 3)
+                    const Flexible(
+                        child: Text(
+                            'Vous pouvez transmettre la demande au bureau.',
+                            textAlign: TextAlign.right,
+                            style: TextStyle(
+                                fontSize: 12, color: InstallationStyle.muted))),
+                ])),
+        ]));
   }
 
   Widget _stepButton(int index) => Padding(
@@ -368,14 +430,12 @@ class _InstallationFormState extends State<InstallationForm> {
       }).toList();
 
   Widget _equipmentRow(InstallationEquipment item) {
-    final catalog = [...widget.catalog, ..._newCatalog]
-        .where((option) => option.data['departmentId'] == order.departmentId)
-        .fold<Map<String, InstallationOption>>({}, (result, option) {
-          result[option.id] = option;
-          return result;
-        })
-        .values
-        .toList();
+    final catalog = installationCatalogOptions({
+      for (final option in [...widget.catalog, ..._newCatalog])
+        option.id: {...option.data, 'label': option.label}
+    }, [
+      order.departmentId
+    ]);
     if (item.catalogId != null &&
         !catalog.any((option) => option.id == item.catalogId)) {
       catalog.add(InstallationOption(item.catalogId!, item.designation));
@@ -400,6 +460,9 @@ class _InstallationFormState extends State<InstallationForm> {
                       : null),
               isExpanded: true,
               decoration: _decoration('Équipement du catalogue'),
+              validator: (value) => value == null
+                  ? 'Choisir un équipement ou la saisie libre.'
+                  : null,
               items: [
                 const DropdownMenuItem(
                     value: '', child: Text('Autre équipement (saisie libre)')),
@@ -499,6 +562,9 @@ class _InstallationFormState extends State<InstallationForm> {
       initialValue: id,
       isExpanded: true,
       decoration: _decoration(label),
+      validator: (value) => !optional && (value == null || value.isEmpty)
+          ? 'Choisir une valeur.'
+          : null,
       items: [
         if (optional) const DropdownMenuItem(value: '', child: Text('Aucun')),
         ...choices.map((option) => DropdownMenuItem(
@@ -520,6 +586,25 @@ class _InstallationFormState extends State<InstallationForm> {
         enabled: enabled ?? widget.enabled,
         keyboardType: keyboard,
         decoration: _decoration(label),
+        validator: (value) {
+          final text = (value ?? '').trim();
+          if (label == 'Latitude' || label == 'Longitude') {
+            if (text.isEmpty) return null;
+            final coordinate = double.tryParse(text.replaceAll(',', '.'));
+            return coordinate == null ||
+                    !coordinate.isFinite ||
+                    coordinate.abs() > (label == 'Latitude' ? 90 : 180)
+                ? 'Coordonnée invalide.'
+                : null;
+          }
+          if (text.isEmpty) return 'Champ obligatoire.';
+          if (['Effectif prévu', 'Rondes prévues', 'Quantité']
+                  .contains(label) &&
+              (int.tryParse(text) ?? 0) <= 0) {
+            return 'Saisir un entier positif.';
+          }
+          return null;
+        },
         onChanged: (value) {
           changed(value);
           widget.onChanged?.call();
@@ -576,6 +661,12 @@ class _InstallationFormState extends State<InstallationForm> {
 
   InputDecoration _decoration(String label) => InputDecoration(
       labelText: label,
+      suffixText: ['Latitude', 'Longitude', 'Superviseur 2 (facultatif)']
+              .contains(label)
+          ? null
+          : '*',
+      helperText:
+          ['Latitude', 'Longitude'].contains(label) ? 'Facultatif' : null,
       hintText: label == 'Équipement du catalogue'
           ? 'Sélectionner un équipement'
           : null);

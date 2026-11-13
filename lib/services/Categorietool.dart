@@ -11,7 +11,7 @@ class CategorieToolService {
       FirebaseFirestore.instance.collection("categorieTools");
 
   Query get _scopedQuery => DepartmentScope.applyToDepartmentQuery(
-        TenantScope.applyToQuery(_collectionReference),
+        _collectionReference,
       );
 
   Future<void> add(CategorieTool tool) async {
@@ -34,10 +34,9 @@ class CategorieToolService {
     var dataSnapshot = await _collectionReference.doc(label).get();
     var data = jsonEncode(dataSnapshot.data());
     final json = jsonDecode(data) as Map<String, dynamic>;
-    if (!TenantScope.matchesTenant(tenantIdFromJson(json)) ||
-        !DepartmentScope.matchesDepartment(departmentIdFromJson(json))) {
+    if (!DepartmentScope.matchesDepartment(departmentIdFromJson(json))) {
       throw StateError(
-        'Tool category outside the active tenant or department scope.',
+        'Tool category outside the active department scope.',
       );
     }
     return CategorieTool.fromJson(json);

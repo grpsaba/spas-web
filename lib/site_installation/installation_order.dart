@@ -271,13 +271,22 @@ class InstallationOrder {
     if (siteName.trim().isEmpty) errors.add('Renseigner le nom du site.');
     if (clientName.trim().isEmpty) errors.add('Renseigner le client.');
     if (address.trim().isEmpty) errors.add('Renseigner l’adresse du site.');
+    if (phone.trim().isEmpty) errors.add('Renseigner le téléphone du contact.');
     if (!['security', 'cleaning'].contains(departmentId)) {
       errors.add('Choisir la prestation.');
     }
+    if (agents.isEmpty) errors.add('Ajouter au moins un agent.');
     if (agents.any((agent) => agent.name.trim().isEmpty)) {
       errors
           .add('Compléter le nom de chaque agent ou supprimer la ligne vide.');
     }
+    if (agents.any((agent) => agent.type.trim().isEmpty)) {
+      errors.add('Renseigner le type de chaque agent.');
+    }
+    if (agents.any((agent) => agent.phone.trim().isEmpty)) {
+      errors.add('Renseigner le contact de chaque agent.');
+    }
+    if (equipment.isEmpty) errors.add('Ajouter au moins un équipement.');
     if (equipment
         .any((item) => item.designation.trim().isEmpty || item.quantity <= 0)) {
       errors.add(
@@ -286,33 +295,33 @@ class InstallationOrder {
     if ((forApproval || forSite) && bonNumber.trim().isEmpty) {
       errors.add('Le numéro du bon doit être attribué à la validation.');
     }
-    if (forSite) {
-      if (zone?['codeZone'] is! String ||
-          (zone!['codeZone'] as String).isEmpty) {
-        errors.add('Choisir une zone.');
-      }
-      if (supervisor?['UID'] is! String ||
-          (supervisor!['UID'] as String).isEmpty) {
-        errors.add('Choisir le superviseur du site.');
-      }
-      if (supervisor2?['UID'] != null &&
-          supervisor2?['UID'] == supervisor?['UID']) {
-        errors.add('Choisir deux superviseurs distincts.');
-      }
-      if (!['jour', 'nuit', 'jour_nuit'].contains(pointageType)) {
-        errors.add('Choisir un type de pointage valide.');
-      }
-      if (contractDate == null) errors.add('Renseigner la date du contrat.');
-      if (agentCount <= 0) errors.add('Renseigner l’effectif prévu.');
-      if (roundCount <= 0) errors.add('Le nombre de rondes doit être positif.');
-      if (latitude == null ||
-          !latitude!.isFinite ||
-          latitude!.abs() > 90 ||
-          longitude == null ||
-          !longitude!.isFinite ||
-          longitude!.abs() > 180) {
-        errors.add('Renseigner des coordonnées GPS valides.');
-      }
+    // Operational information is required from the initial submission. Drafts
+    // are still saved progressively without calling validate().
+    if (zone?['codeZone'] is! String || (zone!['codeZone'] as String).isEmpty) {
+      errors.add('Choisir une zone.');
+    }
+    if (supervisor?['UID'] is! String ||
+        (supervisor!['UID'] as String).isEmpty) {
+      errors.add('Choisir le superviseur du site.');
+    }
+    if (supervisor2?['UID'] != null &&
+        supervisor2?['UID'] == supervisor?['UID']) {
+      errors.add('Choisir deux superviseurs distincts.');
+    }
+    if (!['jour', 'nuit', 'jour_nuit'].contains(pointageType)) {
+      errors.add('Choisir un type de pointage valide.');
+    }
+    if (contractDate == null) errors.add('Renseigner la date du contrat.');
+    if (agentCount <= 0) errors.add('Renseigner l’effectif prévu.');
+    if (roundCount <= 0) errors.add('Le nombre de rondes doit être positif.');
+    if ((latitude == null) != (longitude == null)) {
+      errors.add('Renseigner les deux coordonnées GPS ou les laisser vides.');
+    } else if (latitude != null &&
+        (!latitude!.isFinite ||
+            latitude!.abs() > 90 ||
+            !longitude!.isFinite ||
+            longitude!.abs() > 180)) {
+      errors.add('Renseigner des coordonnées GPS valides.');
     }
     return errors;
   }

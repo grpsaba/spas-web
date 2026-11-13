@@ -60,13 +60,26 @@ service cloud.firestore {
         d.attachments is list && d.attachments.size() <= 30 && d.updatedAt == request.time;
     }
     function bmpsComplete(d) {
-      return d.siteName.size() > 0 && d.clientName.size() > 0 && d.address.size() > 0;
+      return d.siteName.matches('.*\\S.*') && d.clientName.matches('.*\\S.*') && d.address.matches('.*\\S.*') &&
+        d.phone.matches('.*\\S.*') && d.agents.size() > 0 && d.equipment.size() > 0 &&
+        d.agents[0].name is string && d.agents[0].name.matches('.*\\S.*') &&
+        d.agents[0].type is string && d.agents[0].type.matches('.*\\S.*') &&
+        d.agents[0].phone is string && d.agents[0].phone.matches('.*\\S.*') &&
+        d.equipment[0].designation is string && d.equipment[0].designation.matches('.*\\S.*') &&
+        d.equipment[0].quantity is int && d.equipment[0].quantity > 0 &&
+        d.zone.codeZone is string && d.zone.codeZone.size() > 0 && d.supervisor.UID is string && d.supervisor.UID.size() > 0 &&
+        (d.supervisor2 == null || (d.supervisor2.UID is string && d.supervisor2.UID != d.supervisor.UID)) &&
+        d.contractDate is string && d.contractDate.size() > 0 &&
+        d.agentCount is int && d.agentCount > 0 && d.roundCount is int && d.roundCount > 0 &&
+        d.pointageType in ['jour', 'nuit', 'jour_nuit'] && bmpsCoordinates(d);
+    }
+    function bmpsCoordinates(d) {
+      return (d.latitude == null && d.longitude == null) ||
+        (d.latitude is number && d.latitude >= -90 && d.latitude <= 90 &&
+        d.longitude is number && d.longitude >= -180 && d.longitude <= 180);
     }
     function bmpsOperational(d) {
-      return bmpsComplete(d) && d.bonNumber.size() > 0 && d.zone.codeZone is string && d.supervisor.UID is string &&
-        d.contractDate is string && d.agentCount is int && d.agentCount > 0 && d.roundCount is int && d.roundCount > 0 &&
-        d.latitude is number && d.latitude >= -90 && d.latitude <= 90 &&
-        d.longitude is number && d.longitude >= -180 && d.longitude <= 180 && d.pointageType in ['jour', 'nuit', 'jour_nuit'];
+      return bmpsComplete(d) && d.bonNumber.size() > 0;
     }
     function bmpsContentKeys() { return ['departmentId', 'siteName', 'clientName', 'address', 'phone',
       'latitude', 'longitude', 'contractDate', 'zone', 'supervisor', 'supervisor2', 'agentCount', 'roundCount',
@@ -74,7 +87,8 @@ service cloud.firestore {
     function bmpsContentChange(old, next) {
       let changed = next.diff(old).affectedKeys();
       return changed.hasOnly(bmpsContentKeys()) &&
-        (next.status == old.status || (old.status in ['draft', 'changesRequested'] && next.status == 'submitted' && bmpsComplete(next))) &&
+        (next.status != 'submitted' || bmpsComplete(next)) &&
+        (next.status == old.status || (old.status in ['draft', 'changesRequested'] && next.status == 'submitted')) &&
         ((bmpsWeb(old, 'validation') && bmpsWeb(next, 'validation') && old.status in ['draft', 'changesRequested', 'submitted']) ||
           (bmpsOwner(old) && bmpsOwner(next) && old.status in ['draft', 'changesRequested'] && next.bonNumber == old.bonNumber));
     }
@@ -198,7 +212,8 @@ service cloud.firestore {
         after.siteId == uid && site.UID == uid && site.actif == true && site.tenantId == before.tenantId &&
         site.departmentIds == [before.departmentId] && site.name == before.siteName && site.adresse == before.address &&
         site.nbAgent == before.agentCount && site.nbRonde == before.roundCount && site.dateContrat == before.contractDate &&
-        site.pointageType == before.pointageType && site.latLng.lat == before.latitude && site.latLng.lng == before.longitude &&
+        site.pointageType == before.pointageType &&
+        (before.latitude == null ? site.latLng == null : (site.latLng.lat == before.latitude && site.latLng.lng == before.longitude)) &&
         site.zone == get(/databases/$(database)/documents/Zones/$(before.zone.codeZone)).data && site.zone.tenantId == before.tenantId &&
         site.supervisor == get(/databases/$(database)/documents/Supervisors/$(before.supervisor.UID)).data &&
         site.supervisor.get('actif', true) == true && site.supervisor.get('isPortal', false) == false && site.supervisor.tenantId == before.tenantId &&
@@ -210,10 +225,21 @@ service cloud.firestore {
     }
     // Add these grants to the existing catalog rule without relaxing its other
     // write paths. New quick-created entries are immutable through this grant.
+    function bmpsCatalogMobile(collection) {
+      let path = /databases/$(database)/documents/$(collection)/$(request.auth.uid);
+      let account = get(path).data;
+      return exists(path) && account.get('actif', true) == true && account.get('isPortal', false) != true &&
+        account.get('departmentId', account.get('department', {}).get('id', '')) in ['security', 'cleaning'];
+    }
+    function bmpsCatalogRead() {
+      return request.auth != null && (bmpsCatalogMobile('Supervisors') || bmpsCatalogMobile('ZoneMembers') ||
+        bmpsWeb({'tenantId': bmpsManager().tenantId, 'departmentId': 'security'}, 'view') ||
+        bmpsWeb({'tenantId': bmpsManager().tenantId, 'departmentId': 'cleaning'}, 'view'));
+    }
     match /categorieTools/{label} {
-      allow list: if bmpsMobile(resource.data) || bmpsWeb(resource.data, 'view');
+      allow list: if bmpsCatalogRead();
       allow get: if request.auth != null && (!exists(/databases/$(database)/documents/categorieTools/$(label)) ||
-        bmpsMobile(resource.data) || bmpsWeb(resource.data, 'view'));
+        bmpsCatalogRead());
       allow create: if request.resource.data.keys().hasOnly(['label', 'tenantId', 'departmentId', 'department']) &&
         request.resource.data.label == label && label.size() <= 120 && request.resource.data.department.id == request.resource.data.departmentId &&
         (bmpsMobile(request.resource.data) || bmpsWeb(request.resource.data, 'add') || bmpsWeb(request.resource.data, 'validation'));

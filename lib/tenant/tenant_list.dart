@@ -246,9 +246,6 @@ class _TenantListPageState extends State<TenantListPage> {
                         onChanged: (value) {
                           if (value == null) return;
                           setDialogState(() {
-                            if (zoneChiefPointageMode == pointageMode) {
-                              zoneChiefPointageMode = value;
-                            }
                             pointageMode = value;
                           });
                         },
@@ -311,7 +308,8 @@ class _TenantListPageState extends State<TenantListPage> {
                             if (tenant != null && tenant.active != active) {
                               await _service.setActive(updatedTenant, active);
                             }
-                            await _service.save(updatedTenant);
+                            await _service.save(updatedTenant,
+                                previous: tenant);
                             if (context.mounted) Navigator.pop(context);
                           } catch (error) {
                             setDialogState(() {

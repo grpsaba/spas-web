@@ -12,6 +12,7 @@ import '../services/access_control.dart';
 import '../services/department_scope.dart';
 import '../services/tenant_scope.dart';
 import 'installation_order.dart';
+import 'installation_catalog.dart';
 import 'installation_numbering.dart';
 
 class InstallationService {
@@ -73,7 +74,9 @@ class InstallationService {
         id: _orders.doc().id,
         tenantId: TenantScope.tenantIdForWrite ?? TenantScope.currentTenantId,
         departmentId: departments.first,
-        createdBy: actor);
+        createdBy: actor,
+        agents: [InstallationAgent()],
+        equipment: [InstallationEquipment()]);
   }
 
   void _require(bool value) {
@@ -133,6 +136,10 @@ class InstallationService {
         _require(canEdit(current));
         _sameVersion(current, order);
         _require(order.tenantId == current.tenantId);
+        if (current.status == InstallationStatus.submitted) {
+          final errors = order.validate();
+          if (errors.isNotEmpty) throw StateError(errors.join('\n'));
+        }
       }
       final data = order.toJson()
         ..['createdBy'] = current?.createdBy ?? actor
@@ -291,10 +298,7 @@ class InstallationService {
               .collection('Supervisors')
               .where('tenantId', isEqualTo: order.tenantId))
           .get(),
-      DepartmentScope.applyToDepartmentQuery(_db
-              .collection('categorieTools')
-              .where('tenantId', isEqualTo: order.tenantId))
-          .get(),
+      _db.collection('categorieTools').get(),
     ]);
     List<InstallationOption> map(
             int index, String Function(Map<String, dynamic>) label) =>
@@ -308,7 +312,8 @@ class InstallationService {
       'zones': map(0, (data) => data['name'] as String? ?? ''),
       'supervisors':
           map(1, (data) => '${data['firstName']} ${data['lastName']}'),
-      'catalog': map(2, (data) => data['label'] as String? ?? ''),
+      'catalog': installationCatalogOptions(
+          {for (final doc in results[2].docs) doc.id: doc.data()}, departments),
     };
   }
 
@@ -337,10 +342,9 @@ class InstallationService {
       final existing = await transaction.get(ref);
       if (existing.exists) {
         final value = existing.data()!;
-        if (tenantIdFromJson(value) != order.tenantId ||
-            departmentIdFromJson(value) != departmentId) {
+        if (departmentIdFromJson(value) != departmentId) {
           throw StateError(
-              'Cette désignation existe dans un autre périmètre. Utilisez une désignation distincte.');
+              'Cette désignation existe pour une autre prestation. Utilisez une désignation distincte.');
         }
       } else {
         transaction.set(ref, data);
@@ -523,7 +527,9 @@ class InstallationService {
           'adresse': latest.address.trim(),
           'phone': latest.phone,
           'email': email.trim(),
-          'latLng': {'lat': latest.latitude, 'lng': latest.longitude},
+          'latLng': latest.latitude == null
+              ? null
+              : {'lat': latest.latitude, 'lng': latest.longitude},
           'supervisor': primary.data(),
           'supervisor_2': secondary?.data(),
           'zone': zone.data(),

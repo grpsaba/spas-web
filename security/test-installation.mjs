@@ -50,10 +50,10 @@ async function expectCommit(uid, writes, expected = 200) {
 }
 const base = (uid = 'sup1') => ({schemaVersion: 1, tenantId: 'ml', departmentId: 'security',
   createdBy: {uid, type: 'supervisor', name: 'Superviseur'}, status: 'draft', revision: 1,
-  siteName: 'Site Sotuba', clientName: 'Client', address: 'Sotuba', phone: '', bonNumber: '',
+  siteName: 'Site Sotuba', clientName: 'Client', address: 'Sotuba', phone: '76000000', bonNumber: '',
   latitude: 12.6, longitude: -8, contractDate: '2026-11-12T00:00:00.000',
   zone: {codeZone: 'z1', name: 'Zone 1'}, supervisor: {UID: 'sup1'}, supervisor2: null,
-  agentCount: 2, roundCount: 1, pointageType: 'jour', agents: [{id: 'a', name: 'Nom libre', type: 'ADS', phone: ''}],
+  agentCount: 2, roundCount: 1, pointageType: 'jour', agents: [{id: 'a', name: 'Nom libre', type: 'ADS', phone: '76000001'}],
   equipment: [{id: 'e', catalogId: 'Lampe', designation: 'Lampe', quantity: 2}],
   createdAt: new Date(), updatedAt: new Date(), siteId: null, attachments: []});
 const event = (uid, message = 'Commentaire') => ({kind: 'comment', message, author: {uid, name: uid}, at: new Date()});
@@ -166,6 +166,43 @@ test('Installation workflow permissions and atomic finalization', async t => {
     await expectCommit('sup1', [write('siteInstallationOrders/order1', {...order, status: 'submitted', revision: 2}, ['updatedAt'])]);
     await expectCommit('sup1', [write('siteInstallationOrders/order1', {...order, siteName: 'Outdated', revision: 2}, ['updatedAt'])], 403);
     order = await read('siteInstallationOrders/order1');
+  });
+  await t.test('submission and submitted edits require complete fields, at least one agent and equipment', async () => {
+    const incomplete = [
+      {siteName: ' '}, {clientName: ''}, {address: ''}, {phone: ''}, {agents: []}, {equipment: []},
+      {agents: [{id: 'a', name: 'Nom', type: '', phone: '123'}]},
+      {agents: [{id: 'a', name: 'Nom', type: 'ADS', phone: ''}]},
+      {equipment: [{id: 'e', designation: '', quantity: 1}]},
+      {equipment: [{id: 'e', designation: 'Lampe', quantity: 0}]},
+      {zone: null}, {supervisor: null}, {contractDate: null}, {agentCount: 0}, {roundCount: 0},
+      {latitude: null, longitude: -8}, {latitude: 91, longitude: 0},
+      {supervisor2: {UID: 'sup1'}},
+    ];
+    for (const [index, patch] of incomplete.entries()) {
+      const id = `incomplete-${index}`;
+      // Partial drafts are still allowed, including offline synchronization.
+      await expectCommit('sup1', [write(`siteInstallationOrders/${id}`, {...base(), ...patch}, ['createdAt', 'updatedAt'])]);
+      const draft = await read(`siteInstallationOrders/${id}`);
+      await expectCommit('sup1', [write(`siteInstallationOrders/${id}`, {...draft, status: 'submitted', revision: 2}, ['updatedAt'])], 403);
+      await expectCommit('sup1', [write(`siteInstallationOrders/${id}-direct`, {...base(), ...patch, status: 'submitted'}, ['createdAt', 'updatedAt'])], 403);
+      await expectCommit('review', [write('siteInstallationOrders/order1', {...order, ...patch, revision: order.revision + 1}, ['updatedAt'])], 403);
+    }
+  });
+  await t.test('equipment catalogue is shared across companies and legacy entries remain readable', async () => {
+    await put('categorieTools/Legacy', {label: 'Legacy', department: {label: 'Sécurité', active: true}});
+    await put('categorieTools/Shared', {label: 'Shared', tenantId: 'ci', departmentId: 'security'});
+    for (const uid of ['sup1', 'chief', 'review', 'outsider']) {
+      const result = await call(':runQuery', uid, {structuredQuery: {from: [{collectionId: 'categorieTools'}]}});
+      assert.equal(result.status, 200, JSON.stringify(result.body));
+      assert.ok(result.body.some(row => row.document?.name.endsWith('/Legacy')));
+      assert.ok(result.body.some(row => row.document?.name.endsWith('/Shared')));
+    }
+    for (const uid of ['portal', null]) {
+      assert.equal((await call(':runQuery', uid, {structuredQuery: {from: [{collectionId: 'categorieTools'}]}})).status, 403);
+    }
+    const entry = {label: 'New', tenantId: 'ml', departmentId: 'security', department: {id: 'security', label: 'Sécurité', active: true}};
+    await expectCommit('sup1', [write('categorieTools/New', entry)]);
+    await expectCommit('sup1', [write('categorieTools/Shared', {...entry, label: 'Shared'})], 403);
   });
   await t.test('responsible user corrects or returns for correction', async () => {
     await expectCommit('review', [write('siteInstallationOrders/order1', {...order, phone: '123', revision: 3}, ['updatedAt'])]);
@@ -301,5 +338,22 @@ test('Installation workflow permissions and atomic finalization', async t => {
         method: 'DELETE', headers: {Authorization: `Bearer ${token('sup1')}`}});
       assert.equal(r.status, 403, await r.text());
     }
+  });
+  await t.test('orders without GPS or second supervisor can be submitted, approved and finalized', async () => {
+    const id = 'no-gps';
+    await expectCommit('sup1', [write(`siteInstallationOrders/${id}`, {...base(), latitude: null, longitude: null, status: 'submitted'}, ['createdAt', 'updatedAt'])]);
+    let current = await read(`siteInstallationOrders/${id}`);
+    await expectCommit('review', approvalWrites(id, current, (await read(counterPath)).lastNumber + 1));
+    for (const status of ['awaitingSignature', 'signedReturned']) {
+      current = await read(`siteInstallationOrders/${id}`);
+      await expectCommit('review', [write(`siteInstallationOrders/${id}`, {...current, status, revision: current.revision + 1}, ['updatedAt'])]);
+    }
+    current = await read(`siteInstallationOrders/${id}`);
+    const final = {...current, status: 'finalized', siteId: 'no-gps-site', revision: current.revision + 1, finalizedBy: 'review', finalizedAt: new Date()};
+    const site = {UID: 'no-gps-site', installationOrderId: id, actif: true, tenantId: 'ml', departmentIds: ['security'],
+      name: current.siteName, adresse: current.address, nbAgent: current.agentCount, nbRonde: current.roundCount, dateContrat: current.contractDate,
+      pointageType: 'jour', latLng: null, zone: await read('Zones/z1'), supervisor: await read('Supervisors/sup1'), supervisor_2: null};
+    await expectCommit('review', [write(`siteInstallationOrders/${id}`, final, ['updatedAt', 'finalizedAt']), write('Sites/no-gps-site', site)]);
+    assert.equal((await read('Sites/no-gps-site')).latLng, null);
   });
 });

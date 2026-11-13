@@ -5,6 +5,7 @@ import 'package:spas_web/model.dart';
 import 'package:spas_web/services/access_control.dart';
 import 'package:spas_web/services/mobile_config.dart';
 import 'package:spas_web/services/tenant.dart';
+import 'package:spas_web/mobile_config/background_tracking_control.dart';
 
 class MobileConfigPage extends StatefulWidget {
   const MobileConfigPage({super.key});
@@ -25,16 +26,19 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
       TextEditingController();
 
   late Future<MobileConfig> _configFuture;
+  late final Stream<MobileConfig> _configStream;
   bool _backgroundTrackingEnabled =
       MobileConfig.defaultBackgroundTrackingEnabled;
   double _photoQuality = MobileConfig.defaultPointingPhotoQuality.toDouble();
   bool _isSaving = false;
+  bool _isSavingTracking = false;
   final Set<String> _savingPointageTenantIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     _configFuture = _loadConfig();
+    _configStream = _service.watchConfig();
   }
 
   @override
@@ -120,7 +124,8 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
                 ],
                 _buildPointageModesPanel(canEditPointageModes),
                 const SizedBox(height: 16),
-                _buildTrackingPanel(canEdit),
+                _buildTrackingPanel(
+                    canEdit && AccessControl.canBypassTenantFilter),
                 const SizedBox(height: 16),
                 _buildPhotoPanel(canEdit),
                 const SizedBox(height: 20),
@@ -510,36 +515,42 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
   }
 
   Widget _buildTrackingPanel(bool canEdit) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: _panelDecoration(),
-      child: Row(
-        children: [
-          _buildPanelIcon(Icons.my_location_rounded),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Suivi GPS en arriere-plan',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Pilote par le mode de pointage du pays: geo active, photo desactive.',
-                  style: TextStyle(color: Colors.black54, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _backgroundTrackingEnabled,
-            onChanged: null,
-          ),
-        ],
+    return StreamBuilder<MobileConfig>(
+      stream: _configStream,
+      builder: (context, snapshot) => BackgroundTrackingControl(
+        value: snapshot.data?.backgroundTrackingEnabled ??
+            _backgroundTrackingEnabled,
+        enabled: canEdit && !snapshot.hasError,
+        saving: _isSavingTracking,
+        error: snapshot.hasError
+            ? 'Impossible de recevoir la configuration. Rechargez la page.'
+            : null,
+        onChanged: _saveTracking,
       ),
     );
+  }
+
+  Future<void> _saveTracking(bool enabled) async {
+    if (!AccessControl.canBypassTenantFilter ||
+        !AccessControl.canAdd(ModuleName.MOBILE_CONFIG) ||
+        _isSavingTracking) {
+      return;
+    }
+    setState(() => _isSavingTracking = true);
+    try {
+      await _service.setBackgroundTrackingEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _backgroundTrackingEnabled = enabled);
+      _showSnackBar(enabled
+          ? 'Suivi continu autorise pour les roles en mode Geo.'
+          : 'Suivi continu desactive pour tous les pays.');
+    } catch (error) {
+      if (mounted) {
+        _showSnackBar('Impossible de modifier le suivi: $error', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingTracking = false);
+    }
   }
 
   Widget _buildPhotoPanel(bool canEdit) {
@@ -815,8 +826,9 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
     try {
       await _tenantService.updatePointageModes(
         tenantId: tenantId,
-        pointageMode: nextPointageMode,
-        zoneChiefPointageMode: nextZoneChiefPointageMode,
+        pointageMode: pointageMode == null ? null : nextPointageMode,
+        zoneChiefPointageMode:
+            zoneChiefPointageMode == null ? null : nextZoneChiefPointageMode,
       );
       if (!mounted) return;
       _showSnackBar('Modes de pointage mis a jour.');
@@ -866,7 +878,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
       builder: (context) => AlertDialog(
         title: const Text('Remettre les valeurs par defaut ?'),
         content: const Text(
-          'Les champs de configuration mobile seront supprimes de Firestore. Le mobile utilisera alors ses valeurs par defaut.',
+          'Les parametres photo seront remis aux valeurs par defaut. Le suivi GPS continu et les modes de pointage sont conserves.',
         ),
         actions: [
           TextButton(

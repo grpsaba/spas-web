@@ -30,9 +30,18 @@ class MobileConfigService {
     return MobileConfig.fromJson(snapshot.data() ?? <String, dynamic>{});
   }
 
+  Stream<MobileConfig> watchConfig() => _documentReference.snapshots().map(
+        (snapshot) => MobileConfig.fromJson(snapshot.data() ?? {}),
+      );
+
+  Future<void> setBackgroundTrackingEnabled(bool enabled) =>
+      _documentReference.set({
+        backgroundTrackingEnabledField: enabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
   Future<void> saveConfig(MobileConfig config) {
     final data = <String, dynamic>{
-      backgroundTrackingEnabledField: config.backgroundTrackingEnabled,
       pointingPhotoQualityField: config.pointingPhotoQuality,
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -50,7 +59,6 @@ class MobileConfigService {
   Future<void> resetToDefaults() {
     return _documentReference.set(
       <String, dynamic>{
-        backgroundTrackingEnabledField: FieldValue.delete(),
         pointingPhotoQualityField: FieldValue.delete(),
         pointingPhotoMaxWidthField: FieldValue.delete(),
         pointingPhotoMaxHeightField: FieldValue.delete(),
