@@ -1,6 +1,6 @@
+import 'installation_ui.dart' show installationReadableError;
+
 /// Business failures already contain the instruction intended for the user.
-String installationErrorMessage(Object error) {
-  if (error is StateError) return error.message;
-  if (error is FormatException) return error.message;
-  return error.toString();
-}
+/// Firebase failures are translated; Dart technical prefixes are removed.
+String installationErrorMessage(Object error) =>
+    installationReadableError(error);

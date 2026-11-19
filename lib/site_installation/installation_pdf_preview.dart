@@ -89,7 +89,8 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _error = 'Impossible de préparer le document : $error');
+        setState(() => _error =
+            'Impossible de préparer le document : ${installationReadableError(error)}');
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -110,36 +111,51 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                 !widget.hasUnsavedChanges &&
                 !_exporting &&
                 ready;
+            final compact = MediaQuery.sizeOf(context).width <
+                InstallationStyle.compactWidth;
+            final actions = official && widget.canPrint
+                ? [
+                    FilledButton.icon(
+                        onPressed: exportable
+                            ? () => _export(state.data!, print: true)
+                            : null,
+                        icon: const Icon(Icons.print_outlined, size: 18),
+                        label: const Text('Imprimer')),
+                    OutlinedButton.icon(
+                        onPressed: exportable
+                            ? () => _export(state.data!, print: false)
+                            : null,
+                        icon: const Icon(Icons.download_outlined, size: 18),
+                        label: const Text('Télécharger le PDF')),
+                  ]
+                : const <Widget>[];
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
-                  Wrap(
-                      spacing: 12,
-                      runSpacing: 12,
-                      crossAxisAlignment: WrapCrossAlignment.center,
-                      children: [
-                        const Text('Aperçu du bon',
-                            style: TextStyle(
-                                fontSize: 18,
-                                fontWeight: FontWeight.w700,
-                                color: InstallationStyle.ink)),
-                        if (official && widget.canPrint) ...[
-                          OutlinedButton.icon(
-                              onPressed: exportable
-                                  ? () => _export(state.data!, print: false)
-                                  : null,
-                              icon:
-                                  const Icon(Icons.download_outlined, size: 18),
-                              label: const Text('Télécharger le PDF')),
-                          OutlinedButton.icon(
-                              onPressed: exportable
-                                  ? () => _export(state.data!, print: true)
-                                  : null,
-                              icon: const Icon(Icons.print_outlined, size: 18),
-                              label: const Text('Imprimer')),
-                        ],
-                      ]),
-                  const SizedBox(height: 12),
+                  Row(children: [
+                    const Expanded(
+                        child: Text('Aperçu du bon',
+                            style: InstallationStyle.sectionTitle)),
+                    if (official)
+                      Text('Bon n° ${_snapshot.bonNumber}',
+                          style: const TextStyle(
+                              fontSize: 13,
+                              fontWeight: FontWeight.w600,
+                              color: InstallationStyle.ink))
+                    else
+                      Container(
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 9, vertical: 4),
+                          decoration: BoxDecoration(
+                              color: InstallationStyle.warningSoft,
+                              borderRadius: BorderRadius.circular(20)),
+                          child: const Text('Brouillon',
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: FontWeight.w600,
+                                  color: InstallationStyle.warning))),
+                  ]),
+                  const SizedBox(height: 6),
                   Text(
                       !official
                           ? 'Aperçu du brouillon. Le document définitif sera disponible après validation du bon.'
@@ -148,53 +164,77 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                               : widget.canPrint
                                   ? 'Format A4 · Le téléchargement et l’impression utilisent le document affiché.'
                                   : 'Format A4 · Bon n° ${_snapshot.bonNumber}',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          color: InstallationStyle.muted,
-                          height: 1.5)),
-                  const SizedBox(height: 16),
-                  if (_exporting) const LinearProgressIndicator(minHeight: 2),
-                  if (_error != null)
-                    InstallationNotice(warning: true, message: _error!),
+                      style: TextStyle(
+                          fontSize: 12.5,
+                          height: 1.5,
+                          color: official && widget.hasUnsavedChanges
+                              ? InstallationStyle.warning
+                              : InstallationStyle.muted)),
+                  if (actions.isNotEmpty) ...[
+                    const SizedBox(height: 12),
+                    if (compact)
+                      Row(children: [
+                        Expanded(child: actions[0]),
+                        const SizedBox(width: 8),
+                        Expanded(child: actions[1]),
+                      ])
+                    else
+                      Wrap(spacing: 10, runSpacing: 10, children: actions),
+                  ],
+                  const SizedBox(height: 14),
+                  if (_exporting) ...[
+                    const LinearProgressIndicator(minHeight: 2),
+                    const SizedBox(height: 8),
+                  ],
+                  if (_error != null) ...[
+                    InstallationNotice(
+                        tone: InstallationTone.error, message: _error!),
+                    const SizedBox(height: 8),
+                  ],
                   if (state.hasError)
                     InstallationNotice(
-                        warning: true,
+                        tone: InstallationTone.error,
                         message:
-                            'Impossible de générer l’aperçu : ${state.error}',
+                            'Impossible de générer l’aperçu : ${installationReadableError(state.error!)}',
                         action: TextButton(
                             onPressed: () => setState(_buildPdf),
                             child: const Text('Réessayer')))
                   else if (!ready)
                     const SizedBox(
-                        height: 360,
-                        child: Center(child: CircularProgressIndicator()))
+                        height: 320,
+                        child: InstallationStateMessage(
+                            loading: true,
+                            title: 'Préparation de l’aperçu…',
+                            message:
+                                'Le document A4 est généré sur cet appareil.'))
                   else
                     SizedBox(
                         height: MediaQuery.sizeOf(context)
                                 .height
                                 .clamp(420.0, 800.0) *
                             .8,
-                        child: ClipRRect(
-                            borderRadius: BorderRadius.circular(10),
-                            child: PdfPreview(
-                              key: ValueKey(_fingerprint),
-                              build: _layout,
-                              initialPageFormat: PdfPageFormat.a4,
-                              canChangeOrientation: false,
-                              canChangePageFormat: false,
-                              canDebug: false,
-                              useActions: false,
-                              allowPrinting: false,
-                              allowSharing: false,
-                              maxPageWidth: 720,
-                              pdfFileName: 'Bon-${_snapshot.bonNumber}.pdf',
-                              scrollViewDecoration: const BoxDecoration(
-                                  color: InstallationStyle.background),
-                              onError: (_, error) => InstallationNotice(
-                                  warning: true,
-                                  message:
-                                      'Le lecteur PDF n’a pas pu afficher le document. $error'),
-                            ))),
+                        child: RepaintBoundary(
+                            child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: PdfPreview(
+                                  key: ValueKey(_fingerprint),
+                                  build: _layout,
+                                  initialPageFormat: PdfPageFormat.a4,
+                                  canChangeOrientation: false,
+                                  canChangePageFormat: false,
+                                  canDebug: false,
+                                  useActions: false,
+                                  allowPrinting: false,
+                                  allowSharing: false,
+                                  maxPageWidth: 720,
+                                  pdfFileName: 'Bon-${_snapshot.bonNumber}.pdf',
+                                  scrollViewDecoration: const BoxDecoration(
+                                      color: InstallationStyle.background),
+                                  onError: (_, error) => InstallationNotice(
+                                      tone: InstallationTone.error,
+                                      message:
+                                          'Le lecteur PDF n’a pas pu afficher le document. ${installationReadableError(error)}'),
+                                )))),
                 ]);
           }));
 }

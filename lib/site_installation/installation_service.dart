@@ -291,9 +291,35 @@ class InstallationService {
         .add(_event('comment', message.trim()));
   }
 
-  Future<Map<String, List<InstallationOption>>> options(
-      InstallationOrder order) async {
+  // Reference lists change rarely: they are read once for a few minutes
+  // instead of at every opening of a request (whole catalogue included).
+  static final _optionsCache = <String, _CachedOptions>{};
+  static const _optionsLifetime = Duration(minutes: 10);
+
+  Future<Map<String, List<InstallationOption>>> options(InstallationOrder order,
+      {bool refresh = false}) {
     _scope(order);
+    final key = '${order.tenantId}|${departments.join(',')}';
+    final cached = _optionsCache[key];
+    if (!refresh &&
+        cached != null &&
+        DateTime.now().difference(cached.at) < _optionsLifetime) {
+      return cached.value;
+    }
+    final loading = _loadOptions(order);
+    _optionsCache[key] = _CachedOptions(DateTime.now(), loading);
+    // A failed read must not stay cached.
+    loading.catchError((Object _) {
+      if (identical(_optionsCache[key]?.value, loading)) {
+        _optionsCache.remove(key);
+      }
+      return <String, List<InstallationOption>>{};
+    });
+    return loading;
+  }
+
+  Future<Map<String, List<InstallationOption>>> _loadOptions(
+      InstallationOrder order) async {
     final results = await Future.wait([
       _db
           .collection('Zones')
@@ -355,6 +381,7 @@ class InstallationService {
         transaction.set(ref, data);
       }
     });
+    _optionsCache.clear();
     return InstallationOption(ref.id, label, data);
   }
 
@@ -572,4 +599,10 @@ class InstallationService {
       await app.delete();
     }
   }
+}
+
+class _CachedOptions {
+  _CachedOptions(this.at, this.value);
+  final DateTime at;
+  final Future<Map<String, List<InstallationOption>>> value;
 }

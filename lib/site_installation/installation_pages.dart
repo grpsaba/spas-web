@@ -1,3 +1,4 @@
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -21,9 +22,11 @@ class InstallationListPage extends StatefulWidget {
 
 class _InstallationListPageState extends State<InstallationListPage> {
   final _service = InstallationService();
-  late final _stream = _service.canView ? _service.watchAll() : null;
+  late Stream<List<InstallationOrder>>? _stream =
+      _service.canView ? _service.watchAll() : null;
   late final _numbering =
       _service.canView && _service.canReview ? _service.watchNumbering() : null;
+
   @override
   Widget build(BuildContext context) => PageModel(
         pageIndex: 22,
@@ -34,52 +37,52 @@ class _InstallationListPageState extends State<InstallationListPage> {
               color: InstallationStyle.background,
               child: !_service.canView
                   ? const Center(
-                      child: InstallationNotice(
+                      child: InstallationStateMessage(
                           icon: Icons.lock_outline,
+                          title: 'Accès non autorisé',
                           message:
-                              'Votre profil ne donne pas accès aux bons de mise en place.'))
+                              'Votre profil ne donne pas accès aux bons de mise en place. Contactez un administrateur.'))
                   : StreamBuilder<List<InstallationOrder>>(
                       stream: _stream,
                       builder: (context, snapshot) {
                         if (snapshot.hasError) {
                           return Center(
-                              child: Padding(
-                                  padding: const EdgeInsets.all(32),
-                                  child: InstallationNotice(
-                                      warning: true,
-                                      message:
-                                          'Impossible de charger les demandes. ${snapshot.error}')));
+                              child: SingleChildScrollView(
+                                  child: InstallationStateMessage(
+                                      tone: InstallationTone.error,
+                                      icon: Icons.cloud_off_outlined,
+                                      title:
+                                          'Impossible de charger les demandes',
+                                      message: installationErrorMessage(
+                                          snapshot.error!),
+                                      action: FilledButton.icon(
+                                          onPressed: () => setState(() =>
+                                              _stream = _service.watchAll()),
+                                          icon: const Icon(Icons.refresh),
+                                          label: const Text('Réessayer')))));
                         }
                         if (!snapshot.hasData) {
                           return const Center(
-                              child: CircularProgressIndicator());
+                              child: InstallationStateMessage(
+                                  loading: true,
+                                  title: 'Chargement des demandes…'));
                         }
-                        return Column(children: [
-                          if (_numbering != null)
-                            Padding(
-                                padding:
-                                    const EdgeInsets.fromLTRB(32, 16, 32, 0),
-                                child: Align(
-                                    alignment: Alignment.centerLeft,
-                                    child: InstallationNumberingPanel(
-                                        stream: _numbering!,
-                                        canInitialize:
-                                            _service.canConfigureNumbering,
-                                        onInitialize:
-                                            _service.initializeNumbering))),
-                          Expanded(
-                              child: InstallationWorkspace(
-                            orders: snapshot.data!,
-                            ownerUid: _service.actor['uid'] as String,
-                            reviewer: _service.canReview,
-                            onCreate: _service.canAdd
-                                ? () =>
-                                    context.go('/bons-mise-en-place/nouveau')
-                                : null,
-                            onOpen: (order) =>
-                                context.go('/bons-mise-en-place/${order.id}'),
-                          )),
-                        ]);
+                        return InstallationWorkspace(
+                          orders: snapshot.data!,
+                          ownerUid: _service.actor['uid'] as String,
+                          reviewer: _service.canReview,
+                          headerExtra: _numbering == null
+                              ? null
+                              : InstallationNumberingPanel(
+                                  stream: _numbering!,
+                                  canInitialize: _service.canConfigureNumbering,
+                                  onInitialize: _service.initializeNumbering),
+                          onCreate: _service.canAdd
+                              ? () => context.go('/bons-mise-en-place/nouveau')
+                              : null,
+                          onOpen: (order) =>
+                              context.go('/bons-mise-en-place/${order.id}'),
+                        );
                       }),
             )),
       );
@@ -93,18 +96,18 @@ class InstallationDetailPage extends StatefulWidget {
 }
 
 class _InstallationDetailPageState extends State<InstallationDetailPage> {
+  static const _requestTab = 0, _signedTab = 1, _followTab = 2, _pdfTab = 3;
   final _service = InstallationService();
-  final _comment = TextEditingController();
   final _scroll = ScrollController();
+  final _form = InstallationFormController();
   InstallationOrder? _order;
   Map<String, List<InstallationOption>> _options = {};
+  Stream<QuerySnapshot<Map<String, dynamic>>>? _events;
   String? _error;
   bool _busy = false;
   bool _persisted = false;
   int _formVersion = 0;
-  final _validationKey = GlobalKey<FormState>();
-  int _validationAttempt = 0;
-  int _tab = 0;
+  int _tab = _requestTab;
   bool _previewOpened = false;
   bool _dirty = false;
 
@@ -116,17 +119,20 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
 
   @override
   void dispose() {
-    _comment.dispose();
     _scroll.dispose();
     super.dispose();
   }
 
   Future<void> _load() async {
+    setState(() => _error = null);
     try {
       final order = widget.id == 'nouveau'
           ? _service.newDraft()
           : await _service.one(widget.id);
-      final options = await _service.options(order);
+      // Read-only requests do not need the zones, supervisors and catalogue.
+      final options = _service.canEdit(order)
+          ? await _service.options(order)
+          : const <String, List<InstallationOption>>{};
       if (!mounted) return;
       setState(() {
         _order = order;
@@ -136,7 +142,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         _dirty = false;
         _formVersion++;
         if (InstallationPdf.isPrintable(order)) {
-          _tab = 3;
+          _tab = _pdfTab;
           _previewOpened = true;
         }
       });
@@ -145,7 +151,11 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     }
   }
 
-  Future<void> _run(Future<void> Function() action) async {
+  void _notify(String message) => ScaffoldMessenger.maybeOf(context)
+    ?..hideCurrentSnackBar()
+    ..showSnackBar(SnackBar(content: Text(message)));
+
+  Future<void> _run(Future<void> Function() action, {String? success}) async {
     if (_busy) return;
     setState(() {
       _busy = true;
@@ -153,6 +163,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     });
     try {
       await action();
+      if (success != null && mounted) _notify(success);
     } catch (error) {
       if (mounted) {
         setState(() => _error = installationErrorMessage(error));
@@ -177,22 +188,44 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     if (mounted) setState(() => _formVersion++);
   }
 
-  Future<void> _move(InstallationStatus next, {String message = ''}) =>
+  /// Required fields are checked in the form before any write.
+  Future<bool> _checkForm() async {
+    if (_tab != _requestTab) {
+      setState(() => _tab = _requestTab);
+      await WidgetsBinding.instance.endOfFrame;
+    }
+    final editable = _service.canEdit(_order!);
+    final valid = (!editable || _form.validate()) && _order!.validate().isEmpty;
+    if (!valid) {
+      _notify(editable
+          ? 'Complétez les informations signalées avant de continuer.'
+          : _order!.validate().join('\n'));
+    }
+    return valid;
+  }
+
+  Future<void> _transmit() async {
+    if (_busy || !await _checkForm()) return;
+    await _move(InstallationStatus.submitted,
+        success: 'Demande transmise au bureau.');
+  }
+
+  Future<void> _approve() async {
+    if (_busy || !await _checkForm() || !mounted) return;
+    final confirmed = await _confirm(
+        title: 'Valider le bon ?',
+        message: _order!.bonNumber.isEmpty
+            ? 'Le prochain numéro de bon sera attribué définitivement à cette demande.'
+            : 'Le bon conserve son numéro ${_order!.bonNumber}.',
+        action: 'Valider le bon');
+    if (confirmed) {
+      await _move(InstallationStatus.approved, success: 'Bon validé.');
+    }
+  }
+
+  Future<void> _move(InstallationStatus next,
+          {String message = '', String? success}) =>
       _run(() async {
-        if (next == InstallationStatus.submitted ||
-            next == InstallationStatus.approved) {
-          setState(() {
-            _validationAttempt++;
-            _tab = 0;
-          });
-          final fieldsValid = _validationKey.currentState?.validate() ?? true;
-          final errors = _order!.validate();
-          if (!fieldsValid || errors.isNotEmpty) {
-            throw StateError(errors.isEmpty
-                ? 'Vérifier les champs indiqués dans le formulaire.'
-                : errors.join('\n'));
-          }
-        }
         // Return first so even an incomplete older request can be sent back.
         // Keep any reviewer edits and save them in the editable correction state.
         if (next == InstallationStatus.changesRequested && _dirty) {
@@ -215,12 +248,20 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
             _order = order;
             _formVersion++;
             if (next == InstallationStatus.approved) {
-              _tab = 3;
+              _tab = _pdfTab;
               _previewOpened = true;
             }
           });
         }
-      });
+      }, success: success);
+
+  void _openTab(int tab) {
+    FocusScope.of(context).unfocus();
+    setState(() {
+      _tab = tab;
+      if (tab == _pdfTab) _previewOpened = true;
+    });
+  }
 
   @override
   Widget build(BuildContext context) {
@@ -235,402 +276,279 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
               child: order == null
                   ? Center(
                       child: _error == null
-                          ? const CircularProgressIndicator()
-                          : Padding(
-                              padding: const EdgeInsets.all(24),
-                              child: InstallationNotice(
-                                  warning: true,
+                          ? const InstallationStateMessage(
+                              loading: true, title: 'Ouverture de la demande…')
+                          : SingleChildScrollView(
+                              child: InstallationStateMessage(
+                                  tone: InstallationTone.error,
+                                  icon: Icons.error_outline,
+                                  title: 'Impossible d’ouvrir la demande',
                                   message: _error!,
-                                  action: TextButton(
-                                      onPressed: _load,
-                                      child: const Text('Réessayer')))))
-                  : LayoutBuilder(builder: (context, constraints) {
-                      final compact = constraints.maxWidth < 700;
-                      return Column(children: [
-                        if (_busy) const LinearProgressIndicator(minHeight: 2),
-                        Expanded(
-                            child: SingleChildScrollView(
-                                controller: _scroll,
-                                padding: EdgeInsets.all(compact ? 16 : 32),
-                                child: Center(
-                                    child: ConstrainedBox(
-                                        constraints: const BoxConstraints(
-                                            maxWidth: 1280),
-                                        child: Column(
-                                            crossAxisAlignment:
-                                                CrossAxisAlignment.stretch,
-                                            children: [
-                                              Row(children: [
-                                                TextButton.icon(
-                                                    onPressed: () => _leave(),
-                                                    icon: const Icon(
-                                                        Icons.arrow_back,
-                                                        size: 16),
-                                                    label: const Text(
-                                                        'Tous les dossiers')),
-                                                const Spacer(),
-                                                if (_persisted)
-                                                  IconButton(
-                                                      tooltip:
-                                                          'Actualiser le dossier',
-                                                      onPressed: _busy
-                                                          ? null
-                                                          : () {
-                                                              if (_dirty) {
-                                                                ScaffoldMessenger.of(
-                                                                        context)
-                                                                    .showSnackBar(const SnackBar(
-                                                                        content:
-                                                                            Text('Enregistrez vos modifications avant d’actualiser.')));
-                                                              } else {
-                                                                _load();
-                                                              }
-                                                            },
-                                                      icon: const Icon(
-                                                          Icons.refresh,
-                                                          color:
-                                                              InstallationStyle
-                                                                  .muted)),
-                                              ]),
-                                              const SizedBox(height: 18),
-                                              Wrap(
-                                                  spacing: 20,
-                                                  runSpacing: 14,
-                                                  crossAxisAlignment:
-                                                      WrapCrossAlignment.center,
-                                                  children: [
-                                                    Text(
-                                                        order.siteName.isEmpty
-                                                            ? 'Nouvelle demande de site'
-                                                            : order.siteName,
-                                                        style: TextStyle(
-                                                            fontSize: compact
-                                                                ? 24
-                                                                : 30,
-                                                            fontWeight:
-                                                                FontWeight.w700,
-                                                            color:
-                                                                InstallationStyle
-                                                                    .ink)),
-                                                    InstallationStatusBadge(
-                                                        order.status),
-                                                  ]),
-                                              const SizedBox(height: 10),
-                                              Text(
-                                                  '${order.serviceLabel}  ·  Initiée par ${order.authorName}${order.bonNumber.isEmpty ? '' : '  ·  Bon n° ${order.bonNumber}'}',
-                                                  style: const TextStyle(
-                                                      fontSize: 13,
-                                                      color: InstallationStyle
-                                                          .muted,
-                                                      height: 1.5)),
-                                              const SizedBox(height: 24),
-                                              InstallationPanel(child:
-                                                  LayoutBuilder(
-                                                      builder: (context, c) {
-                                                final guidance = Column(
-                                                    crossAxisAlignment:
-                                                        CrossAxisAlignment
-                                                            .start,
-                                                    children: [
-                                                      const Text(
-                                                          'PROCHAINE ÉTAPE',
-                                                          style: TextStyle(
-                                                              fontSize: 10,
-                                                              fontWeight:
-                                                                  FontWeight
-                                                                      .w700,
-                                                              letterSpacing:
-                                                                  1.3,
-                                                              color:
-                                                                  InstallationStyle
-                                                                      .primary)),
-                                                      const SizedBox(
-                                                          height: 10),
-                                                      Text(
-                                                          installationNextStep(
-                                                              order.status),
-                                                          style: const TextStyle(
-                                                              color:
-                                                                  InstallationStyle
-                                                                      .ink,
-                                                              fontSize: 14,
-                                                              height: 1.6)),
-                                                    ]);
-                                                if (c.maxWidth < 800) {
-                                                  return Column(
-                                                      crossAxisAlignment:
-                                                          CrossAxisAlignment
-                                                              .stretch,
-                                                      children: [
-                                                        guidance,
-                                                        const SizedBox(
-                                                            height: 24),
-                                                        InstallationProgress(
-                                                            order.status)
-                                                      ]);
-                                                }
-                                                return Row(children: [
-                                                  Expanded(child: guidance),
-                                                  const SizedBox(width: 40),
-                                                  SizedBox(
-                                                      width: 390,
-                                                      child:
-                                                          InstallationProgress(
-                                                              order.status))
-                                                ]);
-                                              })),
-                                              const SizedBox(height: 24),
-                                              if (_error != null) ...[
-                                                InstallationNotice(
-                                                    warning: true,
-                                                    icon: Icons.error_outline,
-                                                    message: _error!),
-                                                const SizedBox(height: 18)
-                                              ],
-                                              SingleChildScrollView(
-                                                  scrollDirection:
-                                                      Axis.horizontal,
-                                                  child: Row(children: [
-                                                    _tabButton(
-                                                        0,
-                                                        'La demande',
-                                                        Icons
-                                                            .description_outlined),
-                                                    _tabButton(
-                                                        3,
-                                                        'Aperçu PDF',
-                                                        Icons
-                                                            .picture_as_pdf_outlined),
-                                                    if (_persisted)
-                                                      _tabButton(
-                                                          1,
-                                                          'Bon signé (${order.attachments.length})',
-                                                          Icons.attach_file),
-                                                    if (_persisted)
-                                                      _tabButton(
-                                                          2,
-                                                          'Échanges & historique',
-                                                          Icons.forum_outlined),
-                                                  ])),
-                                              const SizedBox(height: 22),
-                                              Row(
-                                                  crossAxisAlignment:
-                                                      CrossAxisAlignment.start,
-                                                  children: [
-                                                    Expanded(
-                                                        child:
-                                                            Column(children: [
-                                                      Visibility(
-                                                          visible: _tab == 0,
-                                                          maintainState: true,
-                                                          child: _service
-                                                                  .canEdit(
-                                                                      order)
-                                                              ? InstallationForm(
-                                                                  key: ValueKey(
-                                                                      '${order.id}_$_formVersion'),
-                                                                  order: order,
-                                                                  enabled:
-                                                                      !_busy,
-                                                                  guided: true,
-                                                                  validationKey:
-                                                                      _validationKey,
-                                                                  validationAttempt:
-                                                                      _validationAttempt,
-                                                                  departments:
-                                                                      _service
-                                                                          .departments,
-                                                                  zones: _options[
-                                                                          'zones'] ??
-                                                                      [],
-                                                                  supervisors:
-                                                                      _options[
-                                                                              'supervisors'] ??
-                                                                          [],
-                                                                  catalog: _options[
-                                                                          'catalog'] ??
-                                                                      [],
-                                                                  onChanged:
-                                                                      () {
-                                                                    if (!_dirty) {
-                                                                      setState(() =>
-                                                                          _dirty =
-                                                                              true);
-                                                                    }
-                                                                  },
-                                                                  createEquipment: (label,
-                                                                          department) =>
-                                                                      _service.createEquipment(
-                                                                          order,
-                                                                          label,
-                                                                          department),
-                                                                )
-                                                              : InstallationReadOnly(
-                                                                  order)),
-                                                      if (_tab == 1)
-                                                        _attachments(order),
-                                                      if (_tab == 2)
-                                                        _discussion(order),
-                                                      if (_previewOpened)
-                                                        Visibility(
-                                                            visible: _tab == 3,
-                                                            maintainState: true,
-                                                            child: InstallationPdfPreview(
-                                                                order: order,
-                                                                canPrint: _service
-                                                                    .canPrint,
-                                                                active:
-                                                                    _tab == 3,
-                                                                hasUnsavedChanges:
-                                                                    _dirty)),
-                                                    ])),
-                                                    if (constraints.maxWidth >=
-                                                        1180) ...[
-                                                      const SizedBox(width: 24),
-                                                      SizedBox(
-                                                          width: 265,
-                                                          child:
-                                                              InstallationPanel(
-                                                                  child: Column(
-                                                                      crossAxisAlignment:
-                                                                          CrossAxisAlignment
-                                                                              .start,
-                                                                      children: [
-                                                                const Text(
-                                                                    'Le dossier en bref',
-                                                                    style: TextStyle(
-                                                                        fontSize:
-                                                                            15,
-                                                                        fontWeight:
-                                                                            FontWeight
-                                                                                .w700,
-                                                                        color: InstallationStyle
-                                                                            .ink)),
-                                                                const SizedBox(
-                                                                    height: 24),
-                                                                _summaryLine(
-                                                                    Icons
-                                                                        .person_outline,
-                                                                    'Initiateur',
-                                                                    order
-                                                                        .authorName),
-                                                                _summaryLine(
-                                                                    Icons
-                                                                        .business_outlined,
-                                                                    'Client',
-                                                                    order.clientName
-                                                                            .isEmpty
-                                                                        ? 'À renseigner'
-                                                                        : order
-                                                                            .clientName),
-                                                                _summaryLine(
-                                                                    Icons
-                                                                        .people_outline,
-                                                                    'Agents sur le bon',
-                                                                    '${order.agents.length}'),
-                                                                _summaryLine(
-                                                                    Icons
-                                                                        .inventory_2_outlined,
-                                                                    'Équipements',
-                                                                    '${order.equipment.length} ligne(s)'),
-                                                                const Divider(
-                                                                    height: 28),
-                                                                const Text(
-                                                                    'Le site sera créé uniquement après le retour du bon signé et la finalisation par le responsable.',
-                                                                    style: TextStyle(
-                                                                        fontSize:
-                                                                            12,
-                                                                        height:
-                                                                            1.6,
-                                                                        color: InstallationStyle
-                                                                            .muted)),
-                                                              ])))
-                                                    ],
-                                                  ]),
-                                            ]))))),
-                        Container(
-                            width: double.infinity,
-                            padding: EdgeInsets.symmetric(
-                                horizontal: compact ? 16 : 32, vertical: 14),
-                            decoration: const BoxDecoration(
-                                color: Colors.white,
-                                border: Border(
-                                    top: BorderSide(
-                                        color: InstallationStyle.line))),
-                            child: SafeArea(
-                                top: false,
-                                child: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.stretch,
-                                    children: [
-                                      if (_service.canEdit(order))
-                                        Padding(
-                                            padding: const EdgeInsets.only(
-                                                bottom: 10),
-                                            child: Text(
-                                                _dirty
-                                                    ? 'Modifications non enregistrées'
-                                                    : _persisted
-                                                        ? 'Dernières modifications enregistrées'
-                                                        : 'Le site sera créé à la fin du circuit.',
-                                                style: TextStyle(
-                                                    fontSize: 11,
-                                                    color: _dirty
-                                                        ? const Color(
-                                                            0xFFAB6B19)
-                                                        : InstallationStyle
-                                                            .muted))),
-                                      _actions(order),
-                                    ]))),
-                      ]);
-                    }),
+                                  action: Wrap(
+                                      spacing: 10,
+                                      runSpacing: 10,
+                                      alignment: WrapAlignment.center,
+                                      children: [
+                                        OutlinedButton(
+                                            onPressed: () => context
+                                                .go('/bons-mise-en-place'),
+                                            child: const Text(
+                                                'Retour à la liste')),
+                                        FilledButton.icon(
+                                            onPressed: _load,
+                                            icon: const Icon(Icons.refresh),
+                                            label: const Text('Réessayer')),
+                                      ]))))
+                  : _page(order),
             )));
   }
 
-  Widget _tabButton(int index, String text, IconData icon) => Padding(
-      padding: const EdgeInsets.only(right: 8),
-      child: TextButton.icon(
-          style: TextButton.styleFrom(
-              backgroundColor:
-                  _tab == index ? Colors.white : Colors.transparent,
-              foregroundColor: _tab == index
-                  ? InstallationStyle.primary
-                  : InstallationStyle.muted,
-              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 15),
-              shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(10),
-                  side: BorderSide(
-                      color: _tab == index
-                          ? InstallationStyle.line
-                          : Colors.transparent))),
-          onPressed: () => setState(() {
-                _tab = index;
-                if (index == 3) _previewOpened = true;
-              }),
-          icon: Icon(icon, size: 18),
-          label: Text(text,
-              style:
-                  const TextStyle(fontSize: 13, fontWeight: FontWeight.w600))));
+  Widget _page(InstallationOrder order) =>
+      LayoutBuilder(builder: (context, constraints) {
+        final compact = constraints.maxWidth < 700;
+        final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
+        final editable = _service.canEdit(order);
+        final bar = _actionBar(order);
+        return Column(children: [
+          if (_busy) const LinearProgressIndicator(minHeight: 2),
+          Expanded(
+              child: SingleChildScrollView(
+                  controller: _scroll,
+                  keyboardDismissBehavior:
+                      ScrollViewKeyboardDismissBehavior.manual,
+                  padding: EdgeInsets.fromLTRB(compact ? 16 : 32,
+                      compact ? 12 : 24, compact ? 16 : 32, 32),
+                  child: Center(
+                      child: ConstrainedBox(
+                          constraints: const BoxConstraints(maxWidth: 1100),
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.stretch,
+                              children: [
+                                _header(order, compact),
+                                const SizedBox(height: 16),
+                                InstallationNextStepCard(
+                                    status: order.status,
+                                    guidance: installationGuidance(order.status,
+                                        reviewer: _service.canReview)),
+                                if (_error != null) ...[
+                                  const SizedBox(height: 14),
+                                  InstallationNotice(
+                                      tone: InstallationTone.error,
+                                      title: 'L’action n’a pas abouti',
+                                      message: _error!,
+                                      action: _dirty
+                                          ? null
+                                          : TextButton.icon(
+                                              onPressed: _busy ? null : _load,
+                                              icon: const Icon(Icons.refresh,
+                                                  size: 18),
+                                              label: const Text(
+                                                  'Recharger la fiche'))),
+                                ],
+                                const SizedBox(height: 18),
+                                InstallationTabs(
+                                    selected: _tab,
+                                    onSelected: _openTab,
+                                    tabs: [
+                                      InstallationTab(
+                                          _requestTab,
+                                          editable ? 'Saisie' : 'La demande',
+                                          Icons.description_outlined),
+                                      const InstallationTab(
+                                          _pdfTab,
+                                          'Aperçu PDF',
+                                          Icons.picture_as_pdf_outlined),
+                                      if (_persisted)
+                                        const InstallationTab(_followTab,
+                                            'Suivi', Icons.forum_outlined),
+                                      if (_persisted)
+                                        InstallationTab(
+                                            _signedTab,
+                                            order.attachments.isEmpty
+                                                ? 'Bon signé'
+                                                : 'Bon signé (${order.attachments.length})',
+                                            Icons.attach_file),
+                                    ]),
+                                const SizedBox(height: 16),
+                                Visibility(
+                                    visible: _tab == _requestTab,
+                                    maintainState: true,
+                                    child: editable
+                                        ? InstallationForm(
+                                            key: ValueKey(
+                                                '${order.id}_$_formVersion'),
+                                            order: order,
+                                            enabled: !_busy,
+                                            guided: true,
+                                            controller: _form,
+                                            departments: _service.departments,
+                                            zones:
+                                                _options['zones'] ?? const [],
+                                            supervisors:
+                                                _options['supervisors'] ??
+                                                    const [],
+                                            catalog:
+                                                _options['catalog'] ?? const [],
+                                            onChanged: () {
+                                              if (!_dirty) {
+                                                setState(() => _dirty = true);
+                                              }
+                                            },
+                                            createEquipment: (label,
+                                                    department) =>
+                                                _service.createEquipment(
+                                                    order, label, department),
+                                          )
+                                        : InstallationReadOnly(order)),
+                                if (_tab == _signedTab) _attachments(order),
+                                if (_tab == _followTab) _discussion(order),
+                                if (_previewOpened)
+                                  Visibility(
+                                      visible: _tab == _pdfTab,
+                                      maintainState: true,
+                                      child: InstallationPdfPreview(
+                                          order: order,
+                                          canPrint: _service.canPrint,
+                                          active: _tab == _pdfTab,
+                                          hasUnsavedChanges: _dirty)),
+                              ]))))),
+          // Hidden while typing on a phone so fields stay visible.
+          if (!(compact && keyboard)) bar,
+        ]);
+      });
 
-  Widget _summaryLine(IconData icon, String label, String value) => Padding(
-      padding: const EdgeInsets.only(bottom: 20),
-      child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        Icon(icon, size: 18, color: InstallationStyle.muted),
-        const SizedBox(width: 10),
-        Expanded(
-            child:
-                Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-          Text(label,
-              style: const TextStyle(
-                  fontSize: 11, color: InstallationStyle.muted)),
-          const SizedBox(height: 5),
-          Text(value,
-              style: const TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: InstallationStyle.ink))
-        ]))
-      ]));
+  Widget _header(InstallationOrder order, bool compact) =>
+      Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
+        Row(children: [
+          TextButton.icon(
+              style: TextButton.styleFrom(
+                  padding: const EdgeInsets.symmetric(horizontal: 4)),
+              onPressed: _leave,
+              icon: const Icon(Icons.arrow_back, size: 18),
+              label: const Text('Tous les dossiers')),
+          const Spacer(),
+          if (_persisted)
+            IconButton(
+                tooltip: 'Actualiser le dossier',
+                onPressed: _busy
+                    ? null
+                    : () {
+                        if (_dirty) {
+                          _notify(
+                              'Enregistrez vos modifications avant d’actualiser.');
+                        } else {
+                          _load();
+                        }
+                      },
+                icon:
+                    const Icon(Icons.refresh, color: InstallationStyle.muted)),
+        ]),
+        const SizedBox(height: 6),
+        Text(order.siteName.isEmpty ? 'Nouvelle demande' : order.siteName,
+            style: InstallationStyle.pageTitle
+                .copyWith(fontSize: compact ? 22 : 28)),
+        const SizedBox(height: 6),
+        Text(
+            [
+              order.serviceLabel,
+              if (order.authorName.isNotEmpty)
+                'Initiée par ${order.authorName}',
+              if (order.bonNumber.isNotEmpty) 'Bon n° ${order.bonNumber}',
+              if (_persisted && order.updatedAt != null)
+                'Mise à jour le ${installationDateLabel(order.updatedAt)}',
+            ].join('  ·  '),
+            style: InstallationStyle.caption.copyWith(fontSize: 13)),
+      ]);
+
+  Widget _actionBar(InstallationOrder order) {
+    final editable = _service.canEdit(order);
+    final reviewer = _service.canReview;
+    final status = order.status;
+    InstallationAction? primary;
+    final secondary = <InstallationAction>[];
+    if (editable && status.authorCanEdit) {
+      primary = InstallationAction('Transmettre au bureau', _transmit,
+          icon: Icons.send_outlined);
+    }
+    if (reviewer && status == InstallationStatus.submitted) {
+      primary =
+          InstallationAction('Valider le bon', _approve, icon: Icons.check);
+    }
+    if (reviewer && status == InstallationStatus.approved) {
+      primary = InstallationAction(
+          'Confirmer la remise',
+          () => _move(InstallationStatus.awaitingSignature,
+              success: 'Remise pour signature confirmée.'),
+          icon: Icons.handshake_outlined);
+    }
+    if (reviewer && status == InstallationStatus.awaitingSignature) {
+      primary = InstallationAction(
+          'Confirmer le retour signé',
+          () => _move(InstallationStatus.signedReturned,
+              success: 'Retour du bon signé confirmé.'),
+          icon: Icons.assignment_turned_in_outlined);
+    }
+    if (reviewer && status == InstallationStatus.signedReturned) {
+      primary = InstallationAction('Créer le site actif', _finalize,
+          icon: Icons.add_business_outlined);
+    }
+    if (_service.canPrint && InstallationPdf.isPrintable(order)) {
+      secondary.add(InstallationAction(
+          'Aperçu et impression', () => _openTab(_pdfTab),
+          icon: Icons.print_outlined));
+    }
+    if (order.siteId != null) {
+      final sites = InstallationAction(
+          'Voir les sites', () => context.go('/sites'),
+          icon: Icons.open_in_new);
+      if (primary == null) {
+        primary = sites;
+      } else {
+        secondary.add(sites);
+      }
+    }
+    if (reviewer &&
+        status.canMoveTo(InstallationStatus.changesRequested, reviewer: true)) {
+      secondary.add(InstallationAction(
+          'Demander une correction', _requestChanges,
+          icon: Icons.undo));
+    }
+    return InstallationActionBar(
+        busy: _busy,
+        primary: primary,
+        secondary: secondary,
+        save: editable
+            ? InstallationAction('Enregistrer',
+                () => _run(_save, success: 'Modifications enregistrées.'),
+                icon: Icons.save_outlined)
+            : null,
+        status: !editable
+            ? null
+            : _dirty
+                ? 'Modifications non enregistrées'
+                : _persisted
+                    ? 'Modifications enregistrées'
+                    : 'Brouillon pas encore enregistré',
+        statusWarning: editable && (_dirty || !_persisted));
+  }
+
+  Future<bool> _confirm(
+      {required String title,
+      required String message,
+      required String action}) async {
+    final result = await _installationDialog<bool>(
+        context: context,
+        builder: (context) =>
+            AlertDialog(title: Text(title), content: Text(message), actions: [
+              TextButton(
+                  onPressed: () => Navigator.pop(context, false),
+                  child: const Text('Annuler')),
+              FilledButton(
+                  onPressed: () => Navigator.pop(context, true),
+                  child: Text(action)),
+            ]));
+    return result == true;
+  }
 
   Future<void> _leave() async {
     if (_dirty) {
@@ -646,149 +564,49 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                         child: const Text('Continuer la saisie')),
                     FilledButton(
                         onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Quitter'))
+                        child: const Text('Quitter sans enregistrer'))
                   ]));
       if (leave != true) return;
     }
     if (mounted) context.go('/bons-mise-en-place');
   }
 
-  Widget _actions(InstallationOrder order) =>
-      Wrap(spacing: 10, runSpacing: 10, children: [
-        if (_service.canEdit(order))
-          OutlinedButton.icon(
-              onPressed: _busy ? null : () => _run(_save),
-              icon: const Icon(Icons.save_outlined),
-              label: const Text('Enregistrer')),
-        if (order.status.authorCanEdit && _service.canEdit(order))
-          FilledButton.icon(
-              onPressed:
-                  _busy ? null : () => _move(InstallationStatus.submitted),
-              icon: const Icon(Icons.send_outlined),
-              label: const Text('Transmettre au bureau')),
-        if (_service.canReview && order.status == InstallationStatus.submitted)
-          FilledButton.icon(
-              onPressed:
-                  _busy ? null : () => _move(InstallationStatus.approved),
-              icon: const Icon(Icons.check),
-              label: const Text('Valider le bon')),
-        if (_service.canReview &&
-            ![
-              InstallationStatus.draft,
-              InstallationStatus.changesRequested,
-              InstallationStatus.finalized
-            ].contains(order.status))
-          OutlinedButton.icon(
-              onPressed: _busy ? null : _requestChanges,
-              icon: const Icon(Icons.undo),
-              label: const Text('Demander une correction')),
-        if (_service.canPrint &&
-            [
-              InstallationStatus.approved,
-              InstallationStatus.awaitingSignature,
-              InstallationStatus.signedReturned,
-              InstallationStatus.finalized
-            ].contains(order.status))
-          OutlinedButton.icon(
-              onPressed: _busy
-                  ? null
-                  : () => _run(() => InstallationPdf.printOrder(order)),
-              icon: const Icon(Icons.print_outlined),
-              label: const Text('Imprimer le bon')),
-        if (_service.canReview && order.status == InstallationStatus.approved)
-          FilledButton(
-              onPressed: _busy
-                  ? null
-                  : () => _move(InstallationStatus.awaitingSignature),
-              child: const Text('Confirmer la remise')),
-        if (_service.canReview &&
-            order.status == InstallationStatus.awaitingSignature)
-          FilledButton(
-              onPressed:
-                  _busy ? null : () => _move(InstallationStatus.signedReturned),
-              child: const Text('Retour signé reçu')),
-        if (_service.canReview &&
-            order.status == InstallationStatus.signedReturned)
-          FilledButton.icon(
-              onPressed: _busy ? null : _finalize,
-              icon: const Icon(Icons.add_business),
-              label: const Text('Créer le site actif')),
-        if (order.siteId != null)
-          OutlinedButton.icon(
-              onPressed: () => context.go('/sites'),
-              icon: const Icon(Icons.open_in_new),
-              label: const Text('Voir les sites')),
-      ]);
-
   Future<void> _requestChanges() async {
-    final controller = TextEditingController();
     final message = await _installationDialog<String>(
-        context: context,
-        builder: (context) => AlertDialog(
-                title: const Text('Corrections demandées'),
-                content: SizedBox(
-                    width: 480,
-                    child: TextField(
-                        controller: controller,
-                        minLines: 3,
-                        maxLines: 6,
-                        maxLength: 4000,
-                        decoration: const InputDecoration(
-                            labelText: 'Message à l’initiateur'))),
-                actions: [
-                  TextButton(
-                      onPressed: () => Navigator.pop(context),
-                      child: const Text('Annuler')),
-                  FilledButton(
-                      onPressed: () {
-                        if (controller.text.trim().isNotEmpty) {
-                          Navigator.pop(context, controller.text.trim());
-                        }
-                      },
-                      child: const Text('Renvoyer'))
-                ]));
-    controller.dispose();
+        context: context, builder: (context) => const _ChangesDialog());
     if (message != null) {
-      await _move(InstallationStatus.changesRequested, message: message);
+      await _move(InstallationStatus.changesRequested,
+          message: message, success: 'Demande renvoyée pour correction.');
     }
   }
+
+  bool _canContribute(InstallationOrder order) =>
+      _service.canReview ||
+      (_service.canAdd && order.authorUid == _service.actor['uid']);
 
   Widget _attachments(InstallationOrder order) => InstallationPanel(
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('Le bon signé',
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: InstallationStyle.ink)),
-        const SizedBox(height: 10),
+        const Text('Bon signé', style: InstallationStyle.sectionTitle),
+        const SizedBox(height: 4),
         const Text(
-            'Joignez une photo ou un scan pour conserver une copie. Le document reste facultatif ; l’original signé doit revenir au bureau.',
-            style: TextStyle(
-                fontSize: 13, height: 1.6, color: InstallationStyle.muted)),
-        const SizedBox(height: 22),
-        if (order.attachments.isEmpty)
-          const InstallationNotice(
-              icon: Icons.description_outlined,
-              message: 'Aucun document joint pour le moment.'),
-        const SizedBox(height: 12),
-        for (final attachment in order.attachments)
-          ListTile(
-              leading: const Icon(Icons.attach_file),
-              title: Text(attachment['name'] as String? ?? 'Document'),
-              trailing: const Icon(Icons.open_in_new),
-              onTap: () {
-                final url = Uri.tryParse(attachment['url'] as String? ?? '');
-                if (url?.scheme == 'https') {
-                  html.window.open(url.toString(), '_blank');
-                }
-              }),
+            'Joignez une photo ou un scan pour conserver une copie. Ce document est facultatif ; l’original signé doit revenir au bureau.',
+            style: InstallationStyle.caption),
+        const SizedBox(height: 16),
+        InstallationAttachmentList(
+            attachments: order.attachments,
+            onOpen: (attachment) {
+              final url = Uri.tryParse(attachment['url'] as String? ?? '');
+              if (url?.scheme == 'https') {
+                html.window.open(url.toString(), '_blank');
+              }
+            }),
         if (order.status != InstallationStatus.finalized &&
-            (_service.canReview ||
-                (_service.canAdd && order.authorUid == _service.actor['uid'])))
+            _canContribute(order)) ...[
+          const SizedBox(height: 8),
           Align(
               alignment: Alignment.centerLeft,
-              child: TextButton.icon(
+              child: OutlinedButton.icon(
                   onPressed: _busy
                       ? null
                       : () => _run(() async {
@@ -816,60 +634,37 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                 _formVersion++;
                               });
                             }
-                          }),
+                          }, success: 'Document ajouté.'),
                   icon: const Icon(Icons.upload_file),
-                  label: const Text('Joindre une photo ou un scan PDF'))),
-      ]));
-
-  Widget _discussion(InstallationOrder order) => InstallationPanel(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('Échanges & historique',
-            style: TextStyle(
-                fontSize: 18,
-                fontWeight: FontWeight.w700,
-                color: InstallationStyle.ink)),
-        const SizedBox(height: 8),
-        const Text(
-            'Les précisions et les étapes du dossier sont conservées ici.',
-            style: TextStyle(fontSize: 13, color: InstallationStyle.muted)),
-        const SizedBox(height: 12),
-        StreamBuilder(
-            stream: _service.events(order),
-            builder: (context, snapshot) {
-              if (snapshot.hasError) {
-                return SelectableText('${snapshot.error}');
-              }
-              if (!snapshot.hasData) return const LinearProgressIndicator();
-              return Column(
-                  children: snapshot.data!.docs.reversed.map((doc) {
-                final event = doc.data();
-                return InstallationEventTile(event: event);
-              }).toList());
-            }),
-        if (_service.canReview ||
-            (_service.canAdd && order.authorUid == _service.actor['uid'])) ...[
-          TextField(
-              controller: _comment,
-              maxLength: 4000,
-              minLines: 1,
-              maxLines: 5,
-              decoration: const InputDecoration(
-                  labelText: 'Ajouter un commentaire',
-                  border: OutlineInputBorder())),
-          Align(
-              alignment: Alignment.centerRight,
-              child: TextButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _run(() async {
-                            await _service.comment(order, _comment.text);
-                            _comment.clear();
-                          }),
-                  icon: const Icon(Icons.send),
-                  label: const Text('Envoyer'))),
+                  label: const Text('Joindre une photo ou un PDF'))),
+          const SizedBox(height: 6),
+          const Text('JPG, PNG ou PDF · 10 Mo maximum · connexion requise',
+              style: InstallationStyle.caption),
         ],
       ]));
+
+  Widget _discussion(InstallationOrder order) {
+    // One subscription per opened request, not one per rebuild.
+    final events = _events ??= _service.events(order);
+    return StreamBuilder<QuerySnapshot<Map<String, dynamic>>>(
+        stream: events,
+        builder: (context, snapshot) => InstallationFollowUp(
+                events: [
+                  for (final doc in snapshot.data?.docs ?? const [])
+                    {...doc.data(), 'id': doc.id}
+                ],
+                loading: !snapshot.hasData && !snapshot.hasError,
+                error: snapshot.hasError
+                    ? 'Impossible de charger le suivi. ${installationErrorMessage(snapshot.error!)}'
+                    : null,
+                onRetry: () => setState(() => _events = _service.events(order)),
+                onSend: _canContribute(order)
+                    ? (message) => _service.comment(order, message)
+                    : null,
+                composerHint: _service.canReview
+                    ? 'Écrire un message à l’initiateur…'
+                    : 'Écrire un message au bureau…'));
+  }
 
   Future<void> _finalize() async {
     final order = _order!;
@@ -883,46 +678,47 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     final accepted = await _installationDialog<bool>(
         context: context,
         builder: (context) => AlertDialog(
+              scrollable: true,
               title: const Text('Créer le site actif'),
-              content: SingleChildScrollView(
-                  child: SizedBox(
-                      width: 460,
-                      child: Form(
-                          key: key,
-                          child:
-                              Column(mainAxisSize: MainAxisSize.min, children: [
-                            const Text(
+              content: SizedBox(
+                  width: 460,
+                  child: Form(
+                      key: key,
+                      child: Column(mainAxisSize: MainAxisSize.min, children: [
+                        const InstallationNotice(
+                            message:
                                 'Le retour signé est confirmé. Cette action crée le site actif et son compte de connexion.'),
-                            const SizedBox(height: 16),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                                controller: code,
-                                decoration: const InputDecoration(
-                                    labelText: 'Code du site'),
-                                validator: (value) => value!.trim().isEmpty
-                                    ? 'Code requis'
-                                    : null),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                                controller: email,
-                                keyboardType: TextInputType.emailAddress,
-                                decoration: const InputDecoration(
-                                    labelText: 'Email du compte site'),
-                                validator: (value) =>
-                                    RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
-                                            .hasMatch(value!.trim())
-                                        ? null
-                                        : 'Email invalide'),
-                            const SizedBox(height: 16),
-                            TextFormField(
-                                controller: password,
-                                obscureText: true,
-                                decoration: const InputDecoration(
-                                    labelText: 'Mot de passe initial du site'),
-                                validator: (value) => (value?.length ?? 0) < 8
-                                    ? 'Huit caractères minimum'
-                                    : null),
-                          ])))),
+                        const SizedBox(height: 16),
+                        TextFormField(
+                            controller: code,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                                labelText: 'Code du site'),
+                            validator: (value) =>
+                                value!.trim().isEmpty ? 'Code requis' : null),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                            controller: email,
+                            keyboardType: TextInputType.emailAddress,
+                            textInputAction: TextInputAction.next,
+                            decoration: const InputDecoration(
+                                labelText: 'Email du compte site'),
+                            validator: (value) =>
+                                RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
+                                        .hasMatch(value!.trim())
+                                    ? null
+                                    : 'Email invalide'),
+                        const SizedBox(height: 14),
+                        TextFormField(
+                            controller: password,
+                            obscureText: true,
+                            decoration: const InputDecoration(
+                                labelText: 'Mot de passe initial du site',
+                                helperText: 'Huit caractères minimum'),
+                            validator: (value) => (value?.length ?? 0) < 8
+                                ? 'Huit caractères minimum'
+                                : null),
+                      ]))),
               actions: [
                 TextButton(
                     onPressed: () => Navigator.pop(context, false),
@@ -946,12 +742,73 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
             _formVersion++;
           });
         }
-      });
+      }, success: 'Site actif créé.');
     }
     code.dispose();
     email.dispose();
     password.dispose();
   }
+}
+
+class _ChangesDialog extends StatefulWidget {
+  const _ChangesDialog();
+  @override
+  State<_ChangesDialog> createState() => _ChangesDialogState();
+}
+
+class _ChangesDialogState extends State<_ChangesDialog> {
+  final _controller = TextEditingController();
+  bool _attempted = false;
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() {
+    final text = _controller.text.trim();
+    if (text.isEmpty) {
+      setState(() => _attempted = true);
+      return;
+    }
+    Navigator.pop(context, text);
+  }
+
+  @override
+  Widget build(BuildContext context) => AlertDialog(
+          scrollable: true,
+          title: const Text('Demander une correction'),
+          content: SizedBox(
+              width: 480,
+              child: Column(mainAxisSize: MainAxisSize.min, children: [
+                const Text(
+                    'La demande revient à l’initiateur avec votre message. Le numéro déjà attribué est conservé.',
+                    style: InstallationStyle.caption),
+                const SizedBox(height: 14),
+                TextField(
+                    controller: _controller,
+                    autofocus: true,
+                    minLines: 3,
+                    maxLines: 6,
+                    maxLength: 4000,
+                    textCapitalization: TextCapitalization.sentences,
+                    onChanged: (_) {
+                      if (_attempted) setState(() => _attempted = false);
+                    },
+                    decoration: InputDecoration(
+                        labelText: 'Corrections à apporter',
+                        hintText: 'Exemple : préciser le contact du client.',
+                        errorText: _attempted
+                            ? 'Indiquez les corrections attendues.'
+                            : null)),
+              ])),
+          actions: [
+            TextButton(
+                onPressed: () => Navigator.pop(context),
+                child: const Text('Annuler')),
+            FilledButton(onPressed: _submit, child: const Text('Renvoyer')),
+          ]);
 }
 
 Future<T?> _installationDialog<T>(

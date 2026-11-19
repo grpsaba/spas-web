@@ -205,9 +205,7 @@ void main() {
       await tester.tap(find.text('Ajouter un équipement'));
       await tester.pump();
       expect(order.equipment.length, 2);
-      final picker = find
-          .byType(InstallationEquipmentPicker)
-          .last;
+      final picker = find.byType(InstallationEquipmentPicker).last;
       await tester.ensureVisible(picker);
       await tester.tap(picker);
       await tester.pumpAndSettle();
@@ -275,7 +273,7 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final order = fixture()..agents.clear();
-    final formKey = GlobalKey<FormState>();
+    final controller = InstallationFormController();
     Widget screen(int attempt) => MaterialApp(
             home: Scaffold(
                 body: SingleChildScrollView(
@@ -284,22 +282,21 @@ void main() {
           enabled: true,
           guided: true,
           validationAttempt: attempt,
-          validationKey: formKey,
+          controller: controller,
           zones: const [],
           supervisors: const [],
           catalog: const [],
           departments: const ['security'],
         ))));
     await tester.pumpWidget(screen(0));
-    expect(find.text('Ajouter au moins un agent avant de transmettre.'),
-        findsNothing);
-    expect(formKey.currentState!.validate(), true);
+    expect(find.text('Ajouter au moins un agent.'), findsNothing);
+    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
     await tester.pumpWidget(screen(1));
     await tester.pumpAndSettle();
     expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
-    expect(find.text('Ajouter au moins un agent avant de transmettre.'),
-        findsOneWidget);
+    expect(find.text('Ajouter au moins un agent.'), findsOneWidget);
     expect(order.validate(), isNotEmpty);
+    expect(controller.validate(), false);
     expect(tester.takeException(), isNull);
   });
   testWidgets('optional GPS still rejects invalid typed coordinates',
@@ -309,28 +306,28 @@ void main() {
     addTearDown(tester.view.resetPhysicalSize);
     addTearDown(tester.view.resetDevicePixelRatio);
     final order = fixture();
-    final formKey = GlobalKey<FormState>();
+    final controller = InstallationFormController();
     await tester.pumpWidget(MaterialApp(
         home: Scaffold(
             body: SingleChildScrollView(
                 child: InstallationForm(
       order: order,
       enabled: true,
-      validationKey: formKey,
+      controller: controller,
       zones: const [],
       supervisors: const [],
       catalog: const [],
       departments: const ['security'],
     )))));
-    expect(formKey.currentState!.validate(), true);
+    expect(controller.validate(), true);
     final latitude = find.widgetWithText(TextFormField, 'Latitude');
     await tester.ensureVisible(latitude);
     await tester.enterText(latitude, 'invalide');
-    expect(formKey.currentState!.validate(), false);
-    await tester.pump();
+    expect(controller.validate(), false);
+    await tester.pumpAndSettle();
     expect(find.text('Coordonnée invalide.'), findsOneWidget);
     await tester.enterText(latitude, '');
-    expect(formKey.currentState!.validate(), true);
+    expect(controller.validate(), true);
   });
   test(
       'PDF follows both security and cleaning templates and paginates long orders',
