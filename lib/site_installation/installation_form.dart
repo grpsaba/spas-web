@@ -716,6 +716,9 @@ class _InstallationFormState extends State<InstallationForm> {
           // one must close by itself so it never hides the main button.
           persist: false,
           duration: const Duration(seconds: 4),
+          // Above the page action bar (main button).
+          behavior: SnackBarBehavior.floating,
+          margin: const EdgeInsets.fromLTRB(12, 0, 12, 84),
           action: SnackBarAction(
               label: 'Annuler',
               onPressed: () {
