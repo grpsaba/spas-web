@@ -85,6 +85,13 @@ void main() {
     await tester.tap(find.text('Imprimer'));
     await tester.pumpAndSettle();
     expect(printing.printed, same(bytes));
+    // Full screen shows the same document.
+    await tester.tap(find.byTooltip('Plein écran'));
+    await tester.pumpAndSettle();
+    final full = tester.widget<PdfPreview>(find.byType(PdfPreview).last);
+    expect(await full.build(PdfPageFormat.a4), same(bytes));
+    await tester.tap(find.byTooltip('Fermer'));
+    await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
   });
   testWidgets(

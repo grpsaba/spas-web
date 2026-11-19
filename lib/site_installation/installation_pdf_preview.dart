@@ -96,6 +96,39 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
     }
   }
 
+  /// Same snapshot and bytes as the embedded preview, on the whole screen.
+  Future<
+      void> _openFullScreen() => Navigator.of(context).push(MaterialPageRoute<
+          void>(
+      fullscreenDialog: true,
+      builder: (context) => Theme(
+          data: InstallationStyle.theme(context),
+          child: Scaffold(
+              backgroundColor: InstallationStyle.background,
+              appBar: AppBar(
+                  leading: IconButton(
+                      tooltip: 'Fermer',
+                      icon: const Icon(Icons.close),
+                      onPressed: () => Navigator.pop(context)),
+                  title: Text(_snapshot.bonNumber.isEmpty
+                      ? 'Aperçu'
+                      : 'Bon n° ${installationBonLabel(_snapshot.bonNumber)}')),
+              body: PdfPreview(
+                build: _layout,
+                initialPageFormat: PdfPageFormat.a4,
+                canChangeOrientation: false,
+                canChangePageFormat: false,
+                canDebug: false,
+                useActions: false,
+                allowPrinting: false,
+                allowSharing: false,
+                maxPageWidth: 1000,
+                pdfFileName:
+                    'Bon-${installationBonLabel(_snapshot.bonNumber)}.pdf',
+                scrollViewDecoration:
+                    const BoxDecoration(color: InstallationStyle.background),
+              )))));
+
   @override
   Widget build(BuildContext context) => InstallationPanel(
       padding: const EdgeInsets.all(16),
@@ -168,6 +201,12 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                                         fontWeight: FontWeight.w700,
                                         color: Colors.white)),
                               ])),
+                    const SizedBox(width: 4),
+                    IconButton(
+                        tooltip: 'Plein écran',
+                        iconSize: 28,
+                        onPressed: ready ? _openFullScreen : null,
+                        icon: const Icon(Icons.fullscreen)),
                   ]),
                   if (official && widget.hasUnsavedChanges) ...[
                     const SizedBox(height: 10),
