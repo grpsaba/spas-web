@@ -397,6 +397,14 @@ void main() {
     await tester.tap(find.text('Annuler'));
     await tester.pumpAndSettle();
     expect(order.agents.single.name, 'Oumar Diarra');
+    // The undo message closes by itself and never stays over the main button.
+    await tester.tap(find.byTooltip('Supprimer cet agent'));
+    await tester.pumpAndSettle();
+    expect(find.text('Agent supprimé'), findsOneWidget);
+    await tester.pump(const Duration(seconds: 5));
+    await tester.pumpAndSettle();
+    expect(find.text('Agent supprimé'), findsNothing);
+    expect(order.agents, isEmpty);
     expect(changes, greaterThanOrEqualTo(7));
     expect(tester.takeException(), isNull);
   });
