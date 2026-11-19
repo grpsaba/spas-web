@@ -7,6 +7,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:spas_web/site_installation/installation_form.dart';
 import 'package:spas_web/site_installation/installation_order.dart';
 import 'package:spas_web/site_installation/installation_ui.dart';
+import 'package:spas_web/site_installation/installation_equipment_picker.dart';
 
 InstallationOrder sample(
         String id, InstallationStatus status, String site, String client,
@@ -20,12 +21,15 @@ InstallationOrder sample(
       siteName: site,
       clientName: client,
       address: 'Sotuba, Bamako',
+      phone: '76000000',
       updatedAt: DateTime(2026, 11, 12),
       bonNumber: [InstallationStatus.draft, InstallationStatus.submitted]
               .contains(status)
           ? ''
           : '31503',
-      agents: [InstallationAgent(name: 'Oumar Diarra', type: 'ADS')],
+      agents: [
+        InstallationAgent(name: 'Oumar Diarra', type: 'ADS', phone: '76000001')
+      ],
       equipment: [
         InstallationEquipment(
             catalogId: 'Lampe', designation: 'Lampe torche', quantity: 2)
@@ -101,6 +105,106 @@ void main() {
       ..addFont(rootBundle.load('fonts/MaterialIcons-Regular.otf'));
     await icons.load();
   });
+  testWidgets('required fields block Continue and attempts to skip steps',
+      (tester) async {
+    await size(tester, 390, 1000);
+    final order = sample('one', InstallationStatus.draft, 'Sotuba', 'TONINO')
+      ..phone = '';
+    order.agents.single.phone = '';
+    order.equipment.single
+      ..catalogId = null
+      ..designation = ''
+      ..quantity = 0;
+    await tester.pumpWidget(shell(SingleChildScrollView(
+        padding: const EdgeInsets.all(16),
+        child: InstallationForm(
+            order: order,
+            enabled: true,
+            guided: true,
+            departments: const [
+              'security'
+            ],
+            zones: const [],
+            supervisors: const [],
+            catalog: const [
+              InstallationOption('Lampe', 'Lampe', {'departmentId': 'security'})
+            ]))));
+    Future<void> go(String label) async {
+      await tester.ensureVisible(find.text(label));
+      await tester.tap(find.text(label));
+      await tester.pumpAndSettle();
+    }
+
+    await go('Continuer');
+    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
+    expect(find.text('Champ obligatoire.'), findsOneWidget);
+    await go('4. Organisation');
+    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Téléphone du contact *'),
+        '76000000');
+    await go('4. Organisation');
+    expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Contact *'), '76000001');
+    await go('4. Organisation');
+    expect(find.text('ÉTAPE 3 SUR 4'), findsOneWidget);
+    expect(find.text('Saisir un entier positif.'), findsOneWidget);
+    await tester.ensureVisible(find.byType(InstallationEquipmentPicker));
+    await tester.tap(find.byType(InstallationEquipmentPicker));
+    await tester.pumpAndSettle();
+    await tester.tap(find.text('Lampe').last);
+    await tester.pumpAndSettle();
+    await tester.enterText(
+        find.widgetWithText(TextFormField, 'Quantité *'), '2');
+    await go('Continuer');
+    expect(find.text('ÉTAPE 4 SUR 4'), findsOneWidget);
+    await go('1. Site & client');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Client *'), '');
+    await go('4. Organisation');
+    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+  for (final width in [320.0, 1100.0]) {
+    testWidgets(
+        'equipment search is readable and supports free entry at $width',
+        (tester) async {
+      await size(tester, width, 850);
+      final key = GlobalKey();
+      String? selected;
+      await tester.pumpWidget(RepaintBoundary(
+          key: key,
+          child: shell(Padding(
+              padding: const EdgeInsets.all(16),
+              child: InstallationEquipmentPicker(
+                  value: null,
+                  enabled: true,
+                  catalog: const [
+                    InstallationOption(
+                        'light', 'Éclairage portable rechargeable'),
+                    InstallationOption('radio', 'Radio de communication'),
+                  ],
+                  onChanged: (value) => selected = value)))));
+      await tester.tap(find.byType(InstallationEquipmentPicker));
+      await tester.pumpAndSettle();
+      await preview(tester, key, 'catalogue-${width.toInt()}');
+      await tester.enterText(find.byType(TextField), 'eclairage');
+      await tester.pumpAndSettle();
+      expect(find.text('Radio de communication'), findsNothing);
+      await tester.tap(find.text('Éclairage portable rechargeable'));
+      await tester.pumpAndSettle();
+      expect(selected, 'light');
+      await tester.tap(find.byType(InstallationEquipmentPicker));
+      await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField), 'introuvable');
+      await tester.pumpAndSettle();
+      expect(find.textContaining('Aucun équipement trouvé.'), findsOneWidget);
+      await tester.tap(find.text('Saisir une désignation'));
+      await tester.pumpAndSettle();
+      expect(selected, '');
+      expect(tester.takeException(), isNull);
+    });
+  }
   testWidgets(
       'bureau filters distinguish action queue, own requests and search',
       (tester) async {
@@ -173,16 +277,17 @@ void main() {
       await preview(tester, key,
           width > 500 ? 'fiche-bureau' : 'saisie-${width.toInt()}');
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Nom du site'), 'Site corrigé');
+          find.widgetWithText(TextFormField, 'Nom du site *'), 'Site corrigé');
       await tester.tap(find.text('2. Agents'));
       await tester.pumpAndSettle();
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Nom et prénoms'), 'Agent libre');
+          find.widgetWithText(TextFormField, 'Nom et prénoms *'),
+          'Agent libre');
       await tester.ensureVisible(find.text('3. Équipements'));
       await tester.tap(find.text('3. Équipements'));
       await tester.pumpAndSettle();
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Quantité'), '7');
+          find.widgetWithText(TextFormField, 'Quantité *'), '7');
       await tester.ensureVisible(find.text('1. Site & client'));
       await tester.tap(find.text('1. Site & client'));
       await tester.pumpAndSettle();
@@ -192,7 +297,7 @@ void main() {
       await tester.ensureVisible(find.text('4. Organisation'));
       await tester.tap(find.text('4. Organisation'));
       await tester.pumpAndSettle();
-      expect(find.widgetWithText(TextFormField, 'Date du contrat'),
+      expect(find.widgetWithText(TextFormField, 'Date du contrat *'),
           findsOneWidget);
       expect(tester.takeException(), isNull);
       expect(tester.takeException(), isNull);

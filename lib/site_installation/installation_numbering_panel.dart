@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 
 import 'installation_numbering.dart';
+import 'installation_errors.dart';
 import 'installation_ui.dart';
 
 class InstallationNumberingPanel extends StatelessWidget {
@@ -23,7 +24,7 @@ class InstallationNumberingPanel extends StatelessWidget {
           return InstallationNotice(
               warning: true,
               message:
-                  'Impossible de lire le compteur des bons. ${snapshot.error}');
+                  'Impossible de lire le compteur des bons. ${installationErrorMessage(snapshot.error!)}');
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
           return const InstallationNotice(
@@ -97,7 +98,7 @@ class _NumberingInitializationDialogState
       if (mounted) {
         setState(() {
           _busy = false;
-          _error = '$error';
+          _error = installationErrorMessage(error);
         });
       }
     }

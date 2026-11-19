@@ -818,16 +818,6 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                                               color: InstallationStyle.muted,
                                               fontSize: 13,
                                               height: 1.6)),
-                                      if (widget.onCreate != null &&
-                                          widget.orders.isEmpty) ...[
-                                        const SizedBox(height: 22),
-                                        FilledButton.icon(
-                                            onPressed: widget.onCreate,
-                                            icon:
-                                                const Icon(Icons.add, size: 18),
-                                            label: const Text(
-                                                'Initier une demande'))
-                                      ],
                                     ])))
                           else if (desktop && !widget.mobile)
                             InstallationPanel(

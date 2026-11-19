@@ -140,6 +140,50 @@ test('Installation workflow permissions and atomic finalization', async t => {
     await expectCommit('chief', [write('siteInstallationOrders/chief', base('chief'), ['createdAt', 'updatedAt'])]);
     order = await read('siteInstallationOrders/order1');
   });
+  const deletion = id => ({delete: `${root.replace('http://127.0.0.1:8188/v1/', '')}/siteInstallationOrders/${id}`});
+  await t.test('supervisors and zone chiefs delete only their own untransmitted drafts', async () => {
+    for (const uid of ['sup1', 'chief']) {
+      const id = `delete-${uid}`;
+      assert.equal((await call(`/siteInstallationOrders/${id}`, uid)).status, 404);
+      await expectCommit(uid, [write(`siteInstallationOrders/${id}`, base(uid), ['createdAt', 'updatedAt'])]);
+      await expectCommit('sup2', [deletion(id)], 403);
+      await expectCommit('review', [deletion(id)], 403);
+      await expectCommit(null, [deletion(id)], 403);
+      await expectCommit(uid, [deletion(id)]);
+      // A retry can establish absence without permission to read another owner.
+      assert.equal((await call(`/siteInstallationOrders/${id}`, uid)).status, 404);
+    }
+    for (const [uid, account] of [
+      ['inactive', {actif: false}], ['portal', {isPortal: true}],
+      ['foreign-tenant', {tenantId: 'ci'}], ['foreign-department', {departmentId: 'cleaning'}]]) {
+      await put(`Supervisors/${uid}`, {UID: uid, tenantId: 'ml', departmentId: 'security', actif: true, ...account});
+      await put(`siteInstallationOrders/delete-${uid}`, base(uid));
+      await expectCommit(uid, [deletion(`delete-${uid}`)], 403);
+    }
+    assert.equal((await call('/siteInstallationOrders/absent-draft', 'portal')).status, 403);
+    for (const status of ['submitted', 'changesRequested', 'approved', 'awaitingSignature', 'signedReturned', 'finalized']) {
+      for (const uid of ['sup1', 'chief']) {
+        const id = `protect-${status}-${uid}`;
+        await put(`siteInstallationOrders/${id}`, {...base(uid), status});
+        await expectCommit(uid, [deletion(id)], 403);
+      }
+    }
+    for (const patch of [{bonNumber: '31503'}, {siteId: 'existing-site'}]) {
+      await put('siteInstallationOrders/protect-number', {...base(), ...patch});
+      await expectCommit('sup1', [deletion('protect-number')], 403);
+    }
+  });
+  await t.test('a stale draft deletion cannot erase a completed concurrent submission', async () => {
+    const path = 'siteInstallationOrders/delete-race';
+    await put(path, base());
+    const before = await call(`/${path}`, 'sup1');
+    await expectCommit('sup1', [write(path, {...await read(path), status: 'submitted', revision: 2}, ['updatedAt'])]);
+    const stale = {...deletion('delete-race'), currentDocument: {updateTime: before.body.updateTime}};
+    const rejected = await commit('sup1', [stale]);
+    assert.ok([400, 403, 409].includes(rejected.status), JSON.stringify(rejected.body));
+    await expectCommit('sup1', [deletion('delete-race')], 403);
+    assert.equal((await read(path, 'sup1')).status, 'submitted');
+  });
   await t.test('visibility respects owner, web permissions, tenant and department', async () => {
     for (const uid of ['sup1', 'review', 'viewer']) assert.equal((await call('/siteInstallationOrders/order1', uid)).status, 200, uid);
     for (const uid of ['sup2', 'outsider', 'cleaner', null]) assert.equal((await call('/siteInstallationOrders/order1', uid)).status, 403, String(uid));

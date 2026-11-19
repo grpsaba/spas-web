@@ -156,6 +156,8 @@ service cloud.firestore {
     }
     match /siteInstallationOrders/{id} {
       allow read: if bmpsRead(resource.data);
+      // Transactions also read new drafts and drafts already deleted on retry.
+      allow get: if !exists(/databases/$(database)/documents/siteInstallationOrders/$(id)) && bmpsCatalogRead();
       allow create: if bmpsShape(request.resource.data) && bmpsOwner(request.resource.data) &&
         request.resource.data.createdAt == request.time && request.resource.data.revision == 1 &&
         request.resource.data.siteId == null && request.resource.data.attachments.size() == 0 &&
@@ -166,7 +168,9 @@ service cloud.firestore {
         request.resource.data.tenantId == resource.data.tenantId && request.resource.data.createdBy == resource.data.createdBy &&
         request.resource.data.createdAt == resource.data.createdAt &&
         bmpsUpdate(id, resource.data, request.resource.data);
-      allow delete: if false;
+      allow delete: if request.auth != null && resource.data.createdBy.uid == request.auth.uid &&
+        bmpsMobile(resource.data) && resource.data.status == 'draft' &&
+        resource.data.bonNumber == '' && resource.data.siteId == null;
       match /uploads/{filename} {
         function parent() { return get(/databases/$(database)/documents/siteInstallationOrders/$(id)).data; }
         allow create: if (bmpsOwner(parent()) || bmpsWeb(parent(), 'validation')) && parent().status != 'finalized' &&

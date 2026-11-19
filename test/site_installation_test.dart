@@ -7,6 +7,7 @@ import 'package:spas_web/site_installation/installation_form.dart';
 import 'package:spas_web/site_installation/installation_catalog.dart';
 import 'package:spas_web/site_installation/installation_order.dart';
 import 'package:spas_web/site_installation/installation_pdf.dart';
+import 'package:spas_web/site_installation/installation_equipment_picker.dart';
 
 InstallationOrder fixture() => InstallationOrder(
     id: 'test-order',
@@ -188,11 +189,11 @@ void main() {
       expect(tester.takeException(), isNull);
       expect(find.textContaining('attribué automatiquement'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'N° de bon'), findsNothing);
-      final name = find.widgetWithText(TextFormField, 'Nom et prénoms');
+      final name = find.widgetWithText(TextFormField, 'Nom et prénoms *');
       await tester.ensureVisible(name);
       await tester.enterText(name, 'Agent non enregistré');
       expect(order.agents.single.name, 'Agent non enregistré');
-      final quantity = find.widgetWithText(TextFormField, 'Quantité');
+      final quantity = find.widgetWithText(TextFormField, 'Quantité *');
       await tester.ensureVisible(quantity);
       await tester.enterText(quantity, '5');
       expect(order.equipment.single.quantity, 5);
@@ -205,13 +206,12 @@ void main() {
       await tester.pump();
       expect(order.equipment.length, 2);
       final picker = find
-          .widgetWithText(
-              DropdownButtonFormField<String>, 'Équipement du catalogue')
+          .byType(InstallationEquipmentPicker)
           .last;
       await tester.ensureVisible(picker);
       await tester.tap(picker);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Autre équipement (saisie libre)').last);
+      await tester.tap(find.text('Saisir une désignation'));
       await tester.pumpAndSettle();
       expect(
           find.text(
@@ -252,8 +252,7 @@ void main() {
           InstallationOption('Balai', 'Balai', {'departmentId': 'cleaning'}),
         ],
       )))));
-      final picker = find.widgetWithText(
-          DropdownButtonFormField<String>, 'Équipement du catalogue');
+      final picker = find.byType(InstallationEquipmentPicker);
       await tester.ensureVisible(picker);
       await tester.tap(picker);
       await tester.pumpAndSettle();
@@ -355,5 +354,8 @@ void main() {
           greaterThan(bytes.length));
     }
     expect(() => InstallationPdf.build(fixture()), throwsStateError);
+    final draftBytes = await InstallationPdf.build(fixture(), preview: true);
+    await File('build/installation-preview/draft.pdf').writeAsBytes(draftBytes);
+    expect(ascii.decode(draftBytes.take(4).toList()), '%PDF');
   });
 }

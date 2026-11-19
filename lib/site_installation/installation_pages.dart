@@ -5,9 +5,11 @@ import 'package:universal_html/html.dart' as html;
 
 import '../administration/home.dart';
 import 'installation_form.dart';
+import 'installation_errors.dart';
 import 'installation_order.dart';
 import 'installation_numbering_panel.dart';
 import 'installation_pdf.dart';
+import 'installation_pdf_preview.dart';
 import 'installation_service.dart';
 import 'installation_ui.dart';
 
@@ -103,6 +105,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
   final _validationKey = GlobalKey<FormState>();
   int _validationAttempt = 0;
   int _tab = 0;
+  bool _previewOpened = false;
   bool _dirty = false;
 
   @override
@@ -132,9 +135,13 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         _persisted = widget.id != 'nouveau';
         _dirty = false;
         _formVersion++;
+        if (InstallationPdf.isPrintable(order)) {
+          _tab = 3;
+          _previewOpened = true;
+        }
       });
     } catch (error) {
-      if (mounted) setState(() => _error = '$error');
+      if (mounted) setState(() => _error = installationErrorMessage(error));
     }
   }
 
@@ -148,7 +155,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
       await action();
     } catch (error) {
       if (mounted) {
-        setState(() => _error = '$error');
+        setState(() => _error = installationErrorMessage(error));
         if (_scroll.hasClients) {
           _scroll.animateTo(0,
               duration: const Duration(milliseconds: 250),
@@ -197,7 +204,8 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
           await _save();
           return;
         }
-        if (_service.canEdit(_order!) &&
+        if ((_dirty || !_persisted) &&
+            _service.canEdit(_order!) &&
             next != InstallationStatus.changesRequested) {
           await _save();
         }
@@ -206,6 +214,10 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
           setState(() {
             _order = order;
             _formVersion++;
+            if (next == InstallationStatus.approved) {
+              _tab = 3;
+              _previewOpened = true;
+            }
           });
         }
       });
@@ -384,6 +396,11 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                                         'La demande',
                                                         Icons
                                                             .description_outlined),
+                                                    _tabButton(
+                                                        3,
+                                                        'Aperçu PDF',
+                                                        Icons
+                                                            .picture_as_pdf_outlined),
                                                     if (_persisted)
                                                       _tabButton(
                                                           1,
@@ -401,56 +418,72 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                                       CrossAxisAlignment.start,
                                                   children: [
                                                     Expanded(
-                                                        child: Column(
-                                                            children: [
-                                                          Visibility(
-                                                              visible:
-                                                                  _tab == 0,
-                                                              maintainState:
-                                                                  true,
-                                                              child: _service
-                                                                      .canEdit(
-                                                                          order)
-                                                                  ? InstallationForm(
-                                                                      key: ValueKey(
-                                                                          '${order.id}_$_formVersion'),
-                                                                      order:
-                                                                          order,
-                                                                      enabled:
-                                                                          !_busy,
-                                                                      guided:
-                                                                          true,
-                                                                      validationKey:
-                                                                          _validationKey,
-                                                                      validationAttempt:
-                                                                          _validationAttempt,
-                                                                      departments:
-                                                                          _service
-                                                                              .departments,
-                                                                      zones:
-                                                                          _options['zones'] ??
-                                                                              [],
-                                                                      supervisors:
-                                                                          _options['supervisors'] ??
-                                                                              [],
-                                                                      catalog:
-                                                                          _options['catalog'] ??
-                                                                              [],
-                                                                      onChanged: () =>
-                                                                          setState(() =>
-                                                                              _dirty = true),
-                                                                      createEquipment: (label, department) => _service.createEquipment(
+                                                        child:
+                                                            Column(children: [
+                                                      Visibility(
+                                                          visible: _tab == 0,
+                                                          maintainState: true,
+                                                          child: _service
+                                                                  .canEdit(
+                                                                      order)
+                                                              ? InstallationForm(
+                                                                  key: ValueKey(
+                                                                      '${order.id}_$_formVersion'),
+                                                                  order: order,
+                                                                  enabled:
+                                                                      !_busy,
+                                                                  guided: true,
+                                                                  validationKey:
+                                                                      _validationKey,
+                                                                  validationAttempt:
+                                                                      _validationAttempt,
+                                                                  departments:
+                                                                      _service
+                                                                          .departments,
+                                                                  zones: _options[
+                                                                          'zones'] ??
+                                                                      [],
+                                                                  supervisors:
+                                                                      _options[
+                                                                              'supervisors'] ??
+                                                                          [],
+                                                                  catalog: _options[
+                                                                          'catalog'] ??
+                                                                      [],
+                                                                  onChanged:
+                                                                      () {
+                                                                    if (!_dirty) {
+                                                                      setState(() =>
+                                                                          _dirty =
+                                                                              true);
+                                                                    }
+                                                                  },
+                                                                  createEquipment: (label,
+                                                                          department) =>
+                                                                      _service.createEquipment(
                                                                           order,
                                                                           label,
                                                                           department),
-                                                                    )
-                                                                  : InstallationReadOnly(
-                                                                      order)),
-                                                          if (_tab == 1)
-                                                            _attachments(order),
-                                                          if (_tab == 2)
-                                                            _discussion(order),
-                                                        ])),
+                                                                )
+                                                              : InstallationReadOnly(
+                                                                  order)),
+                                                      if (_tab == 1)
+                                                        _attachments(order),
+                                                      if (_tab == 2)
+                                                        _discussion(order),
+                                                      if (_previewOpened)
+                                                        Visibility(
+                                                            visible: _tab == 3,
+                                                            maintainState: true,
+                                                            child: InstallationPdfPreview(
+                                                                order: order,
+                                                                canPrint: _service
+                                                                    .canPrint,
+                                                                active:
+                                                                    _tab == 3,
+                                                                hasUnsavedChanges:
+                                                                    _dirty)),
+                                                    ])),
                                                     if (constraints.maxWidth >=
                                                         1180) ...[
                                                       const SizedBox(width: 24),
@@ -570,7 +603,10 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                       color: _tab == index
                           ? InstallationStyle.line
                           : Colors.transparent))),
-          onPressed: () => setState(() => _tab = index),
+          onPressed: () => setState(() {
+                _tab = index;
+                if (index == 3) _previewOpened = true;
+              }),
           icon: Icon(icon, size: 18),
           label: Text(text,
               style:

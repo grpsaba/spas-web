@@ -14,9 +14,14 @@ import '../services/tenant_scope.dart';
 import 'installation_order.dart';
 import 'installation_catalog.dart';
 import 'installation_numbering.dart';
+import 'installation_transactions.dart';
 
 class InstallationService {
   final _db = FirebaseFirestore.instance;
+
+  Future<T> _transaction<T>(TransactionHandler<T> action) =>
+      installationTransaction<T>(
+          (handler) => _db.runTransaction<T>(handler), action);
   CollectionReference<Map<String, dynamic>> get _orders =>
       _db.collection(installationOrdersCollection);
 
@@ -39,7 +44,7 @@ class InstallationService {
   Future<void> initializeNumbering(String lastUsedNumber) async {
     _require(canConfigureNumbering);
     final number = InstallationNumbering.parseLastNumber(lastUsedNumber);
-    await _db.runTransaction((transaction) async {
+    await _transaction((transaction) async {
       final existing = await transaction.get(_counter);
       if (existing.exists) {
         throw StateError('Le compteur est déjà initialisé. Rechargez la page.');
@@ -121,7 +126,7 @@ class InstallationService {
   Future<InstallationOrder> save(InstallationOrder order) async {
     _scope(order);
     final ref = _orders.doc(order.id);
-    await _db.runTransaction((transaction) async {
+    await _transaction((transaction) async {
       final snapshot = await transaction.get(ref);
       final current = snapshot.exists
           ? InstallationOrder.fromJson(snapshot.id, snapshot.data()!)
@@ -170,7 +175,7 @@ class InstallationService {
     for (var attempt = 0;; attempt++) {
       int? counterBefore;
       try {
-        await _db.runTransaction((transaction) async {
+        await _transaction((transaction) async {
           final snapshot = await transaction.get(ref);
           if (!snapshot.exists) {
             throw StateError('Enregistrer la fiche avant de la transmettre.');
@@ -338,7 +343,7 @@ class InstallationService {
         'active': true
       }
     };
-    await _db.runTransaction((transaction) async {
+    await _transaction((transaction) async {
       final existing = await transaction.get(ref);
       if (existing.exists) {
         final value = existing.data()!;
@@ -392,7 +397,7 @@ class InstallationService {
     await storage.putData(bytes, SettableMetadata(contentType: type));
     final url = await storage.getDownloadURL();
     try {
-      await _db.runTransaction((transaction) async {
+      await _transaction((transaction) async {
         final snapshot = await transaction.get(_orders.doc(order.id));
         final latest =
             InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
@@ -477,7 +482,7 @@ class InstallationService {
         }
       }
       final siteRef = _db.collection('Sites').doc(user.uid);
-      await _db.runTransaction((tx) async {
+      await _transaction((tx) async {
         final snapshot = await tx.get(_orders.doc(current.id));
         final existingSite = await tx.get(siteRef);
         final latest = InstallationOrder.fromJson(current.id, snapshot.data()!);

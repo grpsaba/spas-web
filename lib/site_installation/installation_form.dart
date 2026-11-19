@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'installation_order.dart';
 import 'installation_ui.dart';
 import 'installation_catalog.dart';
+import 'installation_equipment_picker.dart';
 
 /// Same fields and wire schema in the web and mobile applications.
 class InstallationForm extends StatefulWidget {
@@ -44,26 +45,36 @@ class _InstallationFormState extends State<InstallationForm> {
   int _step = 0;
   final Set<String> _freeEntry = {};
   final _formKey = GlobalKey<FormState>();
+  final Set<int> _attemptedSteps = {};
+
+  AutovalidateMode _mode(int step) =>
+      widget.validationAttempt > 0 || _attemptedSteps.contains(step)
+          ? AutovalidateMode.always
+          : AutovalidateMode.disabled;
+
+  void _goToStep(int target) {
+    FocusScope.of(context).unfocus();
+    var destination = target;
+    if (target > _step) {
+      for (var step = 0; step < target; step++) {
+        if (order.validateStep(step).isNotEmpty) {
+          destination = step;
+          _attemptedSteps.add(step);
+          break;
+        }
+      }
+    }
+    setState(() => _step = destination);
+  }
 
   @override
   void didUpdateWidget(covariant InstallationForm oldWidget) {
     super.didUpdateWidget(oldWidget);
     if (widget.validationAttempt != oldWidget.validationAttempt &&
         widget.guided) {
-      if ([order.siteName, order.clientName, order.address, order.phone]
-          .any((v) => v.trim().isEmpty)) {
-        _step = 0;
-      } else if (order.agents.isEmpty ||
-          order.agents.any(
-              (a) => [a.name, a.type, a.phone].any((v) => v.trim().isEmpty))) {
-        _step = 1;
-      } else if (order.equipment.isEmpty ||
-          order.equipment
-              .any((e) => e.designation.trim().isEmpty || e.quantity <= 0)) {
-        _step = 2;
-      } else {
-        _step = 3;
-      }
+      _step = List.generate(4, (index) => index).firstWhere(
+          (step) => order.validateStep(step).isNotEmpty,
+          orElse: () => 3);
     }
   }
 
@@ -90,6 +101,7 @@ class _InstallationFormState extends State<InstallationForm> {
                 ? order.departmentId
                 : null,
             decoration: _decoration('Prestation'),
+            autovalidateMode: _mode(0),
             validator: (value) =>
                 value == null ? 'Choisir une prestation.' : null,
             items: widget.departments
@@ -123,7 +135,8 @@ class _InstallationFormState extends State<InstallationForm> {
         const InstallationNotice(
             message:
                 'Au moins un agent est obligatoire. Renseignez son nom, son type et son contact.'),
-        if (widget.validationAttempt > 0 && order.agents.isEmpty)
+        if ((widget.validationAttempt > 0 || _attemptedSteps.contains(1)) &&
+            order.agents.isEmpty)
           const InstallationNotice(
               warning: true,
               message: 'Ajouter au moins un agent avant de transmettre.'),
@@ -161,12 +174,14 @@ class _InstallationFormState extends State<InstallationForm> {
                       const SizedBox(height: 10),
                       _grid([
                         _text('Nom et prénoms', agent.name,
-                            (value) => agent.name = value),
+                            (value) => agent.name = value,
+                            step: 1),
                         _text('Type d’agent', agent.type,
-                            (value) => agent.type = value),
+                            (value) => agent.type = value,
+                            step: 1),
                         _text('Contact', agent.phone,
                             (value) => agent.phone = value,
-                            keyboard: TextInputType.phone),
+                            keyboard: TextInputType.phone, step: 1),
                       ]),
                     ])),
           ),
@@ -185,7 +200,8 @@ class _InstallationFormState extends State<InstallationForm> {
           const InstallationNotice(
               message:
                   'Aucun équipement du catalogue disponible pour cette prestation. Vous pouvez saisir une désignation et une quantité.'),
-        if (widget.validationAttempt > 0 && order.equipment.isEmpty)
+        if ((widget.validationAttempt > 0 || _attemptedSteps.contains(2)) &&
+            order.equipment.isEmpty)
           const InstallationNotice(
               warning: true,
               message: 'Ajouter au moins un équipement avant de transmettre.'),
@@ -232,16 +248,18 @@ class _InstallationFormState extends State<InstallationForm> {
               'Effectif prévu',
               order.agentCount == 0 ? '' : '${order.agentCount}',
               (value) => order.agentCount = int.tryParse(value) ?? 0,
-              keyboard: TextInputType.number),
+              keyboard: TextInputType.number,
+              step: 3),
           _text('Rondes prévues', '${order.roundCount}',
               (value) => order.roundCount = int.tryParse(value) ?? 0,
-              keyboard: TextInputType.number),
+              keyboard: TextInputType.number, step: 3),
           TextFormField(
             key: ValueKey('date_${order.id}_${order.contractDate}'),
             readOnly: true,
             initialValue:
                 order.contractDate == null ? '' : _date(order.contractDate!),
             decoration: _decoration('Date du contrat'),
+            autovalidateMode: _mode(3),
             validator: (_) => order.contractDate == null
                 ? 'Renseigner la date du contrat.'
                 : null,
@@ -264,14 +282,16 @@ class _InstallationFormState extends State<InstallationForm> {
               (value) =>
                   order.latitude = double.tryParse(value.replaceAll(',', '.')),
               keyboard: const TextInputType.numberWithOptions(
-                  decimal: true, signed: true)),
+                  decimal: true, signed: true),
+              step: 3),
           _text(
               'Longitude',
               order.longitude?.toString() ?? '',
               (value) =>
                   order.longitude = double.tryParse(value.replaceAll(',', '.')),
               keyboard: const TextInputType.numberWithOptions(
-                  decimal: true, signed: true)),
+                  decimal: true, signed: true),
+              step: 3),
           DropdownButtonFormField<String>(
             initialValue:
                 ['jour', 'nuit', 'jour_nuit'].contains(order.pointageType)
@@ -341,6 +361,15 @@ class _InstallationFormState extends State<InstallationForm> {
                             4, (i) => Expanded(child: _stepButton(i))))),
             const SizedBox(height: 18),
           ],
+          if (widget.guided &&
+              _attemptedSteps.contains(_step) &&
+              order.validateStep(_step).isNotEmpty)
+            const Padding(
+                padding: EdgeInsets.only(bottom: 16),
+                child: InstallationNotice(
+                    warning: true,
+                    message:
+                        'Complétez les champs obligatoires de cette étape avant de continuer.')),
           for (var i = 0; i < sections.length; i++)
             Visibility(
                 visible: !widget.guided || _step == i,
@@ -352,16 +381,15 @@ class _InstallationFormState extends State<InstallationForm> {
                 child: Row(children: [
                   if (_step > 0)
                     TextButton.icon(
-                        onPressed: () => setState(() => _step--),
+                        onPressed:
+                            widget.enabled ? () => _goToStep(_step - 1) : null,
                         icon: const Icon(Icons.arrow_back, size: 17),
                         label: const Text('Précédent')),
                   const Spacer(),
                   if (_step < 3)
                     OutlinedButton.icon(
-                        onPressed: () {
-                          FocusScope.of(context).unfocus();
-                          setState(() => _step++);
-                        },
+                        onPressed:
+                            widget.enabled ? () => _goToStep(_step + 1) : null,
                         icon: const Icon(Icons.arrow_forward, size: 17),
                         label: const Text('Continuer')),
                   if (_step == 3)
@@ -387,10 +415,7 @@ class _InstallationFormState extends State<InstallationForm> {
             padding: const EdgeInsets.symmetric(horizontal: 13, vertical: 14),
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(10))),
-        onPressed: () {
-          FocusScope.of(context).unfocus();
-          setState(() => _step = index);
-        },
+        onPressed: widget.enabled ? () => _goToStep(index) : null,
         child: Text(
             '${index + 1}. ${const [
               'Site & client',
@@ -451,26 +476,16 @@ class _InstallationFormState extends State<InstallationForm> {
         Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           Expanded(
               child: _grid([
-            DropdownButtonFormField<String>(
+            InstallationEquipmentPicker(
               key: ValueKey(
                   'catalog_${item.id}_${item.catalogId}_${order.departmentId}'),
-              initialValue: item.catalogId ??
+              value: item.catalogId ??
                   (_freeEntry.contains(item.id) || item.designation.isNotEmpty
                       ? ''
                       : null),
-              isExpanded: true,
-              decoration: _decoration('Équipement du catalogue'),
-              validator: (value) => value == null
-                  ? 'Choisir un équipement ou la saisie libre.'
-                  : null,
-              items: [
-                const DropdownMenuItem(
-                    value: '', child: Text('Autre équipement (saisie libre)')),
-                ...catalog.map((option) => DropdownMenuItem(
-                    value: option.id,
-                    child:
-                        Text(option.label, overflow: TextOverflow.ellipsis))),
-              ],
+              enabled: widget.enabled,
+              catalog: catalog,
+              autovalidateMode: _mode(2),
               onChanged: widget.enabled
                   ? (value) => _change(() {
                         item.catalogId = value!.isEmpty ? null : value;
@@ -489,7 +504,7 @@ class _InstallationFormState extends State<InstallationForm> {
             ),
             _text('Quantité', '${item.quantity}',
                 (value) => item.quantity = int.tryParse(value) ?? 0,
-                keyboard: TextInputType.number),
+                keyboard: TextInputType.number, step: 2),
           ])),
           if (widget.enabled)
             IconButton(
@@ -501,7 +516,8 @@ class _InstallationFormState extends State<InstallationForm> {
             (_freeEntry.contains(item.id) || item.designation.isNotEmpty)) ...[
           const SizedBox(height: 12),
           _text('Désignation', item.designation,
-              (value) => item.designation = value),
+              (value) => item.designation = value,
+              step: 2),
           const SizedBox(height: 6),
           const Text(
               'Équipement absent du catalogue : pensez à le créer pour les prochains bons.',
@@ -562,6 +578,7 @@ class _InstallationFormState extends State<InstallationForm> {
       initialValue: id,
       isExpanded: true,
       decoration: _decoration(label),
+      autovalidateMode: _mode(3),
       validator: (value) => !optional && (value == null || value.isEmpty)
           ? 'Choisir une valeur.'
           : null,
@@ -580,12 +597,13 @@ class _InstallationFormState extends State<InstallationForm> {
   }
 
   Widget _text(String label, String value, ValueChanged<String> changed,
-          {TextInputType? keyboard, bool? enabled}) =>
+          {TextInputType? keyboard, bool? enabled, int step = 0}) =>
       TextFormField(
         initialValue: value,
         enabled: enabled ?? widget.enabled,
         keyboardType: keyboard,
         decoration: _decoration(label),
+        autovalidateMode: _mode(step),
         validator: (value) {
           final text = (value ?? '').trim();
           if (label == 'Latitude' || label == 'Longitude') {
@@ -660,11 +678,10 @@ class _InstallationFormState extends State<InstallationForm> {
       );
 
   InputDecoration _decoration(String label) => InputDecoration(
-      labelText: label,
-      suffixText: ['Latitude', 'Longitude', 'Superviseur 2 (facultatif)']
+      labelText: ['Latitude', 'Longitude', 'Superviseur 2 (facultatif)']
               .contains(label)
-          ? null
-          : '*',
+          ? label
+          : '$label *',
       helperText:
           ['Latitude', 'Longitude'].contains(label) ? 'Facultatif' : null,
       hintText: label == 'Équipement du catalogue'

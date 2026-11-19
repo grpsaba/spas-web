@@ -6,13 +6,19 @@ import 'package:printing/printing.dart';
 import 'installation_order.dart';
 
 class InstallationPdf {
-  static Future<Uint8List> build(InstallationOrder order) async {
-    if (![
-      InstallationStatus.approved,
-      InstallationStatus.awaitingSignature,
-      InstallationStatus.signedReturned,
-      InstallationStatus.finalized
-    ].contains(order.status)) {
+  static bool isPrintable(InstallationOrder order) =>
+      [
+        InstallationStatus.approved,
+        InstallationStatus.awaitingSignature,
+        InstallationStatus.signedReturned,
+        InstallationStatus.finalized
+      ].contains(order.status) &&
+      order.bonNumber.trim().isNotEmpty;
+
+  static Future<Uint8List> build(InstallationOrder order,
+      {bool preview = false}) async {
+    final official = isPrintable(order);
+    if (!official && !preview) {
       throw StateError('Valider les informations avant d’imprimer le bon.');
     }
     final regular =
@@ -54,7 +60,18 @@ class InstallationPdf {
             style: const pw.TextStyle(fontSize: 8)),
       ]),
       build: (context) => [
-        pw.Text('N° DE BON : ${order.bonNumber}',
+        if (!official) ...[
+          pw.Container(
+              width: double.infinity,
+              padding: const pw.EdgeInsets.all(9),
+              color: PdfColors.amber50,
+              child: pw.Text('BROUILLON - Document non valide pour signature',
+                  style: pw.TextStyle(
+                      fontSize: 10, fontWeight: pw.FontWeight.bold))),
+          pw.SizedBox(height: 12),
+        ],
+        pw.Text(
+            'N° DE BON : ${order.bonNumber.isEmpty ? 'Attribué à la validation' : order.bonNumber}',
             style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
         pw.Text(
