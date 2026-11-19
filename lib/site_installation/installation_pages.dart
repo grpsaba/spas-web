@@ -520,6 +520,10 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
       secondary.add(
           InstallationAction('À corriger', _requestChanges, icon: Icons.undo));
     }
+    if (_persisted && _service.canDelete(order)) {
+      secondary.add(InstallationAction('Supprimer', _delete,
+          icon: Icons.delete_outline, danger: true));
+    }
     return InstallationActionBar(
         busy: _busy,
         primary: primary,
@@ -570,6 +574,25 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
       if (!leave) return;
     }
     if (mounted) context.go('/bons-mise-en-place');
+  }
+
+  Future<void> _delete() async {
+    final order = _order!;
+    final confirmed = await _confirm(
+        title: 'Supprimer ce bon ?',
+        message: order.siteId == null
+            ? 'Définitif'
+            : 'Définitif · le site créé reste actif',
+        action: 'Supprimer',
+        icon: Icons.delete_outline);
+    if (!confirmed) return;
+    await _run(() async {
+      await _service.delete(order);
+      if (mounted) {
+        _dirty = false;
+        context.go('/bons-mise-en-place');
+      }
+    }, success: 'Bon supprimé');
   }
 
   Future<void> _requestChanges() async {

@@ -288,7 +288,6 @@ class InstallationOrder {
       if (siteName.trim().isEmpty) errors.add('Nom du site manquant');
       if (clientName.trim().isEmpty) errors.add('Client manquant');
       if (address.trim().isEmpty) errors.add('Adresse manquante');
-      if (phone.trim().isEmpty) errors.add('Téléphone manquant');
       if (!['security', 'cleaning'].contains(departmentId)) {
         errors.add('Prestation manquante');
       }

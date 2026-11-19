@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../model.dart';
@@ -94,6 +95,42 @@ class InstallationService {
     _require(canView &&
         TenantScope.matchesTenant(order.tenantId) &&
         DepartmentScope.matchesDepartment(order.departmentId));
+  }
+
+  /// The author may delete a request not yet validated (no bon number, no
+  /// site). A debug build may delete any request, to clean test data.
+  static bool deletable(InstallationOrder order, String uid,
+          {bool debug = false}) =>
+      debug ||
+      (order.authorUid == uid &&
+          order.bonNumber.trim().isEmpty &&
+          order.siteId == null &&
+          const [
+            InstallationStatus.draft,
+            InstallationStatus.submitted,
+            InstallationStatus.changesRequested
+          ].contains(order.status));
+
+  bool canDelete(InstallationOrder order) =>
+      canView &&
+      (kDebugMode || canAdd) &&
+      deletable(order, actor['uid'] as String, debug: kDebugMode);
+
+  Future<void> delete(InstallationOrder order) async {
+    _scope(order);
+    _require(canDelete(order));
+    final ref = _orders.doc(order.id);
+    await _transaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return;
+      final current = InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
+      _scope(current);
+      // Re-checked on the latest version: a validation may have just won.
+      if (!deletable(current, actor['uid'] as String, debug: kDebugMode)) {
+        throw StateError('Bon déjà validé : suppression impossible');
+      }
+      transaction.delete(ref);
+    });
   }
 
   bool canEdit(InstallationOrder order) => canReview

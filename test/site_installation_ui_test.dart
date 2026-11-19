@@ -158,6 +158,7 @@ void main() {
       (tester) async {
     await size(tester, 390, 1000);
     final order = sample('one', InstallationStatus.draft, 'Sotuba', 'TONINO')
+      ..address = ''
       ..phone = '';
     order.agents.single.phone = '';
     order.equipment.single
@@ -180,13 +181,15 @@ void main() {
     await go(find.text('Suivant'));
     expect(controller.step, 0);
     // The error is under the field only; the summary is one short line.
-    expect(find.text('Téléphone manquant'), findsOneWidget);
+    // The client phone is optional: only the address blocks the step.
+    expect(find.text('Adresse manquante'), findsOneWidget);
+    expect(find.text('Téléphone manquant'), findsNothing);
     expect(find.text('1 champ à remplir'), findsOneWidget);
     await preview(tester, key, 'saisie-390-erreur-etape-1');
     await go(step(3));
     expect(controller.step, 0);
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Téléphone'), '76000000');
+        find.widgetWithText(TextFormField, 'Adresse'), 'Sotuba');
     await go(step(3));
     expect(controller.step, 1);
     expect(find.text('Téléphone manquant'), findsWidgets);

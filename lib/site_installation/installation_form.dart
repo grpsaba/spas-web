@@ -511,7 +511,7 @@ class _InstallationFormState extends State<InstallationForm> {
           _text('phone', 0, 'Téléphone', order.phone,
               (value) => order.phone = value,
               icon: Icons.phone_outlined,
-              missing: 'Téléphone manquant',
+              optional: true,
               keyboard: TextInputType.phone,
               action: TextInputAction.done),
         ]),
@@ -712,7 +712,10 @@ class _InstallationFormState extends State<InstallationForm> {
             const SizedBox(width: 10),
             Flexible(child: Text(message)),
           ]),
-          duration: const Duration(seconds: 5),
+          // Material 3 keeps snackbars with an action until dismissed: this
+          // one must close by itself so it never hides the main button.
+          persist: false,
+          duration: const Duration(seconds: 4),
           action: SnackBarAction(
               label: 'Annuler',
               onPressed: () {

@@ -254,7 +254,8 @@ class InstallationReadOnly extends StatelessWidget {
               _Value(Icons.storefront_outlined, 'Site', order.siteName),
               _Value(Icons.business_outlined, 'Client', order.clientName),
               _Value(Icons.place_outlined, 'Adresse', order.address),
-              _Value(Icons.phone_outlined, 'Téléphone', order.phone),
+              _Value(Icons.phone_outlined, 'Téléphone', order.phone,
+                  required: false),
               _Value(
                   order.isSecurity
                       ? Icons.shield_outlined

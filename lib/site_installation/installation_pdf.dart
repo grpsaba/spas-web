@@ -70,16 +70,50 @@ class InstallationPdf {
                       fontSize: 10, fontWeight: pw.FontWeight.bold))),
           pw.SizedBox(height: 12),
         ],
-        pw.Text(
-            'N° DE BON : ${order.bonNumber.isEmpty ? 'Attribué à la validation' : installationBonLabel(order.bonNumber)}',
-            style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
-        pw.SizedBox(height: 8),
-        pw.Text(
-            'DATE : ${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}'),
-        pw.Text('CLIENT : ${order.clientName}'),
-        pw.Text('SITE : ${order.siteName}'),
-        pw.Text('ADRESSE : ${order.address}'),
-        if (order.phone.isNotEmpty) pw.Text('CONTACT : ${order.phone}'),
+        pw.Container(
+            padding:
+                const pw.EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            decoration: pw.BoxDecoration(
+                border: pw.Border.all(color: PdfColors.grey400, width: 0.6),
+                borderRadius: pw.BorderRadius.circular(4)),
+            child: pw.Table(columnWidths: const {
+              0: pw.FixedColumnWidth(170),
+              1: pw.FlexColumnWidth(),
+            }, children: [
+              for (final row in [
+                [
+                  'N° DE BON',
+                  order.bonNumber.isEmpty
+                      ? 'Attribué à la validation'
+                      : installationBonLabel(order.bonNumber)
+                ],
+                [
+                  'DATE DE MISE EN PLACE',
+                  '${date.day.toString().padLeft(2, '0')}/${date.month.toString().padLeft(2, '0')}/${date.year}'
+                ],
+                ['CLIENT', order.clientName],
+                ['SITE', order.siteName],
+                ['ADRESSE', order.address],
+                if (order.phone.isNotEmpty) ['CONTACT', order.phone],
+              ])
+                pw.TableRow(children: [
+                  pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(vertical: 5),
+                      child: pw.Text(row[0],
+                          style: pw.TextStyle(
+                              fontSize: 9,
+                              color: PdfColors.grey700,
+                              fontWeight: pw.FontWeight.bold))),
+                  pw.Padding(
+                      padding: const pw.EdgeInsets.symmetric(vertical: 5),
+                      child: pw.Text(row[1],
+                          style: pw.TextStyle(
+                              fontSize: 11,
+                              fontWeight: row[0] == 'N° DE BON'
+                                  ? pw.FontWeight.bold
+                                  : pw.FontWeight.normal))),
+                ]),
+            ])),
         pw.SizedBox(height: 24),
         pw.Text('AGENTS', style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
@@ -114,7 +148,10 @@ class InstallationPdf {
           cellPadding: const pw.EdgeInsets.all(8),
           border: pw.TableBorder.all(color: PdfColors.grey400, width: 0.5),
         ),
-        pw.SizedBox(height: 32),
+        pw.SizedBox(height: 28),
+        pw.Text('Fait à Bamako, le ......................................',
+            style: const pw.TextStyle(fontSize: 11)),
+        pw.SizedBox(height: 18),
         pw.Container(
             height: 140,
             child: pw.Row(
@@ -122,9 +159,11 @@ class InstallationPdf {
                 mainAxisAlignment: pw.MainAxisAlignment.spaceBetween,
                 children: [
                   pw.Text('SIGNATURE ET CACHET DU CLIENT',
-                      style: const pw.TextStyle(fontSize: 9)),
-                  pw.Text('SIGNATURE ET CACHET SABA',
-                      style: const pw.TextStyle(fontSize: 9)),
+                      style: pw.TextStyle(
+                          fontSize: 9, fontWeight: pw.FontWeight.bold)),
+                  pw.Text('SIGNATURE ET CACHET GROUPE SABA',
+                      style: pw.TextStyle(
+                          fontSize: 9, fontWeight: pw.FontWeight.bold)),
                 ])),
       ],
     ));

@@ -7,6 +7,7 @@ import 'package:spas_web/site_installation/installation_form.dart';
 import 'package:spas_web/site_installation/installation_catalog.dart';
 import 'package:spas_web/site_installation/installation_order.dart';
 import 'package:spas_web/site_installation/installation_pdf.dart';
+import 'package:spas_web/site_installation/installation_service.dart';
 import 'package:spas_web/site_installation/installation_ui.dart';
 import 'package:spas_web/site_installation/installation_equipment_picker.dart';
 
@@ -59,6 +60,38 @@ void main() {
             .canMoveTo(InstallationStatus.changesRequested, reviewer: true),
         false);
   });
+  test('authors delete only unvalidated requests; debug builds delete any', () {
+    final order = fixture();
+    expect(InstallationService.deletable(order, 'author'), true);
+    expect(InstallationService.deletable(order, 'other'), false);
+    for (final status in [
+      InstallationStatus.submitted,
+      InstallationStatus.changesRequested
+    ]) {
+      expect(InstallationService.deletable(order..status = status, 'author'),
+          true);
+    }
+    expect(
+        InstallationService.deletable(
+            fixture()..status = InstallationStatus.approved, 'author'),
+        false);
+    expect(
+        InstallationService.deletable(fixture()..bonNumber = '501', 'author'),
+        false);
+    expect(InstallationService.deletable(fixture()..siteId = 'site', 'author'),
+        false);
+    expect(
+        InstallationService.deletable(
+            fixture()
+              ..status = InstallationStatus.finalized
+              ..siteId = 'site',
+            'other',
+            debug: true),
+        true);
+  });
+  test('client phone is optional', () {
+    expect((fixture()..phone = '').validate(), isEmpty);
+  });
   test('bon numbers are displayed on five digits but stored unchanged', () {
     expect(installationBonLabel('1'), '00001');
     expect(installationBonLabel('501'), '00501');
@@ -102,13 +135,12 @@ void main() {
     expect(order.validate(forSite: true), isNotEmpty);
   });
   test(
-      'initial submission requires all contact, agent, equipment and organisation fields',
+      'initial submission requires all fields except the optional client phone',
       () {
     final invalidations = <void Function(InstallationOrder)>[
       (o) => o.siteName = ' ',
       (o) => o.clientName = '',
       (o) => o.address = '',
-      (o) => o.phone = '',
       (o) => o.departmentId = '',
       (o) => o.agents.clear(),
       (o) => o.agents.add(InstallationAgent(name: 'Autre', type: 'ADS')),
