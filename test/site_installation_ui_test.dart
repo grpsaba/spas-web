@@ -179,8 +179,9 @@ void main() {
     expect(find.text('1'), findsOneWidget);
     await go(find.text('Suivant'));
     expect(controller.step, 0);
-    // Short error on the field and in the step summary.
-    expect(find.text('Téléphone manquant'), findsNWidgets(2));
+    // The error is under the field only; the summary is one short line.
+    expect(find.text('Téléphone manquant'), findsOneWidget);
+    expect(find.text('1 champ à remplir'), findsOneWidget);
     await preview(tester, key, 'saisie-390-erreur-etape-1');
     await go(step(3));
     expect(controller.step, 0);
@@ -228,7 +229,9 @@ void main() {
     expect(controller.validate(), false);
     await tester.pumpAndSettle();
     expect(controller.step, 1);
-    expect(find.text('Type d’agent manquant'), findsOneWidget);
+    // One short line at the top, the message under the field only.
+    expect(find.text('Type d’agent manquant'), findsNothing);
+    expect(find.text('1 champ à remplir'), findsOneWidget);
     expect(find.text('Type manquant'), findsOneWidget);
     final typeField = find.widgetWithText(TextFormField, 'Type');
     expect(
@@ -449,14 +452,16 @@ void main() {
     expect(opened?.id, 'one');
     await tester.tap(find.text('Nouvelle demande'));
     expect(created, true);
-    await tester.tap(find.text('Tous'));
+    // A second tap on the selected shortcut shows everything again.
+    await tester.tap(find.text('Mes demandes'));
     await tester.pumpAndSettle();
+    expect(find.text('Agence ACI 2000'), findsOneWidget);
     // Search ignores accents and case.
     await tester.enterText(find.byType(TextField), 'entrepot');
     await tester.pumpAndSettle();
     expect(find.text('Entrepôt de Magnambougou'), findsOneWidget);
     expect(find.text('Résidence Sotuba'), findsNothing);
-    expect(find.text('1 / 5'), findsOneWidget);
+    expect(find.text('1 / 5'), findsNothing);
     await tester.tap(find.text('Effacer'));
     await tester.pumpAndSettle();
     expect(find.text('Résidence Sotuba'), findsOneWidget);
@@ -486,7 +491,7 @@ void main() {
             mobile: true)));
     await tester.pumpAndSettle();
     await preview(tester, key, 'bureau-390');
-    await tester.tap(find.text('Statut'));
+    await tester.tap(find.byTooltip('Statut'));
     await tester.pumpAndSettle();
     expect(find.byType(BottomSheet), findsOneWidget);
     await preview(tester, key, 'filtres-statut-390');
@@ -494,9 +499,13 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.text('Agence ACI 2000'), findsOneWidget);
     expect(find.text('Résidence Sotuba'), findsNothing);
-    await tester.tap(find.byTooltip('Retirer le filtre de statut'));
+    // The active status is shown by the icon button; « Tous » removes it.
+    await tester.tap(find.byTooltip('Signé'));
+    await tester.pumpAndSettle();
+    await tester.tap(find.widgetWithText(ListTile, 'Tous'));
     await tester.pumpAndSettle();
     expect(find.text('Résidence Sotuba'), findsOneWidget);
+    expect(find.byTooltip('Statut'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
@@ -592,6 +601,43 @@ void main() {
     expect(find.byIcon(Icons.inbox_outlined), findsOneWidget);
     expect(find.text('Nouvelle demande'), findsOneWidget);
     expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('mobile filters are all visible at 360 without a lone count',
+      (tester) async {
+    await size(tester, 360, 800);
+    await tester.pumpWidget(shell(
+        InstallationWorkspace(
+            orders: samples,
+            ownerUid: 'me',
+            mobile: true,
+            onCreate: () {},
+            onOpen: (_) {}),
+        mobile: true));
+    await tester.pumpAndSettle();
+    expect(tester.takeException(), isNull);
+    // No horizontal scrolling hides a filter.
+    expect(
+        find.byWidgetPredicate((widget) =>
+            widget is SingleChildScrollView &&
+            widget.scrollDirection == Axis.horizontal),
+        findsNothing);
+    final status = tester.getRect(find.byTooltip('Statut'));
+    expect(status.right, lessThanOrEqualTo(360));
+    for (final label in ['À faire', 'Envoyés', 'Terminés']) {
+      final rect = tester.getRect(find.text(label));
+      expect(rect.left, greaterThanOrEqualTo(0), reason: label);
+      expect(rect.right, lessThanOrEqualTo(status.left), reason: label);
+    }
+    // Counts are inside the shortcuts (1, 3, 1); the total (5) is not shown.
+    expect(find.text('5'), findsNothing);
+    await tester.tap(find.text('Terminés'));
+    await tester.pumpAndSettle();
+    expect(find.text('Immeuble Hamdallaye'), findsOneWidget);
+    expect(find.text('Résidence Sotuba'), findsNothing);
+    await tester.tap(find.text('Terminés'));
+    await tester.pumpAndSettle();
+    expect(find.text('Résidence Sotuba'), findsOneWidget);
   });
 
   testWidgets('long lists are built lazily', (tester) async {
@@ -756,6 +802,42 @@ void main() {
     expect(find.text('Hors connexion'), findsNothing);
     await tester.pumpWidget(shell(const InstallationFollowUp(events: [])));
     expect(find.text('Aucun message'), findsOneWidget);
+    expect(tester.takeException(), isNull);
+  });
+
+  testWidgets('identical consecutive history events are shown once with ×n',
+      (tester) async {
+    await size(tester, 390, 844);
+    Map<String, dynamic> saved(String id, int minute) => {
+          'id': id,
+          'kind': 'status',
+          'message': 'Brouillon enregistré',
+          'author': const {'uid': 'sup1', 'name': 'Demba Touré'},
+          'at': DateTime(2026, 11, 19, 14, minute)
+        };
+    await tester.pumpWidget(shell(
+        InstallationFollowUp(events: [
+          saved('a', 1),
+          {
+            'id': 'c',
+            'kind': 'comment',
+            'message': 'Merci',
+            'author': const {'uid': 'office', 'name': 'Bureau'},
+            'at': DateTime(2026, 11, 19, 14, 2)
+          },
+          saved('b', 6),
+          saved('d', 17),
+          saved('e', 18),
+        ]),
+        scroll: true,
+        mobile: true));
+    await tester.pumpAndSettle();
+    // The three latest are grouped on the most recent; the older one is
+    // separated by a message and stays alone.
+    expect(find.text('Brouillon enregistré  ×3'), findsOneWidget);
+    expect(find.text('Brouillon enregistré'), findsOneWidget);
+    expect(find.textContaining('14:18'), findsOneWidget);
+    expect(find.textContaining('14:17'), findsNothing);
     expect(tester.takeException(), isNull);
   });
 

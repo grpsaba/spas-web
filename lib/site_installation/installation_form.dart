@@ -365,16 +365,21 @@ class _InstallationFormState extends State<InstallationForm> {
 
   Widget _summary(int step) {
     final missing = order.validateStep(step);
-    if (missing.isEmpty && _fieldsValid(step)) return const SizedBox.shrink();
+    final invalid = _states(step).where((s) => !s.isValid).length;
+    if (missing.isEmpty && invalid == 0) return const SizedBox.shrink();
+    // The messages are under the fields: only one short line here. A rule
+    // without a visible field (no invalid field) is named directly.
+    final count = invalid > missing.length ? invalid : missing.length;
     return Padding(
         key: step == _step ? _summaryKey : null,
         padding: const EdgeInsets.only(bottom: 14),
         child: InstallationNotice(
             tone: InstallationTone.error,
-            message: missing.isEmpty ? 'Champ à corriger' : missing.first,
-            lines: missing.length > 1
-                ? missing.skip(1).take(3).toList()
-                : const []));
+            message: invalid == 0
+                ? missing.first
+                : count == 1
+                    ? '1 champ à remplir'
+                    : '$count champs à remplir'));
   }
 
   Widget _stepper() => Row(children: [

@@ -373,9 +373,12 @@ class InstallationReadOnly extends StatelessWidget {
 
 class InstallationEventTile extends StatelessWidget {
   const InstallationEventTile(
-      {super.key, required this.event, this.pending = false});
+      {super.key, required this.event, this.pending = false, this.repeat = 1});
   final Map<String, dynamic> event;
   final bool pending;
+
+  /// Number of identical consecutive events shown by this tile.
+  final int repeat;
   @override
   Widget build(BuildContext context) {
     final comment = event['kind'] == 'comment';
@@ -408,7 +411,7 @@ class InstallationEventTile extends StatelessWidget {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                  Text(message,
+                  Text(repeat > 1 ? '$message  ×$repeat' : message,
                       style: const TextStyle(
                           fontSize: 13.5,
                           fontWeight: FontWeight.w600,
@@ -577,6 +580,49 @@ class _InstallationCommentComposerState
       ]);
 }
 
+/// One history line: its most recent event and how many identical events
+/// it stands for.
+class InstallationEventGroup {
+  const InstallationEventGroup(this.event, this.count);
+  final Map<String, dynamic> event;
+  final int count;
+}
+
+/// Groups identical consecutive history events (same kind, message and
+/// author), newest first: each group keeps its most recent event and its
+/// size. Comments and pending events are never grouped.
+List<InstallationEventGroup> installationGroupEvents(
+    List<Map<String, dynamic>> newestFirst,
+    {Set<String> pendingIds = const {}}) {
+  String? keyOf(Map<String, dynamic> event) {
+    if (event['kind'] == 'comment' ||
+        pendingIds.contains(event['id'] as String? ?? '')) {
+      return null;
+    }
+    return [
+      event['kind'] ?? '',
+      event['message'] ?? '',
+      installationMap(event['author'])['uid'] ??
+          installationMap(event['author'])['name'] ??
+          '',
+    ].join('\u0000');
+  }
+
+  final groups = <InstallationEventGroup>[];
+  String? previous;
+  for (final event in newestFirst) {
+    final key = keyOf(event);
+    if (key != null && key == previous) {
+      final last = groups.removeLast();
+      groups.add(InstallationEventGroup(last.event, last.count + 1));
+    } else {
+      groups.add(InstallationEventGroup(event, 1));
+    }
+    previous = key;
+  }
+  return groups;
+}
+
 /// Comments and history of a request, newest first.
 class InstallationFollowUp extends StatelessWidget {
   const InstallationFollowUp(
@@ -604,7 +650,8 @@ class InstallationFollowUp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final ordered = events.reversed.toList();
+    final ordered = installationGroupEvents(events.reversed.toList(),
+        pendingIds: pendingIds);
     return InstallationPanel(
         padding: const EdgeInsets.all(16),
         child:
@@ -639,10 +686,12 @@ class InstallationFollowUp extends StatelessWidget {
             const InstallationStateMessage(
                 icon: Icons.chat_bubble_outline, title: 'Aucun message')
           else
-            for (final event in ordered)
+            for (final group in ordered)
               InstallationEventTile(
-                  event: event,
-                  pending: pendingIds.contains(event['id'] as String? ?? '')),
+                  event: group.event,
+                  repeat: group.count,
+                  pending:
+                      pendingIds.contains(group.event['id'] as String? ?? '')),
         ]));
   }
 }

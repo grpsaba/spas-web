@@ -468,7 +468,8 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     InstallationAction? primary;
     InstallationAction? back;
     final secondary = <InstallationAction>[];
-    if (editable && status.authorCanEdit) {
+    // On the follow-up tab, the only « send » is the message field.
+    if (editable && status.authorCanEdit && _tab != _followTab) {
       final wizard = _tab == _requestTab && !_form.isLast;
       if (_tab == _requestTab && _form.step > 0) {
         back = InstallationAction('Retour', _form.back, icon: Icons.arrow_back);

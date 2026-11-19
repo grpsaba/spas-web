@@ -348,24 +348,16 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
               box(Padding(
                   padding: const EdgeInsets.only(bottom: 10), child: notice)),
             box(_toolbar(narrow, views.values.toList())),
-            box(Padding(
-                padding: const EdgeInsets.only(top: 4, bottom: 6),
-                child: Row(children: [
-                  Expanded(
-                      child: Text(
-                          _filtered
-                              ? '${orders.length} / ${widget.orders.length}'
-                              : '${orders.length}',
-                          style: InstallationStyle.caption)),
-                  if (_filtered)
-                    Flexible(
-                        child: TextButton.icon(
-                            onPressed: _reset,
-                            icon: const Icon(Icons.filter_alt_off_outlined,
-                                size: 18),
-                            label: const Text('Effacer',
-                                overflow: TextOverflow.ellipsis))),
-                ]))),
+            // No isolated count: only the way back when a filter is on.
+            box(_filtered
+                ? Align(
+                    alignment: Alignment.centerRight,
+                    child: TextButton.icon(
+                        onPressed: _reset,
+                        icon:
+                            const Icon(Icons.filter_alt_off_outlined, size: 18),
+                        label: const Text('Effacer')))
+                : const SizedBox(height: 12)),
             if (orders.isEmpty)
               box(InstallationPanel(child: _empty()))
             else if (desktop)
@@ -540,34 +532,45 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                           _query = '';
                         }))),
         onChanged: (v) => setState(() => _query = v.trim()));
-    final statusButton = _status == null
-        ? OutlinedButton.icon(
-            onPressed: _pickStatus,
-            icon: const Icon(Icons.filter_list, size: 20),
-            label: const Text('Statut'))
-        : InputChip(
-            label: Text(_status!.label),
-            avatar: Icon(installationStatusIcon(_status!),
-                size: 18, color: Colors.white),
-            onPressed: _pickStatus,
-            onDeleted: () => setState(() => _status = null),
-            deleteIconColor: Colors.white,
-            deleteButtonTooltipMessage: 'Retirer le filtre de statut',
-            backgroundColor: installationStatusColor(_status!),
-            side: BorderSide.none,
-            labelStyle: const TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w700,
-                color: Colors.white));
-    final chips = SingleChildScrollView(
-        scrollDirection: Axis.horizontal,
-        child: Row(children: [for (final view in views) _viewChip(view)]));
+    final status = _status;
+    final statusButton = SizedBox(
+        width: 56,
+        height: 56,
+        child: status == null
+            ? IconButton.outlined(
+                tooltip: 'Statut',
+                onPressed: _pickStatus,
+                style: IconButton.styleFrom(
+                    side: const BorderSide(color: InstallationStyle.line),
+                    backgroundColor: Colors.white,
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                icon: const Icon(Icons.filter_list,
+                    size: 24, color: InstallationStyle.ink))
+            : IconButton.filled(
+                tooltip: status.label,
+                onPressed: _pickStatus,
+                style: IconButton.styleFrom(
+                    backgroundColor: installationStatusColor(status),
+                    shape: RoundedRectangleBorder(
+                        borderRadius: BorderRadius.circular(12))),
+                icon: Icon(installationStatusIcon(status),
+                    size: 24, color: Colors.white)));
+    // « Tous » is the state with no shortcut selected: the shortcuts share the
+    // width, so all of them stay visible on a small phone.
+    final shortcuts = views.where((view) => view.id != 'all').toList();
+    final segments = Row(children: [
+      for (var i = 0; i < shortcuts.length; i++) ...[
+        if (i > 0) const SizedBox(width: 6),
+        Expanded(child: _viewSegment(shortcuts[i])),
+      ]
+    ]);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (narrow) ...[
         search,
         const SizedBox(height: 10),
         Row(children: [
-          Expanded(child: chips),
+          Expanded(child: segments),
           const SizedBox(width: 8),
           statusButton,
         ]),
@@ -577,44 +580,70 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
           const SizedBox(width: 12),
           statusButton,
         ]),
-        const SizedBox(height: 12),
-        chips,
+        if (shortcuts.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Align(
+              alignment: Alignment.centerLeft,
+              child: ConstrainedBox(
+                  constraints:
+                      BoxConstraints(maxWidth: 180.0 * shortcuts.length),
+                  child: segments)),
+        ],
       ],
     ]);
   }
 
-  Widget _viewChip(_View view) {
+  Widget _viewSegment(_View view) {
     final selected = _view == view.id;
-    return Padding(
-        padding: const EdgeInsets.only(right: 6),
-        child: ChoiceChip(
-            avatar: Icon(view.icon,
-                size: 18,
-                color: selected
-                    ? InstallationStyle.primary
-                    : InstallationStyle.muted),
-            label: Row(mainAxisSize: MainAxisSize.min, children: [
-              Text(view.label),
-              const SizedBox(width: 6),
-              Text('${_counts[view.id] ?? 0}',
-                  style: const TextStyle(fontWeight: FontWeight.w400)),
-            ]),
-            selected: selected,
-            showCheckmark: false,
-            materialTapTargetSize: MaterialTapTargetSize.padded,
-            selectedColor: InstallationStyle.primarySoft,
-            backgroundColor: Colors.white,
-            labelStyle: TextStyle(
-                fontSize: 13.5,
-                fontWeight: FontWeight.w600,
-                color: selected
-                    ? InstallationStyle.primary
-                    : InstallationStyle.muted),
-            side: BorderSide(
-                color: selected
-                    ? InstallationStyle.primary.withValues(alpha: .35)
-                    : InstallationStyle.line),
-            onSelected: (_) => setState(() => _view = view.id)));
+    final color =
+        selected ? InstallationStyle.primary : InstallationStyle.muted;
+    return Semantics(
+        button: true,
+        selected: selected,
+        label: '${view.label} : ${_counts[view.id] ?? 0}',
+        child: Material(
+            color: selected ? InstallationStyle.primarySoft : Colors.white,
+            shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(12),
+                side: BorderSide(
+                    color: selected
+                        ? InstallationStyle.primary.withValues(alpha: .5)
+                        : InstallationStyle.line,
+                    width: selected ? 1.5 : 1)),
+            clipBehavior: Clip.antiAlias,
+            child: InkWell(
+                // A second tap on the selected shortcut shows everything.
+                onTap: () => setState(() => _view = selected ? 'all' : view.id),
+                child: ExcludeSemantics(
+                    child: SizedBox(
+                        height: 56,
+                        child: Padding(
+                            padding: const EdgeInsets.symmetric(horizontal: 4),
+                            child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  Row(
+                                      mainAxisAlignment:
+                                          MainAxisAlignment.center,
+                                      children: [
+                                        Icon(view.icon, size: 18, color: color),
+                                        const SizedBox(width: 4),
+                                        Text('${_counts[view.id] ?? 0}',
+                                            style: TextStyle(
+                                                fontSize: 15,
+                                                fontWeight: FontWeight.w700,
+                                                color: color)),
+                                      ]),
+                                  const SizedBox(height: 2),
+                                  FittedBox(
+                                      fit: BoxFit.scaleDown,
+                                      child: Text(view.label,
+                                          maxLines: 1,
+                                          style: TextStyle(
+                                              fontSize: 13,
+                                              fontWeight: FontWeight.w600,
+                                              color: color))),
+                                ])))))));
   }
 
   Widget _empty() {
