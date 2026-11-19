@@ -59,6 +59,15 @@ void main() {
             .canMoveTo(InstallationStatus.changesRequested, reviewer: true),
         false);
   });
+  test('bon numbers are displayed on five digits but stored unchanged', () {
+    expect(installationBonLabel('1'), '00001');
+    expect(installationBonLabel('501'), '00501');
+    expect(installationBonLabel('31503'), '31503');
+    expect(installationBonLabel('123456'), '123456');
+    expect(installationBonLabel(''), '');
+    final order = fixture()..bonNumber = '501';
+    expect(order.toJson()['bonNumber'], '501');
+  });
   test(
       'wire data and free text survive offline JSON; unknown statuses fail closed',
       () {

@@ -522,7 +522,7 @@ class _InstallationFormState extends State<InstallationForm> {
           Row(children: [
             const Icon(Icons.numbers, size: 18, color: InstallationStyle.muted),
             const SizedBox(width: 6),
-            Text('Bon n° ${order.bonNumber}',
+            Text('Bon n° ${installationBonLabel(order.bonNumber)}',
                 style: const TextStyle(
                     fontWeight: FontWeight.w700, color: InstallationStyle.ink)),
           ]),

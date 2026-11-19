@@ -81,7 +81,7 @@ class InstallationOrderTile extends StatelessWidget {
                         child: Text(
                             order.bonNumber.isEmpty
                                 ? installationDateLabel(order.updatedAt)
-                                : 'N° ${order.bonNumber}',
+                                : 'N° ${installationBonLabel(order.bonNumber)}',
                             style: InstallationStyle.caption)),
                     const Icon(Icons.chevron_right,
                         size: 22, color: InstallationStyle.muted),
@@ -142,7 +142,7 @@ class InstallationOrderTile extends StatelessWidget {
                       Text(
                           order.bonNumber.isEmpty
                               ? installationDateLabel(order.updatedAt)
-                              : 'N° ${order.bonNumber}',
+                              : 'N° ${installationBonLabel(order.bonNumber)}',
                           style: InstallationStyle.caption),
                     ]),
                   ])),
@@ -242,7 +242,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
     _keys = [
       for (final o in widget.orders)
         installationNormalize(
-            '${o.siteName} ${o.clientName} ${o.bonNumber} ${o.authorName} ${o.address}')
+            '${o.siteName} ${o.clientName} ${o.bonNumber} ${installationBonLabel(o.bonNumber)} ${o.authorName} ${o.address}')
     ];
     _counts = {
       for (final view in _views) view.id: widget.orders.where(view.test).length

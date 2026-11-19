@@ -231,7 +231,7 @@ class InstallationService {
             ..._event(
                 'status',
                 message.trim().isEmpty
-                    ? '${next.label}${allocatedNumber == null ? '' : ' · Bon n° ${current.bonNumber}'}'
+                    ? '${next.label}${allocatedNumber == null ? '' : ' · Bon n° ${installationBonLabel(current.bonNumber)}'}'
                     : message.trim()),
             'from': current.status.name,
             'to': next.name,

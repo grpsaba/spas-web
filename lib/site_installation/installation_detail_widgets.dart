@@ -262,7 +262,8 @@ class InstallationReadOnly extends StatelessWidget {
                   'Prestation',
                   order.serviceLabel),
               if (order.bonNumber.isNotEmpty)
-                _Value(Icons.numbers, 'N° du bon', order.bonNumber),
+                _Value(Icons.numbers, 'N° du bon',
+                    installationBonLabel(order.bonNumber)),
             ])),
         const SizedBox(height: 12),
         _section(

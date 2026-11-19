@@ -81,7 +81,7 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
       _error = null;
     });
     try {
-      final name = 'Bon-${_snapshot.bonNumber}.pdf';
+      final name = 'Bon-${installationBonLabel(_snapshot.bonNumber)}.pdf';
       if (print) {
         await Printing.layoutPdf(name: name, onLayout: (_) async => bytes);
       } else {
@@ -143,7 +143,7 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                         child: Text('Aperçu',
                             style: InstallationStyle.sectionTitle)),
                     if (official)
-                      Text('N° ${_snapshot.bonNumber}',
+                      Text('N° ${installationBonLabel(_snapshot.bonNumber)}',
                           style: const TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.w700,
@@ -231,7 +231,8 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                                   allowPrinting: false,
                                   allowSharing: false,
                                   maxPageWidth: 720,
-                                  pdfFileName: 'Bon-${_snapshot.bonNumber}.pdf',
+                                  pdfFileName:
+                                      'Bon-${installationBonLabel(_snapshot.bonNumber)}.pdf',
                                   scrollViewDecoration: const BoxDecoration(
                                       color: InstallationStyle.background),
                                   onError: (_, error) => InstallationNotice(

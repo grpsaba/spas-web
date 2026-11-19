@@ -216,7 +216,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         title: 'Valider ce bon ?',
         message: _order!.bonNumber.isEmpty
             ? 'Numéro définitif'
-            : 'N° ${_order!.bonNumber}',
+            : 'N° ${installationBonLabel(_order!.bonNumber)}',
         action: 'Valider',
         icon: Icons.check_circle);
     if (confirmed) {
@@ -450,7 +450,8 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
               order.serviceLabel),
           if (order.authorName.isNotEmpty)
             _fact(Icons.person_outline, order.authorName),
-          if (order.bonNumber.isNotEmpty) _fact(Icons.numbers, order.bonNumber),
+          if (order.bonNumber.isNotEmpty)
+            _fact(Icons.numbers, installationBonLabel(order.bonNumber)),
         ]),
       ]);
 

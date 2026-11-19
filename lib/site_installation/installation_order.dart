@@ -50,6 +50,14 @@ extension InstallationStatusLabel on InstallationStatus {
   }
 }
 
+/// Bon number as displayed and printed: five digits with leading zeros
+/// (« 00501 »). The stored value is unchanged: the security rules compare it
+/// with the shared counter (`string(lastNumber)`).
+String installationBonLabel(String bonNumber) {
+  final value = bonNumber.trim();
+  return RegExp(r'^[0-9]+$').hasMatch(value) ? value.padLeft(5, '0') : value;
+}
+
 DateTime? installationDate(dynamic value) {
   if (value is Timestamp) return value.toDate();
   if (value is DateTime) return value;

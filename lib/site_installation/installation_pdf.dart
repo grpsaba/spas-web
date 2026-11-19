@@ -56,7 +56,7 @@ class InstallationPdf {
         pw.Text('RCCM/ MA-BKO-2014-B-549 - NIF : 086133271L',
             style: const pw.TextStyle(fontSize: 8)),
         pw.Text(
-            'Bon ${order.bonNumber} · ${order.siteName} · ${context.pageNumber}/${context.pagesCount}',
+            'Bon ${installationBonLabel(order.bonNumber)} · ${order.siteName} · ${context.pageNumber}/${context.pagesCount}',
             style: const pw.TextStyle(fontSize: 8)),
       ]),
       build: (context) => [
@@ -71,7 +71,7 @@ class InstallationPdf {
           pw.SizedBox(height: 12),
         ],
         pw.Text(
-            'N° DE BON : ${order.bonNumber.isEmpty ? 'Attribué à la validation' : order.bonNumber}',
+            'N° DE BON : ${order.bonNumber.isEmpty ? 'Attribué à la validation' : installationBonLabel(order.bonNumber)}',
             style: pw.TextStyle(fontWeight: pw.FontWeight.bold)),
         pw.SizedBox(height: 8),
         pw.Text(
@@ -134,6 +134,7 @@ class InstallationPdf {
   static Future<void> printOrder(InstallationOrder order) async {
     final bytes = await build(order);
     await Printing.layoutPdf(
-        name: 'Bon-${order.bonNumber}.pdf', onLayout: (_) async => bytes);
+        name: 'Bon-${installationBonLabel(order.bonNumber)}.pdf',
+        onLayout: (_) async => bytes);
   }
 }
