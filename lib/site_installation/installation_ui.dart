@@ -74,7 +74,7 @@ class InstallationStyle {
             style: FilledButton.styleFrom(
           backgroundColor: primary,
           foregroundColor: Colors.white,
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, 50),
           padding: const EdgeInsets.symmetric(horizontal: 18, vertical: 13),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           shape:
@@ -84,7 +84,7 @@ class InstallationStyle {
             style: OutlinedButton.styleFrom(
           foregroundColor: ink,
           side: const BorderSide(color: strongLine),
-          minimumSize: const Size(0, 48),
+          minimumSize: const Size(0, 50),
           padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 13),
           textStyle: const TextStyle(fontSize: 14, fontWeight: FontWeight.w600),
           shape:
@@ -126,145 +126,112 @@ class InstallationPanel extends StatelessWidget {
       );
 }
 
+/// One colour per status, recognisable without reading: grey draft, blue
+/// sent, orange to correct, green validated or finished.
 Color installationStatusColor(InstallationStatus status) => const {
-      InstallationStatus.draft: InstallationStyle.muted,
-      InstallationStatus.submitted: Color(0xFF2F5FB3),
-      InstallationStatus.changesRequested: Color(0xFFA85F0F),
-      InstallationStatus.approved: InstallationStyle.primary,
-      InstallationStatus.awaitingSignature: Color(0xFF7A5A26),
-      InstallationStatus.signedReturned: InstallationStyle.green,
-      InstallationStatus.finalized: InstallationStyle.green,
+      InstallationStatus.draft: Color(0xFF6B7280),
+      InstallationStatus.submitted: Color(0xFF2563EB),
+      InstallationStatus.changesRequested: Color(0xFFD97706),
+      InstallationStatus.approved: Color(0xFF16A34A),
+      InstallationStatus.awaitingSignature: Color(0xFF16A34A),
+      InstallationStatus.signedReturned: Color(0xFF15803D),
+      InstallationStatus.finalized: Color(0xFF166534),
     }[status]!;
 
 IconData installationStatusIcon(InstallationStatus status) => const {
-      InstallationStatus.draft: Icons.edit_note_outlined,
-      InstallationStatus.submitted: Icons.fact_check_outlined,
-      InstallationStatus.changesRequested: Icons.undo_outlined,
-      InstallationStatus.approved: Icons.print_outlined,
-      InstallationStatus.awaitingSignature: Icons.draw_outlined,
-      InstallationStatus.signedReturned: Icons.assignment_turned_in_outlined,
-      InstallationStatus.finalized: Icons.check_circle_outline,
+      InstallationStatus.draft: Icons.edit_note,
+      InstallationStatus.submitted: Icons.send,
+      InstallationStatus.changesRequested: Icons.error_outline,
+      InstallationStatus.approved: Icons.check_circle,
+      InstallationStatus.awaitingSignature: Icons.draw,
+      InstallationStatus.signedReturned: Icons.assignment_turned_in,
+      InstallationStatus.finalized: Icons.verified,
     }[status]!;
 
 class InstallationStatusBadge extends StatelessWidget {
-  const InstallationStatusBadge(this.status, {super.key, this.label});
+  const InstallationStatusBadge(this.status,
+      {super.key, this.label, this.large = false});
   final InstallationStatus status;
   final String? label;
+  final bool large;
   @override
   Widget build(BuildContext context) {
     final color = installationStatusColor(status);
     return Container(
-      constraints: const BoxConstraints(maxWidth: 245),
-      padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-      decoration: BoxDecoration(
-          color: color.withValues(alpha: .09),
-          borderRadius: BorderRadius.circular(20)),
+      constraints: const BoxConstraints(maxWidth: 220),
+      padding: EdgeInsets.symmetric(
+          horizontal: large ? 12 : 9, vertical: large ? 7 : 4),
+      decoration:
+          BoxDecoration(color: color, borderRadius: BorderRadius.circular(20)),
       child: Row(mainAxisSize: MainAxisSize.min, children: [
-        Container(
-            width: 7,
-            height: 7,
-            decoration: BoxDecoration(color: color, shape: BoxShape.circle)),
-        const SizedBox(width: 6),
+        Icon(installationStatusIcon(status),
+            size: large ? 18 : 14, color: Colors.white),
+        const SizedBox(width: 5),
         Flexible(
             child: Text(label ?? status.label,
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 style: TextStyle(
-                    color: color, fontSize: 12, fontWeight: FontWeight.w600))),
+                    color: Colors.white,
+                    fontSize: large ? 14 : 12,
+                    fontWeight: FontWeight.w700))),
       ]),
     );
   }
 }
 
-/// Who acts next and what to do, in plain French.
+/// Who acts next and what to do, in a few words.
 class InstallationGuidance {
   const InstallationGuidance(
-      {required this.owner, required this.title, required this.detail});
+      {required this.owner, required this.title, this.icon});
 
-  /// « À vous », « Au bureau », « Chez le client » or « Terminé ».
+  /// « À vous », « Bureau », « Client », « Terrain » or « Terminé ».
   final String owner;
   final String title;
-  final String detail;
+  final IconData? icon;
 }
 
 InstallationGuidance installationGuidance(InstallationStatus status,
     {bool mobile = false, bool reviewer = false}) {
   final office = !mobile && reviewer;
-  const owners = {
-    InstallationStatus.draft: ['À vous', 'Chez l’initiateur'],
-    InstallationStatus.changesRequested: ['À vous', 'Chez l’initiateur'],
-    InstallationStatus.submitted: ['Au bureau', 'À vous'],
-    InstallationStatus.approved: ['Au bureau', 'À vous'],
-    InstallationStatus.awaitingSignature: ['À vous', 'Chez le client'],
-    InstallationStatus.signedReturned: ['Au bureau', 'À vous'],
-    InstallationStatus.finalized: ['Terminé', 'Terminé'],
+  const field = {
+    InstallationStatus.draft: ['À vous', 'Compléter et envoyer'],
+    InstallationStatus.changesRequested: ['À vous', 'Corriger et renvoyer'],
+    InstallationStatus.submitted: ['Bureau', 'Vérification'],
+    InstallationStatus.approved: ['Bureau', 'Impression du bon'],
+    InstallationStatus.awaitingSignature: ['À vous', 'Faire signer le client'],
+    InstallationStatus.signedReturned: ['Bureau', 'Ouverture du site'],
+    InstallationStatus.finalized: ['Terminé', 'Site actif'],
   };
-  const titles = {
-    InstallationStatus.draft: [
-      'Compléter puis transmettre',
-      'Demande en cours de saisie'
-    ],
-    InstallationStatus.changesRequested: [
-      'Corriger puis transmettre',
-      'Correction demandée'
-    ],
-    InstallationStatus.submitted: [
-      'Vérification au bureau',
-      'Vérifier puis valider'
-    ],
-    InstallationStatus.approved: [
-      'Bon validé, impression au bureau',
-      'Imprimer, signer et remettre le bon'
-    ],
-    InstallationStatus.awaitingSignature: [
-      'Faire signer le client',
-      'En attente du bon signé'
-    ],
-    InstallationStatus.signedReturned: [
-      'Ouverture du site au bureau',
-      'Créer le site actif'
-    ],
-    InstallationStatus.finalized: ['Site actif', 'Site actif'],
+  const desk = {
+    InstallationStatus.draft: ['Terrain', 'Saisie en cours'],
+    InstallationStatus.changesRequested: ['Terrain', 'Correction en cours'],
+    InstallationStatus.submitted: ['À vous', 'Vérifier et valider'],
+    InstallationStatus.approved: ['À vous', 'Imprimer et remettre'],
+    InstallationStatus.awaitingSignature: ['Client', 'Signature en cours'],
+    InstallationStatus.signedReturned: ['À vous', 'Créer le site'],
+    InstallationStatus.finalized: ['Terminé', 'Site actif'],
   };
-  final index = office ? 1 : 0;
-  return InstallationGuidance(
-      owner: owners[status]![index],
-      title: titles[status]![index],
-      detail: installationNextStep(status, mobile: mobile, reviewer: office));
+  final text = (office ? desk : field)[status]!;
+  return InstallationGuidance(owner: text[0], title: text[1]);
 }
 
-String installationNextStep(InstallationStatus status,
-    {bool mobile = false, bool reviewer = true}) {
-  final office = !mobile && reviewer;
-  return {
-    InstallationStatus.draft: office
-        ? 'L’initiateur complète la demande avant de la transmettre au bureau.'
-        : 'Complétez la demande, puis transmettez-la au bureau pour vérification.',
-    InstallationStatus.changesRequested: office
-        ? 'La demande attend les corrections de l’initiateur.'
-        : 'Consultez les commentaires, apportez les corrections et transmettez à nouveau la demande.',
-    InstallationStatus.submitted: office
-        ? 'Vérifiez les informations, puis validez ou demandez une correction. Le numéro est attribué automatiquement à la première validation.'
-        : 'Le bureau vérifie les informations. Vous pouvez échanger avec le responsable dans le suivi.',
-    InstallationStatus.approved: office
-        ? 'Imprimez le bon, signez-le et remettez-le à l’initiateur pour la signature du client.'
-        : 'Le bon est validé. Le bureau prépare son impression et sa remise pour signature.',
-    InstallationStatus.awaitingSignature: office
-        ? 'Le document est chez l’initiateur pour signature du client. Confirmez son retour une fois l’original reçu.'
-        : 'Faites signer le bon par le client, puis rapportez l’original au bureau. Une photo peut être jointe.',
-    InstallationStatus.signedReturned: office
-        ? 'Le retour signé est confirmé. Vous pouvez maintenant créer le site actif et son compte.'
-        : 'Le bon signé est revenu au bureau. Le responsable peut maintenant ouvrir le site.',
-    InstallationStatus.finalized:
-        'Le site est actif. Ce dossier conserve le bon et l’historique des échanges.',
-  }[status]!;
-}
+IconData installationOwnerIcon(String owner) =>
+    const {
+      'À vous': Icons.person,
+      'Bureau': Icons.business,
+      'Client': Icons.handshake_outlined,
+      'Terrain': Icons.directions_walk,
+      'Terminé': Icons.check,
+    }[owner] ??
+    Icons.schedule;
 
-const installationProgressSteps = [
-  'Demande',
-  'Vérification',
-  'Signature',
-  'Site actif'
+const installationProgressSteps = ['Demande', 'Bureau', 'Signature', 'Site'];
+const _progressIcons = [
+  Icons.edit_note,
+  Icons.business,
+  Icons.draw,
+  Icons.storefront
 ];
 
 int installationProgressStep(InstallationStatus status) => const {
@@ -282,65 +249,66 @@ class InstallationProgress extends StatelessWidget {
   final InstallationStatus status;
   int get step => installationProgressStep(status);
   @override
-  Widget build(BuildContext context) => Semantics(
-      label:
-          'Avancement : étape ${step + 1} sur 4, ${installationProgressSteps[step]}',
-      child: ExcludeSemantics(
-          child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-        for (var i = 0; i < 4; i++)
-          Expanded(
-              child: Column(children: [
-            Row(children: [
-              Expanded(
-                  child: Container(
-                      height: 2,
-                      color: i == 0
-                          ? Colors.transparent
-                          : i <= step
-                              ? InstallationStyle.primary
-                              : InstallationStyle.line)),
-              Container(
-                  width: 24,
-                  height: 24,
-                  alignment: Alignment.center,
-                  decoration: BoxDecoration(
-                      shape: BoxShape.circle,
-                      border: i <= step
-                          ? null
-                          : Border.all(color: InstallationStyle.line),
-                      color:
-                          i <= step ? InstallationStyle.primary : Colors.white),
-                  child: i < step || status == InstallationStatus.finalized
-                      ? const Icon(Icons.check, size: 14, color: Colors.white)
-                      : Text('${i + 1}',
-                          style: TextStyle(
-                              fontSize: 11,
-                              fontWeight: FontWeight.w700,
-                              color: i == step
-                                  ? Colors.white
-                                  : InstallationStyle.muted))),
-              Expanded(
-                  child: Container(
-                      height: 2,
-                      color: i == 3
-                          ? Colors.transparent
-                          : i < step
-                              ? InstallationStyle.primary
-                              : InstallationStyle.line)),
-            ]),
-            const SizedBox(height: 6),
-            Text(installationProgressSteps[i],
-                textAlign: TextAlign.center,
-                maxLines: 1,
-                overflow: TextOverflow.ellipsis,
-                style: TextStyle(
-                    fontSize: 11,
-                    color: i == step
-                        ? InstallationStyle.primary
-                        : InstallationStyle.muted,
-                    fontWeight: i == step ? FontWeight.w700 : FontWeight.w400)),
-          ])),
-      ])));
+  Widget build(BuildContext context) {
+    final color = installationStatusColor(status);
+    final done = status == InstallationStatus.finalized;
+    return Semantics(
+        label:
+            'Avancement : étape ${step + 1} sur 4, ${installationProgressSteps[step]}',
+        child: ExcludeSemantics(
+            child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
+          for (var i = 0; i < 4; i++)
+            Expanded(
+                child: Column(children: [
+              Row(children: [
+                Expanded(
+                    child: Container(
+                        height: 3,
+                        color: i == 0
+                            ? Colors.transparent
+                            : i <= step
+                                ? color
+                                : InstallationStyle.line)),
+                Container(
+                    width: 32,
+                    height: 32,
+                    decoration: BoxDecoration(
+                        shape: BoxShape.circle,
+                        color: i <= step ? color : Colors.white,
+                        border: i <= step
+                            ? null
+                            : Border.all(
+                                color: InstallationStyle.line, width: 2)),
+                    child: Icon(
+                        i < step || done ? Icons.check : _progressIcons[i],
+                        size: 17,
+                        color: i <= step
+                            ? Colors.white
+                            : InstallationStyle.muted)),
+                Expanded(
+                    child: Container(
+                        height: 3,
+                        color: i == 3
+                            ? Colors.transparent
+                            : i < step
+                                ? color
+                                : InstallationStyle.line)),
+              ]),
+              const SizedBox(height: 5),
+              Text(installationProgressSteps[i],
+                  textAlign: TextAlign.center,
+                  maxLines: 1,
+                  overflow: TextOverflow.ellipsis,
+                  style: TextStyle(
+                      fontSize: 11.5,
+                      color: i == step
+                          ? InstallationStyle.ink
+                          : InstallationStyle.muted,
+                      fontWeight:
+                          i == step ? FontWeight.w700 : FontWeight.w400)),
+            ])),
+        ])));
+  }
 }
 
 enum InstallationTone { info, warning, error, success }
@@ -562,16 +530,12 @@ String installationReadableError(Object error) {
   if (plugin != null) {
     final code = plugin.group(1)!;
     const known = {
-      'unavailable':
-          'Connexion impossible. Vérifiez le réseau, puis réessayez.',
-      'network-request-failed':
-          'Connexion impossible. Vérifiez le réseau, puis réessayez.',
-      'deadline-exceeded':
-          'Le serveur met trop de temps à répondre. Réessayez dans un instant.',
-      'permission-denied':
-          'Action refusée : votre profil ne dispose pas des droits nécessaires.',
-      'unauthenticated': 'Session expirée. Reconnectez-vous, puis réessayez.',
-      'not-found': 'Document introuvable. Il a peut-être été supprimé.',
+      'unavailable': 'Hors connexion',
+      'network-request-failed': 'Hors connexion',
+      'deadline-exceeded': 'Délai dépassé, réessayez',
+      'permission-denied': 'Accès refusé',
+      'unauthenticated': 'Session expirée',
+      'not-found': 'Introuvable',
     };
     return known[code] ?? plugin.group(2)!.trim();
   }

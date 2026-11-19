@@ -17,29 +17,20 @@ class InstallationOrderTile extends StatelessWidget {
   final bool needsAttention;
   final bool desktop;
 
-  String get _title =>
-      order.siteName.isEmpty ? 'Demande à compléter' : order.siteName;
-
-  String get _subtitle => [
-        if (order.clientName.isNotEmpty) order.clientName,
-        order.serviceLabel,
-      ].join(' · ');
+  String get _title => order.siteName.isEmpty ? 'Sans nom' : order.siteName;
 
   @override
   Widget build(BuildContext context) {
+    final color = installationStatusColor(order.status);
     final identity = Row(children: [
       Container(
-          width: 40,
-          height: 40,
+          width: 44,
+          height: 44,
           decoration: BoxDecoration(
-              color: InstallationStyle.background,
-              borderRadius: BorderRadius.circular(10)),
-          child: Icon(
-              order.isSecurity
-                  ? Icons.shield_outlined
-                  : Icons.cleaning_services_outlined,
-              size: 19,
-              color: InstallationStyle.primary)),
+              color: color.withValues(alpha: .12),
+              borderRadius: BorderRadius.circular(12)),
+          child: Icon(installationStatusIcon(order.status),
+              size: 22, color: color)),
       const SizedBox(width: 12),
       Expanded(
           child:
@@ -49,130 +40,122 @@ class InstallationOrderTile extends StatelessWidget {
             overflow: TextOverflow.ellipsis,
             style: TextStyle(
                 fontWeight: FontWeight.w700,
-                fontSize: 14.5,
+                fontSize: 15,
                 color: order.siteName.isEmpty
                     ? InstallationStyle.muted
                     : InstallationStyle.ink)),
-        const SizedBox(height: 3),
-        Text(_subtitle,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
-            style: InstallationStyle.caption),
+        if (order.clientName.isNotEmpty) ...[
+          const SizedBox(height: 2),
+          Text(order.clientName,
+              maxLines: 1,
+              overflow: TextOverflow.ellipsis,
+              style: InstallationStyle.caption.copyWith(fontSize: 13)),
+        ],
       ])),
     ]);
     if (desktop) {
       return InkWell(
           onTap: onTap,
-          child: Padding(
-              padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
-              child: Row(children: [
-                Expanded(flex: 4, child: identity),
-                const SizedBox(width: 16),
-                Expanded(
-                    flex: 2,
-                    child: Text(order.authorName,
-                        maxLines: 2,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            color: InstallationStyle.ink, fontSize: 13))),
-                Expanded(
-                    flex: 3,
-                    child: Align(
-                        alignment: Alignment.centerLeft,
-                        child: InstallationStatusBadge(order.status))),
-                Expanded(
-                    flex: 2,
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(installationDateLabel(order.updatedAt),
-                              style: InstallationStyle.caption),
-                          if (order.bonNumber.isNotEmpty)
-                            Text('Bon n° ${order.bonNumber}',
-                                style: const TextStyle(
-                                    fontSize: 12,
-                                    fontWeight: FontWeight.w600,
-                                    color: InstallationStyle.ink)),
-                        ])),
-                const Icon(Icons.chevron_right,
-                    size: 20, color: InstallationStyle.muted),
-              ])));
+          child: ConstrainedBox(
+              constraints: const BoxConstraints(minHeight: 64),
+              child: Padding(
+                  padding:
+                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+                  child: Row(children: [
+                    Expanded(flex: 4, child: identity),
+                    const SizedBox(width: 16),
+                    Expanded(
+                        flex: 2,
+                        child: Text(order.authorName,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: const TextStyle(
+                                color: InstallationStyle.ink, fontSize: 13))),
+                    Expanded(
+                        flex: 2,
+                        child: Align(
+                            alignment: Alignment.centerLeft,
+                            child: InstallationStatusBadge(order.status))),
+                    Expanded(
+                        flex: 2,
+                        child: Text(
+                            order.bonNumber.isEmpty
+                                ? installationDateLabel(order.updatedAt)
+                                : 'N° ${order.bonNumber}',
+                            style: InstallationStyle.caption)),
+                    const Icon(Icons.chevron_right,
+                        size: 22, color: InstallationStyle.muted),
+                  ]))));
     }
-    final attention =
-        needsAttention ? InstallationStyle.warning : InstallationStyle.muted;
     return Material(
         color: Colors.white,
         shape: RoundedRectangleBorder(
             borderRadius: BorderRadius.circular(14),
             side: BorderSide(
                 color: needsAttention
-                    ? InstallationStyle.warning.withValues(alpha: .45)
+                    ? InstallationStyle.warning.withValues(alpha: .5)
                     : InstallationStyle.line)),
         clipBehavior: Clip.antiAlias,
         child: InkWell(
           onTap: onTap,
           child: Padding(
-              padding: const EdgeInsets.fromLTRB(16, 14, 12, 14),
+              padding: const EdgeInsets.fromLTRB(14, 14, 10, 14),
               child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     Row(children: [
                       Expanded(child: identity),
                       const Icon(Icons.chevron_right,
-                          size: 20, color: InstallationStyle.muted)
+                          size: 24, color: InstallationStyle.muted)
                     ]),
-                    const SizedBox(height: 12),
+                    const SizedBox(height: 10),
                     Row(children: [
                       Flexible(child: InstallationStatusBadge(order.status)),
-                      const SizedBox(width: 10),
+                      const SizedBox(width: 8),
+                      if (syncLabel != null)
+                        Expanded(
+                            child: Row(children: [
+                          Icon(
+                              needsAttention
+                                  ? Icons.cloud_upload
+                                  : Icons.cloud_done,
+                              size: 16,
+                              color: needsAttention
+                                  ? InstallationStyle.warning
+                                  : InstallationStyle.green),
+                          const SizedBox(width: 4),
+                          Expanded(
+                              child: Text(syncLabel!,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: TextStyle(
+                                      fontSize: 12,
+                                      fontWeight: needsAttention
+                                          ? FontWeight.w600
+                                          : FontWeight.w400,
+                                      color: needsAttention
+                                          ? InstallationStyle.warning
+                                          : InstallationStyle.muted))),
+                        ]))
+                      else
+                        const Spacer(),
                       Text(
                           order.bonNumber.isEmpty
                               ? installationDateLabel(order.updatedAt)
-                              : 'Bon n° ${order.bonNumber}',
+                              : 'N° ${order.bonNumber}',
                           style: InstallationStyle.caption),
                     ]),
-                    if (syncLabel != null) ...[
-                      const SizedBox(height: 10),
-                      Row(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Icon(
-                                needsAttention
-                                    ? Icons.cloud_upload_outlined
-                                    : Icons.cloud_done_outlined,
-                                size: 15,
-                                color: needsAttention
-                                    ? attention
-                                    : InstallationStyle.green),
-                            const SizedBox(width: 6),
-                            Expanded(
-                                child: Text(syncLabel!,
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 12,
-                                        color: attention,
-                                        fontWeight: needsAttention
-                                            ? FontWeight.w600
-                                            : FontWeight.w400)))
-                          ]),
-                    ] else if (order.authorName.isNotEmpty) ...[
-                      const SizedBox(height: 8),
-                      Text('Initiée par ${order.authorName}',
-                          maxLines: 1,
-                          overflow: TextOverflow.ellipsis,
-                          style: InstallationStyle.caption),
-                    ],
                   ])),
         ));
   }
 }
 
-/// One shortcut of the list (view or status counter).
+/// One shortcut of the list.
 class _View {
-  const _View(this.id, this.label, this.test);
+  const _View(this.id, this.label, this.icon, this.test);
   final String id;
   final String label;
+  final IconData icon;
   final bool Function(InstallationOrder) test;
 }
 
@@ -201,7 +184,7 @@ class InstallationWorkspace extends StatefulWidget {
   /// Displayed under the page title (e.g. the numbering panel on the web).
   final Widget? headerExtra;
 
-  /// Banners displayed above the filters (synchronisation, offline…).
+  /// Short banners displayed above the filters (offline, synchronisation…).
   final List<Widget> notices;
   @override
   State<InstallationWorkspace> createState() => _InstallationWorkspaceState();
@@ -231,23 +214,26 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
       ].contains(o.status);
 
   List<_View> get _views => [
-        _View(
-            'all', widget.mobile ? 'Toutes' : 'Tous les dossiers', (_) => true),
+        _View('all', 'Tous', Icons.list, (_) => true),
         if (widget.mobile) ...[
-          _View('todo', 'À compléter', (o) => o.status.authorCanEdit),
+          _View('todo', 'À faire', Icons.edit_note,
+              (o) => o.status.authorCanEdit),
           _View(
               'office',
-              'Au bureau',
+              'Envoyés',
+              Icons.send,
               (o) =>
                   !o.status.authorCanEdit &&
                   o.status != InstallationStatus.finalized),
-          _View('done', 'Sites créés',
+          _View('done', 'Terminés', Icons.verified,
               (o) => o.status == InstallationStatus.finalized),
         ],
         if (widget.reviewer && !widget.mobile)
-          const _View('action', 'À traiter', _actionable),
+          const _View(
+              'action', 'À traiter', Icons.notifications_active, _actionable),
         if (!widget.mobile)
-          _View('mine', 'Mes demandes', (o) => o.authorUid == widget.ownerUid),
+          _View('mine', 'Mes demandes', Icons.person,
+              (o) => o.authorUid == widget.ownerUid),
       ];
 
   void _index() {
@@ -298,12 +284,8 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                 child: Column(
                     crossAxisAlignment: CrossAxisAlignment.stretch,
                     children: [
-                      const Padding(
-                          padding: EdgeInsets.fromLTRB(16, 0, 16, 8),
-                          child: Text('Filtrer par statut',
-                              style: InstallationStyle.sectionTitle)),
-                      _statusOption(context, null, 'Tous les statuts',
-                          widget.orders.length),
+                      _statusOption(
+                          context, null, 'Tous', widget.orders.length),
                       for (final status in InstallationStatus.values)
                         _statusOption(context, status, status.label,
                             _statusCounts[status] ?? 0),
@@ -317,14 +299,19 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
       ListTile(
           selected: _status == status,
           selectedTileColor: InstallationStyle.primarySoft,
+          minTileHeight: 54,
           shape:
               RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)),
           leading: status == null
-              ? const Icon(Icons.all_inclusive, size: 20)
+              ? const Icon(Icons.list, size: 24)
               : Icon(installationStatusIcon(status),
-                  size: 20, color: installationStatusColor(status)),
-          title: Text(label, style: const TextStyle(fontSize: 14)),
-          trailing: Text('$count', style: InstallationStyle.caption),
+                  size: 24, color: installationStatusColor(status)),
+          title: Text(label,
+              style:
+                  const TextStyle(fontSize: 15, fontWeight: FontWeight.w600)),
+          trailing: Text('$count',
+              style: const TextStyle(
+                  fontSize: 15, color: InstallationStyle.muted)),
           onTap: () => Navigator.pop(sheet, status ?? 'all'));
 
   @override
@@ -352,21 +339,23 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
           sliver: SliverToBoxAdapter(child: child));
       return CustomScrollView(
           physics: const AlwaysScrollableScrollPhysics(),
+          keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
-            SliverToBoxAdapter(child: SizedBox(height: narrow ? 16 : 28)),
+            SliverToBoxAdapter(child: SizedBox(height: narrow ? 14 : 28)),
             box(_header(narrow)),
             if (!widget.mobile) box(_counters(contentWidth)),
             for (final notice in widget.notices)
               box(Padding(
-                  padding: const EdgeInsets.only(bottom: 12), child: notice)),
+                  padding: const EdgeInsets.only(bottom: 10), child: notice)),
             box(_toolbar(narrow, views.values.toList())),
             box(Padding(
-                padding: const EdgeInsets.only(top: 6, bottom: 8),
+                padding: const EdgeInsets.only(top: 4, bottom: 6),
                 child: Row(children: [
                   Expanded(
                       child: Text(
-                          '${orders.length} dossier${orders.length > 1 ? 's' : ''}'
-                          '${_filtered ? ' sur ${widget.orders.length}' : ''}',
+                          _filtered
+                              ? '${orders.length} / ${widget.orders.length}'
+                              : '${orders.length}',
                           style: InstallationStyle.caption)),
                   if (_filtered)
                     Flexible(
@@ -374,7 +363,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                             onPressed: _reset,
                             icon: const Icon(Icons.filter_alt_off_outlined,
                                 size: 18),
-                            label: const Text('Réinitialiser les filtres',
+                            label: const Text('Effacer',
                                 overflow: TextOverflow.ellipsis))),
                 ]))),
             if (orders.isEmpty)
@@ -423,49 +412,30 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
   }
 
   Widget _header(bool narrow) {
-    if (widget.mobile) {
-      return Padding(
-          padding: const EdgeInsets.only(bottom: 14),
-          child: Text(
-              widget.orders.isEmpty
-                  ? 'Vos demandes de mise en place apparaîtront ici.'
-                  : 'Suivez vos demandes, du brouillon à l’ouverture du site. Les brouillons restent disponibles hors connexion.',
-              style: InstallationStyle.caption));
-    }
-    final title =
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      const Text('OUVERTURE DES SITES', style: InstallationStyle.overline),
-      const SizedBox(height: 6),
-      Text('Bons de mise en place',
-          style:
-              InstallationStyle.pageTitle.copyWith(fontSize: narrow ? 22 : 26)),
-      const SizedBox(height: 6),
-      Text(
-          widget.reviewer
-              ? 'Vérifiez les demandes du terrain et suivez chaque site jusqu’à son ouverture.'
-              : 'Initiez une demande et suivez son avancement jusqu’à l’ouverture du site.',
-          style: InstallationStyle.caption.copyWith(fontSize: 13.5)),
-    ]);
+    if (widget.mobile) return const SizedBox.shrink();
+    final title = Text('Bons de mise en place',
+        style:
+            InstallationStyle.pageTitle.copyWith(fontSize: narrow ? 22 : 26));
     final create = widget.onCreate == null
         ? null
         : FilledButton.icon(
             onPressed: widget.onCreate,
-            icon: const Icon(Icons.add, size: 19),
+            icon: const Icon(Icons.add, size: 22),
             label: const Text('Nouvelle demande'));
     return Padding(
-        padding: const EdgeInsets.only(bottom: 18),
+        padding: const EdgeInsets.only(bottom: 16),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (narrow) ...[
             title,
-            if (create != null) ...[const SizedBox(height: 14), create],
+            if (create != null) ...[const SizedBox(height: 12), create],
           ] else
-            Row(crossAxisAlignment: CrossAxisAlignment.end, children: [
+            Row(children: [
               Expanded(child: title),
               if (create != null) ...[const SizedBox(width: 24), create],
             ]),
           if (widget.headerExtra != null) ...[
-            const SizedBox(height: 14),
+            const SizedBox(height: 12),
             widget.headerExtra!,
           ],
         ]));
@@ -474,8 +444,8 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
   Widget _counters(double width) {
     const stats = {
       InstallationStatus.submitted: 'À vérifier',
-      InstallationStatus.awaitingSignature: 'En signature',
-      InstallationStatus.signedReturned: 'À finaliser',
+      InstallationStatus.awaitingSignature: 'À signer',
+      InstallationStatus.signedReturned: 'Signés',
       InstallationStatus.finalized: 'Sites créés',
     };
     final compact = width < 640;
@@ -484,7 +454,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
         _counter(entry.key, entry.value, compact: compact),
     ];
     return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 14),
         child: compact
             ? SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -511,13 +481,12 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
         selected: selected,
         label: '$label : $count',
         child: Material(
-            color: selected ? InstallationStyle.primarySoft : Colors.white,
+            color: selected ? color.withValues(alpha: .1) : Colors.white,
             shape: RoundedRectangleBorder(
                 borderRadius: BorderRadius.circular(12),
                 side: BorderSide(
-                    color: selected
-                        ? InstallationStyle.primary
-                        : InstallationStyle.line)),
+                    color: selected ? color : InstallationStyle.line,
+                    width: selected ? 1.5 : 1)),
             child: InkWell(
                 borderRadius: BorderRadius.circular(12),
                 onTap: () => setState(() => _status = selected ? null : status),
@@ -530,12 +499,19 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                                 compact ? MainAxisSize.min : MainAxisSize.max,
                             children: [
                           Icon(installationStatusIcon(status),
-                              size: 19, color: color),
+                              size: 22, color: color),
                           const SizedBox(width: 10),
+                          Text('$count',
+                              style: TextStyle(
+                                  fontSize: compact ? 16 : 22,
+                                  fontWeight: FontWeight.w700,
+                                  color: InstallationStyle.ink)),
+                          const SizedBox(width: 8),
                           if (compact)
                             Text(label,
                                 style: const TextStyle(
-                                    fontSize: 13, color: InstallationStyle.ink))
+                                    fontSize: 13,
+                                    color: InstallationStyle.muted))
                           else
                             Expanded(
                                 child: Text(label,
@@ -543,13 +519,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                                     overflow: TextOverflow.ellipsis,
                                     style: const TextStyle(
                                         fontSize: 13,
-                                        color: InstallationStyle.ink))),
-                          const SizedBox(width: 10),
-                          Text('$count',
-                              style: TextStyle(
-                                  fontSize: compact ? 15 : 20,
-                                  fontWeight: FontWeight.w700,
-                                  color: InstallationStyle.ink)),
+                                        color: InstallationStyle.muted))),
                         ]))))));
   }
 
@@ -558,15 +528,13 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
         controller: _search,
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
-            hintText: widget.mobile
-                ? 'Rechercher un site, un client…'
-                : 'Rechercher un site, un client, un bon…',
-            prefixIcon: const Icon(Icons.search, size: 20),
+            hintText: 'Rechercher',
+            prefixIcon: const Icon(Icons.search, size: 22),
             suffixIcon: _query.isEmpty
                 ? null
                 : IconButton(
                     tooltip: 'Effacer la recherche',
-                    icon: const Icon(Icons.close, size: 18),
+                    icon: const Icon(Icons.close, size: 20),
                     onPressed: () => setState(() {
                           _search.clear();
                           _query = '';
@@ -575,47 +543,42 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
     final statusButton = _status == null
         ? OutlinedButton.icon(
             onPressed: _pickStatus,
-            icon: const Icon(Icons.tune, size: 18),
+            icon: const Icon(Icons.filter_list, size: 20),
             label: const Text('Statut'))
         : InputChip(
             label: Text(_status!.label),
             avatar: Icon(installationStatusIcon(_status!),
-                size: 17, color: installationStatusColor(_status!)),
+                size: 18, color: Colors.white),
             onPressed: _pickStatus,
             onDeleted: () => setState(() => _status = null),
+            deleteIconColor: Colors.white,
             deleteButtonTooltipMessage: 'Retirer le filtre de statut',
-            backgroundColor: InstallationStyle.primarySoft,
+            backgroundColor: installationStatusColor(_status!),
             side: BorderSide.none,
             labelStyle: const TextStyle(
                 fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: InstallationStyle.primary));
+                fontWeight: FontWeight.w700,
+                color: Colors.white));
+    final chips = SingleChildScrollView(
+        scrollDirection: Axis.horizontal,
+        child: Row(children: [for (final view in views) _viewChip(view)]));
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (narrow) ...[
         search,
         const SizedBox(height: 10),
-      ],
-      Row(children: [
-        if (!narrow) ...[
+        Row(children: [
+          Expanded(child: chips),
+          const SizedBox(width: 8),
+          statusButton,
+        ]),
+      ] else ...[
+        Row(children: [
           Expanded(child: search),
           const SizedBox(width: 12),
           statusButton,
-        ] else ...[
-          Expanded(
-              child: SingleChildScrollView(
-                  scrollDirection: Axis.horizontal,
-                  child: Row(children: [
-                    for (final view in views) _viewChip(view),
-                  ]))),
-          const SizedBox(width: 8),
-          statusButton,
-        ],
-      ]),
-      if (!narrow) ...[
-        const SizedBox(height: 12),
-        Wrap(spacing: 8, runSpacing: 8, children: [
-          for (final view in views) _viewChip(view),
         ]),
+        const SizedBox(height: 12),
+        chips,
       ],
     ]);
   }
@@ -625,26 +588,24 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
     return Padding(
         padding: const EdgeInsets.only(right: 6),
         child: ChoiceChip(
+            avatar: Icon(view.icon,
+                size: 18,
+                color: selected
+                    ? InstallationStyle.primary
+                    : InstallationStyle.muted),
             label: Row(mainAxisSize: MainAxisSize.min, children: [
               Text(view.label),
               const SizedBox(width: 6),
-              Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 6, vertical: 1),
-                  decoration: BoxDecoration(
-                      color: selected
-                          ? Colors.white
-                          : InstallationStyle.background,
-                      borderRadius: BorderRadius.circular(10)),
-                  child: Text('${_counts[view.id] ?? 0}',
-                      style: const TextStyle(fontSize: 11))),
+              Text('${_counts[view.id] ?? 0}',
+                  style: const TextStyle(fontWeight: FontWeight.w400)),
             ]),
             selected: selected,
             showCheckmark: false,
+            materialTapTargetSize: MaterialTapTargetSize.padded,
             selectedColor: InstallationStyle.primarySoft,
             backgroundColor: Colors.white,
             labelStyle: TextStyle(
-                fontSize: 13,
+                fontSize: 13.5,
                 fontWeight: FontWeight.w600,
                 color: selected
                     ? InstallationStyle.primary
@@ -659,31 +620,27 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
   Widget _empty() {
     final none = widget.orders.isEmpty;
     return InstallationStateMessage(
-        icon: none ? Icons.note_add_outlined : Icons.search_off_outlined,
-        title: none ? 'Aucune demande pour le moment' : 'Aucun dossier trouvé',
-        message: none
-            ? widget.onCreate == null
-                ? 'Les demandes initiées par le terrain apparaîtront ici.'
-                : 'Créez une demande avec les informations du client. Le bon sera préparé après vérification au bureau.'
-            : 'Aucun dossier ne correspond à la recherche ou aux filtres.',
+        icon: none ? Icons.inbox_outlined : Icons.search_off,
+        title: none ? 'Aucune demande' : 'Aucun résultat',
         action: none
             ? widget.onCreate == null
                 ? null
                 : FilledButton.icon(
                     onPressed: widget.onCreate,
-                    icon: const Icon(Icons.add, size: 19),
+                    icon: const Icon(Icons.add, size: 22),
                     label: const Text('Nouvelle demande'))
-            : OutlinedButton(
+            : OutlinedButton.icon(
                 onPressed: _reset,
-                child: const Text('Réinitialiser les filtres')));
+                icon: const Icon(Icons.filter_alt_off_outlined, size: 18),
+                label: const Text('Effacer les filtres')));
   }
 }
 
 class _TableHeader extends StatelessWidget {
   const _TableHeader();
   static const _style = TextStyle(
-      fontSize: 10.5,
-      letterSpacing: 1,
+      fontSize: 11,
+      letterSpacing: .8,
       fontWeight: FontWeight.w600,
       color: InstallationStyle.muted);
   @override
@@ -692,13 +649,13 @@ class _TableHeader extends StatelessWidget {
           color: Color(0xFFF9FAFC),
           borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
           border: Border(bottom: BorderSide(color: InstallationStyle.line))),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 14),
+      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
       child: const Row(children: [
-        Expanded(flex: 4, child: Text('SITE / CLIENT', style: _style)),
+        Expanded(flex: 4, child: Text('SITE', style: _style)),
         SizedBox(width: 16),
         Expanded(flex: 2, child: Text('INITIATEUR', style: _style)),
-        Expanded(flex: 3, child: Text('STATUT', style: _style)),
-        Expanded(flex: 2, child: Text('MISE À JOUR', style: _style)),
-        SizedBox(width: 20),
+        Expanded(flex: 2, child: Text('STATUT', style: _style)),
+        Expanded(flex: 2, child: Text('DATE', style: _style)),
+        SizedBox(width: 22),
       ]));
 }

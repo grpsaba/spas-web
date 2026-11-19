@@ -47,7 +47,7 @@ class InstallationService {
     await _transaction((transaction) async {
       final existing = await transaction.get(_counter);
       if (existing.exists) {
-        throw StateError('Le compteur est déjà initialisé. Rechargez la page.');
+        throw StateError('Compteur déjà initialisé');
       }
       transaction.set(_counter, {
         'lastNumber': number,
@@ -86,7 +86,7 @@ class InstallationService {
 
   void _require(bool value) {
     if (!value) {
-      throw StateError('Vous ne disposez pas des droits nécessaires.');
+      throw StateError('Accès refusé');
     }
   }
 
@@ -178,7 +178,7 @@ class InstallationService {
         await _transaction((transaction) async {
           final snapshot = await transaction.get(ref);
           if (!snapshot.exists) {
-            throw StateError('Enregistrer la fiche avant de la transmettre.');
+            throw StateError('Enregistrez d’abord');
           }
           final current =
               InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
@@ -186,12 +186,11 @@ class InstallationService {
           _sameVersion(current, order);
           _require(canReview || (canAdd && current.authorUid == actor['uid']));
           if (!current.status.canMoveTo(next, reviewer: canReview)) {
-            throw StateError(
-                'Cette étape n’est pas disponible pour cette fiche.');
+            throw StateError('Action impossible pour ce statut');
           }
           if (next == InstallationStatus.changesRequested &&
               message.trim().isEmpty) {
-            throw StateError('Indiquer les corrections demandées.');
+            throw StateError('Message manquant');
           }
           int? allocatedNumber;
           if (next == InstallationStatus.approved &&
@@ -200,9 +199,7 @@ class InstallationService {
             // the counter, so allocation and approval always commit together.
             final counter = await transaction.get(_counter);
             if (!counter.exists) {
-              throw StateError(
-                  'Numérotation non initialisée : un administrateur doit renseigner '
-                  'le dernier numéro utilisé dans la liste des bons.');
+              throw StateError('Compteur non initialisé');
             }
             final numbering = InstallationNumbering.fromJson(counter.data()!);
             counterBefore = numbering.lastNumber;
@@ -261,8 +258,7 @@ class InstallationService {
 
   void _sameVersion(InstallationOrder current, InstallationOrder edited) {
     if (current.revision != edited.revision) {
-      throw StateError(
-          'Cette fiche a été modifiée entre-temps. Rechargez-la avant de continuer.');
+      throw StateError('Fiche modifiée ailleurs : rechargez');
     }
   }
 
@@ -283,7 +279,7 @@ class InstallationService {
     _require(canReview || (canAdd && order.authorUid == actor['uid']));
     if (message.trim().isEmpty) return;
     if (message.length > 4000) {
-      throw StateError('Commentaire limité à 4 000 caractères.');
+      throw StateError('Message trop long');
     }
     await _orders
         .doc(order.id)
@@ -355,8 +351,7 @@ class InstallationService {
     _require(DepartmentScope.matchesDepartment(departmentId));
     label = label.trim();
     if (label.isEmpty || label.contains('/') || label.length > 120) {
-      throw StateError(
-          'Désignation requise, sans / et limitée à 120 caractères.');
+      throw StateError('Nom invalide (sans /, 120 max)');
     }
     final ref = _db.collection('categorieTools').doc(label);
     final data = {
@@ -374,8 +369,7 @@ class InstallationService {
       if (existing.exists) {
         final value = existing.data()!;
         if (departmentIdFromJson(value) != departmentId) {
-          throw StateError(
-              'Cette désignation existe pour une autre prestation. Utilisez une désignation distincte.');
+          throw StateError('Nom déjà pris par l’autre prestation');
         }
       } else {
         transaction.set(ref, data);
@@ -391,10 +385,10 @@ class InstallationService {
     _scope(current);
     _require(canReview || (canAdd && current.authorUid == actor['uid']));
     if (current.status == InstallationStatus.finalized) {
-      throw StateError('La fiche finalisée ne peut plus être modifiée.');
+      throw StateError('Fiche terminée');
     }
     if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
-      throw StateError('Le document doit peser moins de 10 Mo.');
+      throw StateError('Fichier trop lourd (10 Mo max)');
     }
     final extension = filename.split('.').last.toLowerCase();
     final types = {
@@ -404,7 +398,7 @@ class InstallationService {
       'jpeg': 'image/jpeg'
     };
     final type = types[extension];
-    if (type == null) throw StateError('Choisir une photo JPG/PNG ou un PDF.');
+    if (type == null) throw StateError('Format JPG, PNG ou PDF');
     final path =
         'site-installation-orders/${order.tenantId}/${order.id}/${_orders.doc().id}.$extension';
     await _orders
@@ -430,7 +424,7 @@ class InstallationService {
             InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
         _scope(latest);
         if (latest.status == InstallationStatus.finalized) {
-          throw StateError('La fiche a déjà été finalisée.');
+          throw StateError('Fiche déjà terminée');
         }
         transaction.update(snapshot.reference, {
           'attachments': [
@@ -460,15 +454,15 @@ class InstallationService {
     if (current.status == InstallationStatus.finalized) return current;
     _sameVersion(current, order);
     if (current.status != InstallationStatus.signedReturned) {
-      throw StateError('Confirmer le retour signé avant de créer le site.');
+      throw StateError('Bon signé non confirmé');
     }
     final errors = current.validate(forSite: true);
-    if (code.trim().isEmpty) errors.add('Code du site requis.');
+    if (code.trim().isEmpty) errors.add('Code manquant');
     if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.trim())) {
-      errors.add('Email invalide.');
+      errors.add('Email invalide');
     }
     if (password.length < 8) {
-      errors.add('Mot de passe de huit caractères minimum.');
+      errors.add('Mot de passe : 8 caractères min.');
     }
     if (errors.isNotEmpty) throw StateError(errors.join('\n'));
 
@@ -486,15 +480,13 @@ class InstallationService {
       User user;
       if (recovery != null) {
         if (recovery['email'] != email.trim()) {
-          throw StateError(
-              'Reprendre avec l’email ${recovery['email']} utilisé lors de la première tentative.');
+          throw StateError('Utilisez l’email ${recovery['email']}');
         }
         user = (await secondaryAuth.signInWithEmailAndPassword(
                 email: email.trim(), password: password))
             .user!;
         if (user.uid != recovery['uid']) {
-          throw StateError(
-              'Le compte récupéré ne correspond pas à cette fiche.');
+          throw StateError('Compte différent');
         }
       } else {
         user = (await secondaryAuth.createUserWithEmailAndPassword(
@@ -504,8 +496,7 @@ class InstallationService {
             recoveryKey, jsonEncode({'uid': user.uid, 'email': email.trim()}));
         if (!stored) {
           await user.delete();
-          throw StateError(
-              'Impossible de conserver les informations de reprise. Réessayer.');
+          throw StateError('Échec, réessayez');
         }
       }
       final siteRef = _db.collection('Sites').doc(user.uid);
@@ -521,7 +512,7 @@ class InstallationService {
         }
         _sameVersion(latest, current);
         if (latest.status != InstallationStatus.signedReturned) {
-          throw StateError('Le statut de la fiche a changé.');
+          throw StateError('Statut changé : rechargez');
         }
         final primary = await tx.get(_db
             .collection('Supervisors')
@@ -539,18 +530,16 @@ class InstallationService {
               value['isPortal'] == true ||
               value['tenantId'] != latest.tenantId ||
               departmentIdFromJson(value) != latest.departmentId) {
-            throw StateError(
-                'Superviseur inactif ou hors du périmètre de la fiche.');
+            throw StateError('Superviseur invalide');
           }
         }
         if (!zone.exists ||
             zone.data()!['tenantId'] != latest.tenantId ||
             secondaryId == primary.id) {
-          throw StateError(
-              'Vérifier la zone et choisir des superviseurs distincts.');
+          throw StateError('Zone ou superviseurs invalides');
         }
         if (existingSite.exists) {
-          throw StateError('Ce compte est déjà lié à un site.');
+          throw StateError('Compte déjà lié à un site');
         }
         tx.set(siteRef, {
           'UID': user.uid,

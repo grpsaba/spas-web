@@ -131,8 +131,9 @@ Future<void> preview(WidgetTester tester, GlobalKey key, String name) async {
 Finder step(int index) => find.byKey(ValueKey('installation-step-$index'));
 
 InstallationForm guidedForm(InstallationOrder order,
-        {InstallationFormController? controller}) =>
+        {InstallationFormController? controller, bool navigation = true}) =>
     InstallationForm(
+        showNavigation: navigation,
         order: order,
         enabled: true,
         guided: true,
@@ -153,7 +154,7 @@ void main() {
     await icons.load();
   });
 
-  testWidgets('required fields block Continue and attempts to skip steps',
+  testWidgets('numbered steps block Suivant and attempts to skip steps',
       (tester) async {
     await size(tester, 390, 1000);
     final order = sample('one', InstallationStatus.draft, 'Sotuba', 'TONINO')
@@ -163,55 +164,58 @@ void main() {
       ..catalogId = null
       ..designation = ''
       ..quantity = 0;
+    final controller = InstallationFormController();
     final key = GlobalKey();
     await tester.pumpWidget(RepaintBoundary(
-        key: key, child: shell(guidedForm(order), scroll: true, mobile: true)));
+        key: key,
+        child: shell(guidedForm(order, controller: controller),
+            scroll: true, mobile: true)));
     Future<void> go(Finder target) async {
       await tester.ensureVisible(target);
       await tester.tap(target);
       await tester.pumpAndSettle();
     }
 
-    await go(find.text('Continuer'));
-    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
-    expect(find.text('Champ obligatoire.'), findsOneWidget);
-    expect(find.text('À compléter avant de continuer'), findsOneWidget);
-    expect(find.text('Renseigner le téléphone du contact.'), findsOneWidget);
+    expect(find.text('1'), findsOneWidget);
+    await go(find.text('Suivant'));
+    expect(controller.step, 0);
+    // Short error on the field and in the step summary.
+    expect(find.text('Téléphone manquant'), findsNWidgets(2));
     await preview(tester, key, 'saisie-390-erreur-etape-1');
     await go(step(3));
-    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
+    expect(controller.step, 0);
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Téléphone du contact *'),
-        '76000000');
+        find.widgetWithText(TextFormField, 'Téléphone'), '76000000');
     await go(step(3));
-    expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
+    expect(controller.step, 1);
+    expect(find.text('Téléphone manquant'), findsWidgets);
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Contact *'), '76000001');
+        find.widgetWithText(TextFormField, 'Téléphone'), '76000001');
     await go(step(3));
-    expect(find.text('ÉTAPE 3 SUR 4'), findsOneWidget);
-    expect(find.text('Saisir un entier positif.'), findsOneWidget);
+    expect(controller.step, 2);
+    expect(find.text('Nombre invalide'), findsOneWidget);
     await go(find.byType(InstallationEquipmentPicker));
     await tester.tap(find.text('Lampe').last);
     await tester.pumpAndSettle();
-    await tester.enterText(
-        find.widgetWithText(TextFormField, 'Quantité *'), '2');
-    await go(find.text('Continuer'));
-    expect(find.text('ÉTAPE 4 SUR 4'), findsOneWidget);
+    await tester.enterText(find.widgetWithText(TextFormField, 'Quantité'), '2');
+    await go(find.text('Suivant'));
+    expect(controller.step, 3);
     await go(step(0));
-    await tester.enterText(find.widgetWithText(TextFormField, 'Client *'), '');
+    await tester.enterText(find.widgetWithText(TextFormField, 'Client'), '');
     await go(step(3));
-    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
+    expect(controller.step, 0);
+    expect(find.text('Client manquant'), findsWidgets);
     // Going back to a previous step is always possible.
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Client *'), 'TONINO');
+        find.widgetWithText(TextFormField, 'Client'), 'TONINO');
     await go(step(2));
-    await go(find.text('Précédent'));
-    expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
+    await go(find.text('Retour'));
+    expect(controller.step, 1);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-      'transmission errors open the incomplete step, list what is missing and focus the field',
+      'sending an incomplete request opens the step, shows short errors and focuses the field',
       (tester) async {
     await size(tester, 390, 900);
     final order = sample('one', InstallationStatus.draft, 'Sotuba', 'TONINO');
@@ -224,9 +228,9 @@ void main() {
     expect(controller.validate(), false);
     await tester.pumpAndSettle();
     expect(controller.step, 1);
-    expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
-    expect(find.text('Renseigner le type de chaque agent.'), findsOneWidget);
-    final typeField = find.widgetWithText(TextFormField, 'Type d’agent *');
+    expect(find.text('Type d’agent manquant'), findsOneWidget);
+    expect(find.text('Type manquant'), findsOneWidget);
+    final typeField = find.widgetWithText(TextFormField, 'Type');
     expect(
         tester
             .widget<EditableText>(find.descendant(
@@ -238,12 +242,12 @@ void main() {
     expect(controller.validate(), false);
     await tester.pumpAndSettle();
     expect(controller.step, 3);
-    expect(find.text('Renseigner la date du contrat.'), findsWidgets);
+    expect(find.text('Date manquante'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   testWidgets(
-      'small phone with the keyboard open keeps the focused field and the step navigation reachable',
+      'phone 360x640 with the keyboard open keeps the field and the main button visible',
       (tester) async {
     await size(tester, 360, 640);
     tester.view.viewInsets = const FakeViewPadding(bottom: 280);
@@ -251,45 +255,61 @@ void main() {
     final order = sample('one', InstallationStatus.draft, 'Sotuba', 'TONINO')
       ..agents.add(InstallationAgent())
       ..agents.add(InstallationAgent());
+    final controller = InstallationFormController();
     final key = GlobalKey();
+    // Same layout as the pages: the action bar sits under the scrolled form.
     await tester.pumpWidget(RepaintBoundary(
         key: key,
-        child: shell(guidedForm(order),
-            scroll: true,
-            mobile: true,
-            bottom: InstallationActionBar(
-                status: 'Brouillon conservé sur cet appareil',
-                primary: InstallationAction('Transmettre au bureau', () {},
-                    icon: Icons.send_outlined)))));
+        child: shell(
+            Column(children: [
+              Expanded(
+                  child: SingleChildScrollView(
+                      padding: const EdgeInsets.all(12),
+                      child: guidedForm(order,
+                          controller: controller, navigation: false))),
+              ListenableBuilder(
+                  listenable: controller,
+                  builder: (context, _) => InstallationActionBar(
+                      status: 'Enregistré',
+                      back: controller.step > 0
+                          ? InstallationAction('Retour', controller.back,
+                              icon: Icons.arrow_back)
+                          : null,
+                      primary: controller.isLast
+                          ? InstallationAction('Envoyer', () {},
+                              icon: Icons.send)
+                          : InstallationAction('Suivant', controller.next,
+                              icon: Icons.arrow_forward))),
+            ]),
+            mobile: true)));
     await tester.pumpAndSettle();
     await tester.tap(step(1));
     await tester.pumpAndSettle();
-    final field = find.widgetWithText(TextFormField, 'Nom et prénoms *').last;
+    final field = find.widgetWithText(TextFormField, 'Nom').last;
     await tester.ensureVisible(field);
     await tester.tap(field);
     await tester.pumpAndSettle();
     await tester.enterText(field, 'Agent ajouté');
     await tester.pumpAndSettle();
-    final rect = tester.getRect(field);
     // The visible area ends where the keyboard starts (640 - 280).
+    final rect = tester.getRect(field);
     expect(rect.top, greaterThanOrEqualTo(56));
-    expect(rect.bottom, lessThanOrEqualTo(360));
-    await preview(tester, key, 'saisie-360x640-clavier-ouvert');
-    final next = find.text('Continuer');
-    await tester.ensureVisible(next);
-    await tester.pumpAndSettle();
+    final next = find.widgetWithText(FilledButton, 'Suivant');
+    expect(rect.bottom, lessThanOrEqualTo(tester.getRect(next).top));
     expect(tester.getRect(next).bottom, lessThanOrEqualTo(360));
+    await preview(tester, key, 'saisie-360x640-clavier-ouvert');
     await tester.tap(next);
     await tester.pumpAndSettle();
-    // The two empty agents block the step and are reported.
-    expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
-    expect(find.text('À compléter avant de continuer'), findsOneWidget);
+    // The empty third agent blocks the step.
+    expect(controller.step, 1);
+    expect(find.text('Nom manquant'), findsWidgets);
+    expect(find.widgetWithText(OutlinedButton, 'Retour'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
   for (final width in [320.0, 1100.0]) {
     testWidgets(
-        'equipment search ignores accents and supports free entry at $width',
+        'equipment search ignores accents and offers another equipment at $width',
         (tester) async {
       await size(tester, width, 850);
       final key = GlobalKey();
@@ -314,7 +334,6 @@ void main() {
       await tester.enterText(find.byType(TextField), 'ECLAIRAGE');
       await tester.pumpAndSettle();
       expect(find.text('Radio de communication'), findsNothing);
-      expect(find.text('1 résultat'), findsOneWidget);
       await tester.tap(find.text('Éclairage portable rechargeable'));
       await tester.pumpAndSettle();
       expect(selected, 'light');
@@ -322,8 +341,8 @@ void main() {
       await tester.pumpAndSettle();
       await tester.enterText(find.byType(TextField), 'introuvable');
       await tester.pumpAndSettle();
-      expect(find.textContaining('Aucun équipement trouvé.'), findsOneWidget);
-      await tester.tap(find.text('Saisir une désignation'));
+      expect(find.text('Aucun résultat'), findsOneWidget);
+      await tester.tap(find.text('Autre équipement'));
       await tester.pumpAndSettle();
       expect(selected, '');
       expect(tester.takeException(), isNull);
@@ -331,7 +350,7 @@ void main() {
   }
 
   testWidgets(
-      'equipment quantity has steppers and deleted rows can be restored',
+      'equipment quantity has large steppers and deleted rows can be restored',
       (tester) async {
     await size(tester, 390, 1000);
     final order = sample('one', InstallationStatus.draft, 'Sotuba', 'TONINO');
@@ -355,10 +374,12 @@ void main() {
     await tester.pump();
     expect(order.equipment.single.quantity, 3);
     expect(find.widgetWithText(TextFormField, '3'), findsOneWidget);
+    expect(tester.getSize(find.byTooltip('Augmenter la quantité')).height,
+        greaterThanOrEqualTo(40));
     await tester.tap(find.byTooltip('Supprimer cet équipement'));
     await tester.pumpAndSettle();
     expect(order.equipment, isEmpty);
-    expect(find.text('Aucun équipement pour le moment'), findsOneWidget);
+    expect(find.text('Aucun équipement'), findsOneWidget);
     await tester.tap(find.text('Annuler'));
     await tester.pumpAndSettle();
     expect(order.equipment.single.designation, 'Lampe torche');
@@ -391,7 +412,7 @@ void main() {
     };
     addTearDown(() => debugOnRebuildDirtyWidget = null);
     await tester.enterText(
-        find.widgetWithText(TextFormField, 'Nom du site *'), 'Nouveau nom');
+        find.widgetWithText(TextFormField, 'Nom du site'), 'Nouveau nom');
     await tester.pump();
     debugOnRebuildDirtyWidget = null;
     expect(order.siteName, 'Nouveau nom');
@@ -399,8 +420,7 @@ void main() {
     expect(rebuilt, lessThanOrEqualTo(2));
   });
 
-  testWidgets(
-      'bureau filters distinguish action queue, own requests and search',
+  testWidgets('bureau list filters by view, status counter and search',
       (tester) async {
     await size(tester, 1440, 1080);
     final key = GlobalKey();
@@ -412,7 +432,7 @@ void main() {
             orders: samples,
             ownerUid: 'me',
             reviewer: true,
-            headerExtra: const Text('Numérotation commune'),
+            headerExtra: const Text('Dernier numéro utilisé : 31502'),
             onCreate: () => created = true,
             onOpen: (o) => opened = o))));
     await tester.pumpAndSettle();
@@ -429,21 +449,21 @@ void main() {
     expect(opened?.id, 'one');
     await tester.tap(find.text('Nouvelle demande'));
     expect(created, true);
-    await tester.tap(find.text('Tous les dossiers'));
+    await tester.tap(find.text('Tous'));
     await tester.pumpAndSettle();
     // Search ignores accents and case.
     await tester.enterText(find.byType(TextField), 'entrepot');
     await tester.pumpAndSettle();
     expect(find.text('Entrepôt de Magnambougou'), findsOneWidget);
     expect(find.text('Résidence Sotuba'), findsNothing);
-    expect(find.text('1 dossier sur 5'), findsOneWidget);
-    await tester.tap(find.text('Réinitialiser les filtres'));
+    expect(find.text('1 / 5'), findsOneWidget);
+    await tester.tap(find.text('Effacer'));
     await tester.pumpAndSettle();
     expect(find.text('Résidence Sotuba'), findsOneWidget);
     expect(tester.widget<TextField>(find.byType(TextField)).controller!.text,
         isEmpty);
     // Counters filter by status.
-    await tester.tap(find.bySemanticsLabel('À finaliser : 1'));
+    await tester.tap(find.bySemanticsLabel('Signés : 1'));
     await tester.pumpAndSettle();
     expect(find.text('Agence ACI 2000'), findsOneWidget);
     expect(find.text('Résidence Sotuba'), findsNothing);
@@ -468,9 +488,9 @@ void main() {
     await preview(tester, key, 'bureau-390');
     await tester.tap(find.text('Statut'));
     await tester.pumpAndSettle();
-    expect(find.text('Filtrer par statut'), findsOneWidget);
+    expect(find.byType(BottomSheet), findsOneWidget);
     await preview(tester, key, 'filtres-statut-390');
-    await tester.tap(find.widgetWithText(ListTile, 'Retour signé reçu'));
+    await tester.tap(find.widgetWithText(ListTile, 'Signé'));
     await tester.pumpAndSettle();
     expect(find.text('Agence ACI 2000'), findsOneWidget);
     expect(find.text('Résidence Sotuba'), findsNothing);
@@ -481,7 +501,7 @@ void main() {
   });
 
   for (final width in [320.0, 390.0, 1200.0]) {
-    testWidgets('guided form retains edits across sections at $width',
+    testWidgets('guided form retains edits across steps at $width',
         (tester) async {
       await size(tester, width, width > 500 ? 1000 : 950);
       final order = sample(
@@ -495,18 +515,17 @@ void main() {
       final name = width > 500 ? '1200' : width.toInt().toString();
       await preview(tester, key, 'saisie-$name-etape-1');
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Nom du site *'), 'Site corrigé');
+          find.widgetWithText(TextFormField, 'Nom du site'), 'Site corrigé');
       await tester.tap(step(1));
       await tester.pumpAndSettle();
       await preview(tester, key, 'saisie-$name-etape-2');
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Nom et prénoms *'),
-          'Agent libre');
+          find.widgetWithText(TextFormField, 'Nom'), 'Agent libre');
       await tester.tap(step(2));
       await tester.pumpAndSettle();
       await preview(tester, key, 'saisie-$name-etape-3');
       await tester.enterText(
-          find.widgetWithText(TextFormField, 'Quantité *'), '7');
+          find.widgetWithText(TextFormField, 'Quantité'), '7');
       await tester.tap(step(0));
       await tester.pumpAndSettle();
       expect(find.text('Site corrigé'), findsOneWidget);
@@ -515,7 +534,7 @@ void main() {
       await tester.tap(step(3));
       await tester.pumpAndSettle();
       await preview(tester, key, 'saisie-$name-etape-4');
-      expect(find.widgetWithText(TextFormField, 'Date du contrat *'),
+      expect(find.widgetWithText(TextFormField, 'Date du contrat'),
           findsOneWidget);
       await tester.tap(find.text('Nuit'));
       await tester.pump();
@@ -543,20 +562,20 @@ void main() {
                 onOpen: (_) {},
                 syncLabels: const {
                   'one': 'Synchronisé',
-                  'two': 'Transmission en attente de connexion'
+                  'two': 'Envoi en attente'
                 },
                 attentionIds: const {'two'}),
             mobile: true)));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await preview(tester, key, 'mobile-liste');
-    await tester.tap(find.text('À compléter'));
+    await tester.tap(find.text('À faire'));
     await tester.pumpAndSettle();
     expect(find.text('Clinique Kalaban'), findsOneWidget);
     expect(find.text('Résidence Sotuba'), findsNothing);
-    await tester.ensureVisible(find.text('Au bureau'));
+    await tester.ensureVisible(find.text('Envoyés'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Au bureau'));
+    await tester.tap(find.text('Envoyés'));
     await tester.pumpAndSettle();
     expect(find.text('Résidence Sotuba'), findsOneWidget);
     expect(find.text('Clinique Kalaban'), findsNothing);
@@ -569,7 +588,8 @@ void main() {
             onOpen: (_) {}),
         mobile: true));
     await tester.pumpAndSettle();
-    expect(find.text('Aucune demande pour le moment'), findsOneWidget);
+    expect(find.text('Aucune demande'), findsOneWidget);
+    expect(find.byIcon(Icons.inbox_outlined), findsOneWidget);
     expect(find.text('Nouvelle demande'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
@@ -589,9 +609,10 @@ void main() {
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets('every status shows who acts next without overflow at 360',
+  testWidgets(
+      'each status has its own icon and a colour family, with who acts next',
       (tester) async {
-    await size(tester, 360, 2600);
+    await size(tester, 360, 2200);
     final key = GlobalKey();
     await tester.pumpWidget(RepaintBoundary(
         key: key,
@@ -609,26 +630,37 @@ void main() {
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     await preview(tester, key, 'statuts-mobile-360');
+    expect(InstallationStatus.values.map(installationStatusIcon).toSet(),
+        hasLength(InstallationStatus.values.length));
+    final grey = installationStatusColor(InstallationStatus.draft);
+    final blue = installationStatusColor(InstallationStatus.submitted);
+    final orange = installationStatusColor(InstallationStatus.changesRequested);
+    final green = installationStatusColor(InstallationStatus.approved);
+    expect({grey, blue, orange, green}, hasLength(4));
+    for (final status in [
+      InstallationStatus.awaitingSignature,
+      InstallationStatus.signedReturned,
+      InstallationStatus.finalized
+    ]) {
+      final color = installationStatusColor(status);
+      expect(color.g > color.r && color.g > color.b, true, reason: '$status');
+    }
+    for (final status in InstallationStatus.values) {
+      expect(status.label.split(' ').length, lessThanOrEqualTo(3));
+    }
     expect(installationGuidance(InstallationStatus.draft, mobile: true).owner,
         'À vous');
     expect(
         installationGuidance(InstallationStatus.submitted, mobile: true).owner,
-        'Au bureau');
+        'Bureau');
     expect(
         installationGuidance(InstallationStatus.submitted, reviewer: true)
             .title,
-        'Vérifier puis valider');
-    expect(
-        installationGuidance(InstallationStatus.awaitingSignature, mobile: true)
-            .owner,
-        'À vous');
-    // A web initiator without the validation right is not told to validate.
-    expect(installationNextStep(InstallationStatus.submitted, reviewer: false),
-        isNot(contains('validez')));
+        'Vérifier et valider');
   });
 
   testWidgets(
-      'action bar keeps one primary action and groups the others on phones',
+      'action bar keeps one large primary action and discreet secondary ones',
       (tester) async {
     await size(tester, 360, 640);
     final pressed = <String>[];
@@ -637,36 +669,37 @@ void main() {
         key: key,
         child: shell(const SizedBox.expand(),
             bottom: InstallationActionBar(
-                status: 'Modifications non enregistrées',
+                status: 'Non enregistré',
                 statusWarning: true,
                 save: InstallationAction(
-                    'Enregistrer', () => pressed.add('save')),
+                    'Enregistrer', () => pressed.add('save'),
+                    icon: Icons.save_outlined),
                 primary: InstallationAction(
-                    'Valider le bon', () => pressed.add('approve'),
-                    icon: Icons.check),
+                    'Valider', () => pressed.add('approve'),
+                    icon: Icons.check_circle),
                 secondary: [
-                  InstallationAction(
-                      'Demander une correction', () => pressed.add('changes'),
+                  InstallationAction('À corriger', () => pressed.add('changes'),
                       icon: Icons.undo),
-                  InstallationAction(
-                      'Aperçu et impression', () => pressed.add('print'),
+                  InstallationAction('Imprimer', () => pressed.add('print'),
                       icon: Icons.print_outlined),
                 ]))));
     await tester.pumpAndSettle();
     expect(tester.takeException(), isNull);
     expect(find.byType(FilledButton), findsOneWidget);
-    expect(find.text('Demander une correction'), findsNothing);
+    expect(tester.getSize(find.byType(FilledButton)).height,
+        greaterThanOrEqualTo(52));
+    expect(find.text('À corriger'), findsNothing);
     await preview(tester, key, 'barre-actions-360');
     await tester.tap(find.byTooltip('Autres actions'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Demander une correction'));
+    await tester.tap(find.text('À corriger'));
     await tester.pumpAndSettle();
-    await tester.tap(find.text('Valider le bon'));
-    await tester.tap(find.text('Enregistrer'));
+    await tester.tap(find.text('Valider'));
+    await tester.tap(find.byTooltip('Enregistrer'));
     expect(pressed, ['changes', 'approve', 'save']);
   });
 
-  testWidgets('follow-up sends messages and keeps errors next to the field',
+  testWidgets('follow-up sends messages and keeps errors on the field',
       (tester) async {
     await size(tester, 390, 844);
     final sent = <String>[];
@@ -680,21 +713,21 @@ void main() {
                   {
                     'id': 'e1',
                     'kind': 'status',
-                    'message': 'Fiche transmise pour vérification',
+                    'message': 'Envoyé',
                     'author': const {'name': 'Mamadou Traoré'},
                     'at': DateTime(2026, 11, 12, 9, 30)
                   },
                   {
                     'id': 'e2',
                     'kind': 'comment',
-                    'message': 'Merci de préciser le contact du client.',
+                    'message': 'Contact du client ?',
                     'author': const {'name': 'Bureau Bamako'},
                     'at': DateTime(2026, 11, 12, 10, 5)
                   },
                   const {
                     'id': 'local',
                     'kind': 'comment',
-                    'message': 'Contact ajouté.',
+                    'message': 'Ajouté.',
                     'author': {'name': 'Mamadou Traoré'},
                   },
                 ],
@@ -702,30 +735,31 @@ void main() {
                   'local'
                 },
                 onSend: (message) async {
-                  if (fail) throw StateError('Connexion requise.');
+                  if (fail) throw StateError('Hors connexion');
                   sent.add(message);
                 }),
             scroll: true,
             mobile: true)));
     await tester.pumpAndSettle();
-    expect(find.text('En attente d’envoi'), findsOneWidget);
+    expect(find.text('En attente'), findsOneWidget);
     await preview(tester, key, 'suivi-390');
     await tester.enterText(find.byType(TextField), 'Bien reçu');
     await tester.pump();
     await tester.tap(find.byTooltip('Envoyer le message'));
     await tester.pumpAndSettle();
-    expect(find.text('Connexion requise.'), findsOneWidget);
+    expect(find.text('Hors connexion'), findsOneWidget);
     expect(find.text('Bien reçu'), findsOneWidget);
     fail = false;
     await tester.tap(find.byTooltip('Envoyer le message'));
     await tester.pumpAndSettle();
     expect(sent, ['Bien reçu']);
-    expect(find.text('Connexion requise.'), findsNothing);
+    expect(find.text('Hors connexion'), findsNothing);
+    await tester.pumpWidget(shell(const InstallationFollowUp(events: [])));
+    expect(find.text('Aucun message'), findsOneWidget);
     expect(tester.takeException(), isNull);
   });
 
-  testWidgets(
-      'submitted request reads clearly at 320 without disabled form controls',
+  testWidgets('sent request reads clearly at 320 without form controls',
       (tester) async {
     await size(tester, 320, 1500);
     final key = GlobalKey();
@@ -737,14 +771,14 @@ void main() {
                   status: samples.first.status,
                   guidance:
                       installationGuidance(samples.first.status, mobile: true)),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               InstallationTabs(selected: 0, onSelected: (_) {}, tabs: const [
-                InstallationTab(0, 'La demande', Icons.description_outlined),
-                InstallationTab(3, 'Aperçu PDF', Icons.picture_as_pdf_outlined),
+                InstallationTab(0, 'Demande', Icons.description_outlined),
+                InstallationTab(3, 'Aperçu', Icons.picture_as_pdf_outlined),
                 InstallationTab(1, 'Suivi', Icons.forum_outlined),
-                InstallationTab(2, 'Bon signé', Icons.attach_file),
+                InstallationTab(2, 'Bon signé', Icons.draw_outlined),
               ]),
-              const SizedBox(height: 16),
+              const SizedBox(height: 12),
               InstallationReadOnly(samples.first),
             ]),
             scroll: true,
@@ -752,8 +786,8 @@ void main() {
     await tester.pumpAndSettle();
     expect(find.byType(TextFormField), findsNothing);
     expect(find.text('Groupe TONINO'), findsOneWidget);
-    expect(find.text('Vérification au bureau'), findsOneWidget);
+    expect(find.text('Bureau · Vérification'), findsOneWidget);
     expect(tester.takeException(), isNull);
-    await preview(tester, key, 'mobile-demande-transmise');
+    await preview(tester, key, 'mobile-demande-envoyee');
   });
 }

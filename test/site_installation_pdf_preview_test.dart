@@ -79,7 +79,7 @@ void main() {
     await tester.pumpAndSettle();
     final preview = tester.widget<PdfPreview>(find.byType(PdfPreview));
     final bytes = await preview.build(PdfPageFormat.a4);
-    await tester.tap(find.text('Télécharger le PDF'));
+    await tester.tap(find.text('Télécharger'));
     await tester.pumpAndSettle();
     expect(printing.downloaded, same(bytes));
     await tester.tap(find.text('Imprimer'));
@@ -143,10 +143,10 @@ void main() {
       await tester.runAsync(() => pending);
       await tester.pumpAndSettle();
       expect(find.byType(PdfPreview), findsOneWidget);
-      expect(find.text('Télécharger le PDF'), findsNothing);
+      expect(find.text('Télécharger'), findsNothing);
       expect(find.text('Imprimer'), findsNothing);
       if (draft) {
-        expect(find.textContaining('Aperçu du brouillon.'), findsOneWidget);
+        expect(find.text('Brouillon'), findsOneWidget);
       }
       expect(tester.takeException(), isNull);
     }

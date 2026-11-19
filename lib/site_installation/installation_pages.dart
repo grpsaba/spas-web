@@ -38,10 +38,7 @@ class _InstallationListPageState extends State<InstallationListPage> {
               child: !_service.canView
                   ? const Center(
                       child: InstallationStateMessage(
-                          icon: Icons.lock_outline,
-                          title: 'Accès non autorisé',
-                          message:
-                              'Votre profil ne donne pas accès aux bons de mise en place. Contactez un administrateur.'))
+                          icon: Icons.lock_outline, title: 'Accès refusé'))
                   : StreamBuilder<List<InstallationOrder>>(
                       stream: _stream,
                       builder: (context, snapshot) {
@@ -51,8 +48,7 @@ class _InstallationListPageState extends State<InstallationListPage> {
                                   child: InstallationStateMessage(
                                       tone: InstallationTone.error,
                                       icon: Icons.cloud_off_outlined,
-                                      title:
-                                          'Impossible de charger les demandes',
+                                      title: 'Erreur de chargement',
                                       message: installationErrorMessage(
                                           snapshot.error!),
                                       action: FilledButton.icon(
@@ -64,8 +60,7 @@ class _InstallationListPageState extends State<InstallationListPage> {
                         if (!snapshot.hasData) {
                           return const Center(
                               child: InstallationStateMessage(
-                                  loading: true,
-                                  title: 'Chargement des demandes…'));
+                                  loading: true, title: 'Chargement…'));
                         }
                         return InstallationWorkspace(
                           orders: snapshot.data!,
@@ -120,6 +115,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
   @override
   void dispose() {
     _scroll.dispose();
+    _form.dispose();
     super.dispose();
   }
 
@@ -151,9 +147,15 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     }
   }
 
-  void _notify(String message) => ScaffoldMessenger.maybeOf(context)
-    ?..hideCurrentSnackBar()
-    ..showSnackBar(SnackBar(content: Text(message)));
+  void _notify(String message, {IconData icon = Icons.check_circle}) =>
+      ScaffoldMessenger.maybeOf(context)
+        ?..hideCurrentSnackBar()
+        ..showSnackBar(SnackBar(
+            content: Row(children: [
+          Icon(icon, color: Colors.white, size: 20),
+          const SizedBox(width: 10),
+          Flexible(child: Text(message)),
+        ])));
 
   Future<void> _run(Future<void> Function() action, {String? success}) async {
     if (_busy) return;
@@ -197,29 +199,28 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     final editable = _service.canEdit(_order!);
     final valid = (!editable || _form.validate()) && _order!.validate().isEmpty;
     if (!valid) {
-      _notify(editable
-          ? 'Complétez les informations signalées avant de continuer.'
-          : _order!.validate().join('\n'));
+      _notify(editable ? 'À compléter' : _order!.validate().first,
+          icon: Icons.error_outline);
     }
     return valid;
   }
 
   Future<void> _transmit() async {
     if (_busy || !await _checkForm()) return;
-    await _move(InstallationStatus.submitted,
-        success: 'Demande transmise au bureau.');
+    await _move(InstallationStatus.submitted, success: 'Envoyé');
   }
 
   Future<void> _approve() async {
     if (_busy || !await _checkForm() || !mounted) return;
     final confirmed = await _confirm(
-        title: 'Valider le bon ?',
+        title: 'Valider ce bon ?',
         message: _order!.bonNumber.isEmpty
-            ? 'Le prochain numéro de bon sera attribué définitivement à cette demande.'
-            : 'Le bon conserve son numéro ${_order!.bonNumber}.',
-        action: 'Valider le bon');
+            ? 'Numéro définitif'
+            : 'N° ${_order!.bonNumber}',
+        action: 'Valider',
+        icon: Icons.check_circle);
     if (confirmed) {
-      await _move(InstallationStatus.approved, success: 'Bon validé.');
+      await _move(InstallationStatus.approved, success: 'Validé');
     }
   }
 
@@ -277,23 +278,23 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                   ? Center(
                       child: _error == null
                           ? const InstallationStateMessage(
-                              loading: true, title: 'Ouverture de la demande…')
+                              loading: true, title: 'Chargement…')
                           : SingleChildScrollView(
                               child: InstallationStateMessage(
                                   tone: InstallationTone.error,
                                   icon: Icons.error_outline,
-                                  title: 'Impossible d’ouvrir la demande',
+                                  title: 'Erreur de chargement',
                                   message: _error!,
                                   action: Wrap(
                                       spacing: 10,
                                       runSpacing: 10,
                                       alignment: WrapAlignment.center,
                                       children: [
-                                        OutlinedButton(
+                                        OutlinedButton.icon(
                                             onPressed: () => context
                                                 .go('/bons-mise-en-place'),
-                                            child: const Text(
-                                                'Retour à la liste')),
+                                            icon: const Icon(Icons.list),
+                                            label: const Text('Liste')),
                                         FilledButton.icon(
                                             onPressed: _load,
                                             icon: const Icon(Icons.refresh),
@@ -306,35 +307,30 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
   Widget _page(InstallationOrder order) =>
       LayoutBuilder(builder: (context, constraints) {
         final compact = constraints.maxWidth < 700;
-        final keyboard = MediaQuery.viewInsetsOf(context).bottom > 0;
         final editable = _service.canEdit(order);
-        final bar = _actionBar(order);
         return Column(children: [
-          if (_busy) const LinearProgressIndicator(minHeight: 2),
+          if (_busy) const LinearProgressIndicator(minHeight: 3),
           Expanded(
               child: SingleChildScrollView(
                   controller: _scroll,
-                  keyboardDismissBehavior:
-                      ScrollViewKeyboardDismissBehavior.manual,
-                  padding: EdgeInsets.fromLTRB(compact ? 16 : 32,
-                      compact ? 12 : 24, compact ? 16 : 32, 32),
+                  padding: EdgeInsets.fromLTRB(compact ? 12 : 32,
+                      compact ? 8 : 20, compact ? 12 : 32, 24),
                   child: Center(
                       child: ConstrainedBox(
-                          constraints: const BoxConstraints(maxWidth: 1100),
+                          constraints: const BoxConstraints(maxWidth: 1000),
                           child: Column(
                               crossAxisAlignment: CrossAxisAlignment.stretch,
                               children: [
                                 _header(order, compact),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 12),
                                 InstallationNextStepCard(
                                     status: order.status,
                                     guidance: installationGuidance(order.status,
                                         reviewer: _service.canReview)),
                                 if (_error != null) ...[
-                                  const SizedBox(height: 14),
+                                  const SizedBox(height: 12),
                                   InstallationNotice(
                                       tone: InstallationTone.error,
-                                      title: 'L’action n’a pas abouti',
                                       message: _error!,
                                       action: _dirty
                                           ? null
@@ -342,21 +338,18 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                               onPressed: _busy ? null : _load,
                                               icon: const Icon(Icons.refresh,
                                                   size: 18),
-                                              label: const Text(
-                                                  'Recharger la fiche'))),
+                                              label: const Text('Recharger'))),
                                 ],
-                                const SizedBox(height: 18),
+                                const SizedBox(height: 14),
                                 InstallationTabs(
                                     selected: _tab,
                                     onSelected: _openTab,
                                     tabs: [
-                                      InstallationTab(
-                                          _requestTab,
-                                          editable ? 'Saisie' : 'La demande',
-                                          Icons.description_outlined),
                                       const InstallationTab(
-                                          _pdfTab,
-                                          'Aperçu PDF',
+                                          _requestTab,
+                                          'Demande',
+                                          Icons.description_outlined),
+                                      const InstallationTab(_pdfTab, 'Aperçu',
                                           Icons.picture_as_pdf_outlined),
                                       if (_persisted)
                                         const InstallationTab(_followTab,
@@ -367,9 +360,9 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                             order.attachments.isEmpty
                                                 ? 'Bon signé'
                                                 : 'Bon signé (${order.attachments.length})',
-                                            Icons.attach_file),
+                                            Icons.draw_outlined),
                                     ]),
-                                const SizedBox(height: 16),
+                                const SizedBox(height: 14),
                                 Visibility(
                                     visible: _tab == _requestTab,
                                     maintainState: true,
@@ -380,6 +373,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                             order: order,
                                             enabled: !_busy,
                                             guided: true,
+                                            showNavigation: false,
                                             controller: _form,
                                             departments: _service.departments,
                                             zones:
@@ -412,8 +406,9 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                                           active: _tab == _pdfTab,
                                           hasUnsavedChanges: _dirty)),
                               ]))))),
-          // Hidden while typing on a phone so fields stay visible.
-          if (!(compact && keyboard)) bar,
+          // Stays above the keyboard: the main button is never hidden.
+          ListenableBuilder(
+              listenable: _form, builder: (context, _) => _actionBar(order)),
         ]);
       });
 
@@ -422,20 +417,20 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         Row(children: [
           TextButton.icon(
               style: TextButton.styleFrom(
-                  padding: const EdgeInsets.symmetric(horizontal: 4)),
+                  padding: const EdgeInsets.symmetric(horizontal: 6)),
               onPressed: _leave,
-              icon: const Icon(Icons.arrow_back, size: 18),
-              label: const Text('Tous les dossiers')),
+              icon: const Icon(Icons.arrow_back, size: 20),
+              label: const Text('Liste')),
           const Spacer(),
           if (_persisted)
             IconButton(
-                tooltip: 'Actualiser le dossier',
+                tooltip: 'Actualiser',
                 onPressed: _busy
                     ? null
                     : () {
                         if (_dirty) {
-                          _notify(
-                              'Enregistrez vos modifications avant d’actualiser.');
+                          _notify('Enregistrez d’abord',
+                              icon: Icons.save_outlined);
                         } else {
                           _load();
                         }
@@ -443,21 +438,27 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                 icon:
                     const Icon(Icons.refresh, color: InstallationStyle.muted)),
         ]),
-        const SizedBox(height: 6),
         Text(order.siteName.isEmpty ? 'Nouvelle demande' : order.siteName,
             style: InstallationStyle.pageTitle
                 .copyWith(fontSize: compact ? 22 : 28)),
         const SizedBox(height: 6),
-        Text(
-            [
-              order.serviceLabel,
-              if (order.authorName.isNotEmpty)
-                'Initiée par ${order.authorName}',
-              if (order.bonNumber.isNotEmpty) 'Bon n° ${order.bonNumber}',
-              if (_persisted && order.updatedAt != null)
-                'Mise à jour le ${installationDateLabel(order.updatedAt)}',
-            ].join('  ·  '),
-            style: InstallationStyle.caption.copyWith(fontSize: 13)),
+        Wrap(spacing: 14, runSpacing: 4, children: [
+          _fact(
+              order.isSecurity
+                  ? Icons.shield_outlined
+                  : Icons.cleaning_services_outlined,
+              order.serviceLabel),
+          if (order.authorName.isNotEmpty)
+            _fact(Icons.person_outline, order.authorName),
+          if (order.bonNumber.isNotEmpty) _fact(Icons.numbers, order.bonNumber),
+        ]),
+      ]);
+
+  Widget _fact(IconData icon, String text) =>
+      Row(mainAxisSize: MainAxisSize.min, children: [
+        Icon(icon, size: 17, color: InstallationStyle.muted),
+        const SizedBox(width: 4),
+        Text(text, style: InstallationStyle.caption.copyWith(fontSize: 13.5)),
       ]);
 
   Widget _actionBar(InstallationOrder order) {
@@ -465,42 +466,47 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     final reviewer = _service.canReview;
     final status = order.status;
     InstallationAction? primary;
+    InstallationAction? back;
     final secondary = <InstallationAction>[];
     if (editable && status.authorCanEdit) {
-      primary = InstallationAction('Transmettre au bureau', _transmit,
-          icon: Icons.send_outlined);
+      final wizard = _tab == _requestTab && !_form.isLast;
+      if (_tab == _requestTab && _form.step > 0) {
+        back = InstallationAction('Retour', _form.back, icon: Icons.arrow_back);
+      }
+      primary = wizard
+          ? InstallationAction('Suivant', _form.next, icon: Icons.arrow_forward)
+          : InstallationAction('Envoyer', _transmit, icon: Icons.send);
     }
     if (reviewer && status == InstallationStatus.submitted) {
       primary =
-          InstallationAction('Valider le bon', _approve, icon: Icons.check);
+          InstallationAction('Valider', _approve, icon: Icons.check_circle);
     }
     if (reviewer && status == InstallationStatus.approved) {
       primary = InstallationAction(
-          'Confirmer la remise',
+          'Bon remis',
           () => _move(InstallationStatus.awaitingSignature,
-              success: 'Remise pour signature confirmée.'),
+              success: 'Remise confirmée'),
           icon: Icons.handshake_outlined);
     }
     if (reviewer && status == InstallationStatus.awaitingSignature) {
       primary = InstallationAction(
-          'Confirmer le retour signé',
+          'Bon signé reçu',
           () => _move(InstallationStatus.signedReturned,
-              success: 'Retour du bon signé confirmé.'),
-          icon: Icons.assignment_turned_in_outlined);
+              success: 'Bon signé reçu'),
+          icon: Icons.assignment_turned_in);
     }
     if (reviewer && status == InstallationStatus.signedReturned) {
-      primary = InstallationAction('Créer le site actif', _finalize,
-          icon: Icons.add_business_outlined);
+      primary = InstallationAction('Créer le site', _finalize,
+          icon: Icons.add_business);
     }
     if (_service.canPrint && InstallationPdf.isPrintable(order)) {
-      secondary.add(InstallationAction(
-          'Aperçu et impression', () => _openTab(_pdfTab),
+      secondary.add(InstallationAction('Imprimer', () => _openTab(_pdfTab),
           icon: Icons.print_outlined));
     }
     if (order.siteId != null) {
       final sites = InstallationAction(
           'Voir les sites', () => context.go('/sites'),
-          icon: Icons.open_in_new);
+          icon: Icons.storefront);
       if (primary == null) {
         primary = sites;
       } else {
@@ -509,64 +515,57 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
     }
     if (reviewer &&
         status.canMoveTo(InstallationStatus.changesRequested, reviewer: true)) {
-      secondary.add(InstallationAction(
-          'Demander une correction', _requestChanges,
-          icon: Icons.undo));
+      secondary.add(
+          InstallationAction('À corriger', _requestChanges, icon: Icons.undo));
     }
     return InstallationActionBar(
         busy: _busy,
         primary: primary,
+        back: back,
         secondary: secondary,
         save: editable
-            ? InstallationAction('Enregistrer',
-                () => _run(_save, success: 'Modifications enregistrées.'),
+            ? InstallationAction(
+                'Enregistrer', () => _run(_save, success: 'Enregistré'),
                 icon: Icons.save_outlined)
             : null,
         status: !editable
             ? null
-            : _dirty
-                ? 'Modifications non enregistrées'
-                : _persisted
-                    ? 'Modifications enregistrées'
-                    : 'Brouillon pas encore enregistré',
+            : _dirty || !_persisted
+                ? 'Non enregistré'
+                : 'Enregistré',
         statusWarning: editable && (_dirty || !_persisted));
   }
 
   Future<bool> _confirm(
       {required String title,
       required String message,
-      required String action}) async {
+      required String action,
+      required IconData icon}) async {
     final result = await _installationDialog<bool>(
         context: context,
-        builder: (context) =>
-            AlertDialog(title: Text(title), content: Text(message), actions: [
-              TextButton(
-                  onPressed: () => Navigator.pop(context, false),
-                  child: const Text('Annuler')),
-              FilledButton(
-                  onPressed: () => Navigator.pop(context, true),
-                  child: Text(action)),
-            ]));
+        builder: (context) => AlertDialog(
+                icon: Icon(icon, size: 36),
+                title: Text(title),
+                content: Text(message, textAlign: TextAlign.center),
+                actions: [
+                  TextButton(
+                      onPressed: () => Navigator.pop(context, false),
+                      child: const Text('Annuler')),
+                  FilledButton(
+                      onPressed: () => Navigator.pop(context, true),
+                      child: Text(action)),
+                ]));
     return result == true;
   }
 
   Future<void> _leave() async {
     if (_dirty) {
-      final leave = await _installationDialog<bool>(
-          context: context,
-          builder: (context) => AlertDialog(
-                  title: const Text('Quitter la demande ?'),
-                  content: const Text(
-                      'Vos dernières modifications ne sont pas enregistrées.'),
-                  actions: [
-                    TextButton(
-                        onPressed: () => Navigator.pop(context, false),
-                        child: const Text('Continuer la saisie')),
-                    FilledButton(
-                        onPressed: () => Navigator.pop(context, true),
-                        child: const Text('Quitter sans enregistrer'))
-                  ]));
-      if (leave != true) return;
+      final leave = await _confirm(
+          title: 'Quitter ?',
+          message: 'Non enregistré',
+          action: 'Quitter',
+          icon: Icons.warning_amber_rounded);
+      if (!leave) return;
     }
     if (mounted) context.go('/bons-mise-en-place');
   }
@@ -576,7 +575,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         context: context, builder: (context) => const _ChangesDialog());
     if (message != null) {
       await _move(InstallationStatus.changesRequested,
-          message: message, success: 'Demande renvoyée pour correction.');
+          message: message, success: 'Renvoyé pour correction');
     }
   }
 
@@ -585,14 +584,8 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
       (_service.canAdd && order.authorUid == _service.actor['uid']);
 
   Widget _attachments(InstallationOrder order) => InstallationPanel(
-          child:
-              Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        const Text('Bon signé', style: InstallationStyle.sectionTitle),
-        const SizedBox(height: 4),
-        const Text(
-            'Joignez une photo ou un scan pour conserver une copie. Ce document est facultatif ; l’original signé doit revenir au bureau.',
-            style: InstallationStyle.caption),
-        const SizedBox(height: 16),
+      padding: const EdgeInsets.all(16),
+      child: Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         InstallationAttachmentList(
             attachments: order.attachments,
             onOpen: (attachment) {
@@ -604,42 +597,36 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         if (order.status != InstallationStatus.finalized &&
             _canContribute(order)) ...[
           const SizedBox(height: 8),
-          Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                  onPressed: _busy
-                      ? null
-                      : () => _run(() async {
-                            final picked = await FilePicker.platform.pickFiles(
-                                type: FileType.custom,
-                                allowedExtensions: [
-                                  'pdf',
-                                  'jpg',
-                                  'jpeg',
-                                  'png'
-                                ],
-                                withData: true);
-                            if (picked == null) return;
-                            final file = picked.files.single;
-                            if (file.bytes == null) {
-                              throw StateError(
-                                  'Impossible de lire ce document.');
-                            }
-                            if (_service.canEdit(_order!)) await _save();
-                            final updated = await _service.attach(
-                                _order!, file.name, file.bytes!);
-                            if (mounted) {
-                              setState(() {
-                                _order = updated;
-                                _formVersion++;
-                              });
-                            }
-                          }, success: 'Document ajouté.'),
-                  icon: const Icon(Icons.upload_file),
-                  label: const Text('Joindre une photo ou un PDF'))),
+          OutlinedButton.icon(
+              style: OutlinedButton.styleFrom(
+                  minimumSize: const Size(double.infinity, 52)),
+              onPressed: _busy
+                  ? null
+                  : () => _run(() async {
+                        final picked = await FilePicker.platform.pickFiles(
+                            type: FileType.custom,
+                            allowedExtensions: ['pdf', 'jpg', 'jpeg', 'png'],
+                            withData: true);
+                        if (picked == null) return;
+                        final file = picked.files.single;
+                        if (file.bytes == null) {
+                          throw StateError('Fichier illisible');
+                        }
+                        if (_service.canEdit(_order!)) await _save();
+                        final updated = await _service.attach(
+                            _order!, file.name, file.bytes!);
+                        if (mounted) {
+                          setState(() {
+                            _order = updated;
+                            _formVersion++;
+                          });
+                        }
+                      }, success: 'Document ajouté'),
+              icon: const Icon(Icons.upload_file),
+              label: const Text('Ajouter')),
           const SizedBox(height: 6),
-          const Text('JPG, PNG ou PDF · 10 Mo maximum · connexion requise',
-              style: InstallationStyle.caption),
+          const Text('JPG, PNG, PDF · 10 Mo',
+              textAlign: TextAlign.center, style: InstallationStyle.caption),
         ],
       ]));
 
@@ -655,15 +642,12 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                 ],
                 loading: !snapshot.hasData && !snapshot.hasError,
                 error: snapshot.hasError
-                    ? 'Impossible de charger le suivi. ${installationErrorMessage(snapshot.error!)}'
+                    ? installationErrorMessage(snapshot.error!)
                     : null,
                 onRetry: () => setState(() => _events = _service.events(order)),
                 onSend: _canContribute(order)
                     ? (message) => _service.comment(order, message)
-                    : null,
-                composerHint: _service.canReview
-                    ? 'Écrire un message à l’initiateur…'
-                    : 'Écrire un message au bureau…'));
+                    : null));
   }
 
   Future<void> _finalize() async {
@@ -679,30 +663,29 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
         context: context,
         builder: (context) => AlertDialog(
               scrollable: true,
-              title: const Text('Créer le site actif'),
+              icon: const Icon(Icons.add_business, size: 36),
+              title: const Text('Créer le site'),
               content: SizedBox(
-                  width: 460,
+                  width: 420,
                   child: Form(
                       key: key,
                       child: Column(mainAxisSize: MainAxisSize.min, children: [
-                        const InstallationNotice(
-                            message:
-                                'Le retour signé est confirmé. Cette action crée le site actif et son compte de connexion.'),
-                        const SizedBox(height: 16),
                         TextFormField(
                             controller: code,
                             textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
-                                labelText: 'Code du site'),
+                                labelText: 'Code du site',
+                                prefixIcon: Icon(Icons.qr_code)),
                             validator: (value) =>
-                                value!.trim().isEmpty ? 'Code requis' : null),
+                                value!.trim().isEmpty ? 'Code manquant' : null),
                         const SizedBox(height: 14),
                         TextFormField(
                             controller: email,
                             keyboardType: TextInputType.emailAddress,
                             textInputAction: TextInputAction.next,
                             decoration: const InputDecoration(
-                                labelText: 'Email du compte site'),
+                                labelText: 'Email',
+                                prefixIcon: Icon(Icons.email_outlined)),
                             validator: (value) =>
                                 RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$')
                                         .hasMatch(value!.trim())
@@ -713,10 +696,11 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                             controller: password,
                             obscureText: true,
                             decoration: const InputDecoration(
-                                labelText: 'Mot de passe initial du site',
-                                helperText: 'Huit caractères minimum'),
+                                labelText: 'Mot de passe',
+                                helperText: '8 caractères min.',
+                                prefixIcon: Icon(Icons.lock_outline)),
                             validator: (value) => (value?.length ?? 0) < 8
-                                ? 'Huit caractères minimum'
+                                ? '8 caractères min.'
                                 : null),
                       ]))),
               actions: [
@@ -729,7 +713,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
                         Navigator.pop(context, true);
                       }
                     },
-                    child: const Text('Créer le site actif'))
+                    child: const Text('Créer'))
               ],
             ));
     if (accepted == true) {
@@ -742,7 +726,7 @@ class _InstallationDetailPageState extends State<InstallationDetailPage> {
             _formVersion++;
           });
         }
-      }, success: 'Site actif créé.');
+      }, success: 'Site créé');
     }
     code.dispose();
     email.dispose();
@@ -778,31 +762,26 @@ class _ChangesDialogState extends State<_ChangesDialog> {
   @override
   Widget build(BuildContext context) => AlertDialog(
           scrollable: true,
-          title: const Text('Demander une correction'),
+          icon: Icon(Icons.undo,
+              size: 36,
+              color:
+                  installationStatusColor(InstallationStatus.changesRequested)),
+          title: const Text('À corriger'),
           content: SizedBox(
-              width: 480,
-              child: Column(mainAxisSize: MainAxisSize.min, children: [
-                const Text(
-                    'La demande revient à l’initiateur avec votre message. Le numéro déjà attribué est conservé.',
-                    style: InstallationStyle.caption),
-                const SizedBox(height: 14),
-                TextField(
-                    controller: _controller,
-                    autofocus: true,
-                    minLines: 3,
-                    maxLines: 6,
-                    maxLength: 4000,
-                    textCapitalization: TextCapitalization.sentences,
-                    onChanged: (_) {
-                      if (_attempted) setState(() => _attempted = false);
-                    },
-                    decoration: InputDecoration(
-                        labelText: 'Corrections à apporter',
-                        hintText: 'Exemple : préciser le contact du client.',
-                        errorText: _attempted
-                            ? 'Indiquez les corrections attendues.'
-                            : null)),
-              ])),
+              width: 440,
+              child: TextField(
+                  controller: _controller,
+                  autofocus: true,
+                  minLines: 3,
+                  maxLines: 6,
+                  maxLength: 4000,
+                  textCapitalization: TextCapitalization.sentences,
+                  onChanged: (_) {
+                    if (_attempted) setState(() => _attempted = false);
+                  },
+                  decoration: InputDecoration(
+                      labelText: 'Message',
+                      errorText: _attempted ? 'Message manquant' : null))),
           actions: [
             TextButton(
                 onPressed: () => Navigator.pop(context),

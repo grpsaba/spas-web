@@ -7,6 +7,7 @@ import 'package:spas_web/site_installation/installation_form.dart';
 import 'package:spas_web/site_installation/installation_catalog.dart';
 import 'package:spas_web/site_installation/installation_order.dart';
 import 'package:spas_web/site_installation/installation_pdf.dart';
+import 'package:spas_web/site_installation/installation_ui.dart';
 import 'package:spas_web/site_installation/installation_equipment_picker.dart';
 
 InstallationOrder fixture() => InstallationOrder(
@@ -187,13 +188,12 @@ void main() {
                       ],
                       onChanged: () => changes++)))));
       expect(tester.takeException(), isNull);
-      expect(find.textContaining('attribué automatiquement'), findsOneWidget);
       expect(find.widgetWithText(TextFormField, 'N° de bon'), findsNothing);
-      final name = find.widgetWithText(TextFormField, 'Nom et prénoms *');
+      final name = find.widgetWithText(TextFormField, 'Nom');
       await tester.ensureVisible(name);
       await tester.enterText(name, 'Agent non enregistré');
       expect(order.agents.single.name, 'Agent non enregistré');
-      final quantity = find.widgetWithText(TextFormField, 'Quantité *');
+      final quantity = find.widgetWithText(TextFormField, 'Quantité');
       await tester.ensureVisible(quantity);
       await tester.enterText(quantity, '5');
       expect(order.equipment.single.quantity, 5);
@@ -209,11 +209,10 @@ void main() {
       await tester.ensureVisible(picker);
       await tester.tap(picker);
       await tester.pumpAndSettle();
-      await tester.tap(find.text('Saisir une désignation'));
+      await tester.tap(find.text('Autre équipement'));
       await tester.pumpAndSettle();
-      expect(
-          find.text(
-              'Équipement absent du catalogue : pensez à le créer pour les prochains bons.'),
+      expect(find.text('Hors catalogue'), findsOneWidget);
+      expect(find.widgetWithText(TextFormField, 'Nom de l’équipement'),
           findsOneWidget);
       expect(tester.takeException(), isNull);
     });
@@ -289,12 +288,13 @@ void main() {
           departments: const ['security'],
         ))));
     await tester.pumpWidget(screen(0));
-    expect(find.text('Ajouter au moins un agent.'), findsNothing);
-    expect(find.text('ÉTAPE 1 SUR 4'), findsOneWidget);
+    expect(find.byType(InstallationNotice), findsNothing);
+    expect(controller.step, 0);
     await tester.pumpWidget(screen(1));
     await tester.pumpAndSettle();
-    expect(find.text('ÉTAPE 2 SUR 4'), findsOneWidget);
-    expect(find.text('Ajouter au moins un agent.'), findsOneWidget);
+    expect(controller.step, 1);
+    expect(
+        find.widgetWithText(InstallationNotice, 'Aucun agent'), findsOneWidget);
     expect(order.validate(), isNotEmpty);
     expect(controller.validate(), false);
     expect(tester.takeException(), isNull);
@@ -325,7 +325,7 @@ void main() {
     await tester.enterText(latitude, 'invalide');
     expect(controller.validate(), false);
     await tester.pumpAndSettle();
-    expect(find.text('Coordonnée invalide.'), findsOneWidget);
+    expect(find.text('Coordonnée invalide'), findsOneWidget);
     await tester.enterText(latitude, '');
     expect(controller.validate(), true);
   });

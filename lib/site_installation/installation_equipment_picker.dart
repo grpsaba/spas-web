@@ -27,19 +27,18 @@ class InstallationEquipmentPicker extends StatelessWidget {
       initialValue: value,
       enabled: enabled,
       autovalidateMode: autovalidateMode,
-      validator: (selected) =>
-          selected == null ? 'Choisir un équipement ou la saisie libre.' : null,
+      validator: (selected) => selected == null ? 'Équipement manquant' : null,
       builder: (field) {
         final matches = catalog.where((option) => option.id == value);
         final label = value == ''
-            ? 'Saisie libre'
+            ? 'Autre équipement'
             : matches.isEmpty
-                ? 'Choisir dans le catalogue'
+                ? 'Choisir'
                 : matches.first.label;
         return Semantics(
             button: true,
             enabled: enabled,
-            label: 'Équipement du catalogue',
+            label: 'Équipement',
             value: label,
             child: InkWell(
               borderRadius: BorderRadius.circular(10),
@@ -65,17 +64,18 @@ class InstallationEquipmentPicker extends StatelessWidget {
               child: InputDecorator(
                   isEmpty: false,
                   decoration: InputDecoration(
-                      labelText: 'Équipement *',
+                      labelText: 'Équipement',
                       enabled: enabled,
                       errorText: field.errorText,
                       prefixIcon:
-                          const Icon(Icons.inventory_2_outlined, size: 19),
-                      suffixIcon: const Icon(Icons.unfold_more, size: 20)),
+                          const Icon(Icons.inventory_2_outlined, size: 22),
+                      suffixIcon: const Icon(Icons.arrow_drop_down, size: 26)),
                   child: Text(label,
                       maxLines: 2,
                       overflow: TextOverflow.ellipsis,
                       style: TextStyle(
-                          fontSize: 14,
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
                           color: value == null
                               ? InstallationStyle.muted
                               : InstallationStyle.ink))),
@@ -84,7 +84,7 @@ class InstallationEquipmentPicker extends StatelessWidget {
 }
 
 /// Searchable catalogue. Accent-insensitive; returns the selected identifier,
-/// or `''` for a free designation.
+/// or `''` for another (free) designation.
 class InstallationEquipmentDialog extends StatefulWidget {
   const InstallationEquipmentDialog(
       {super.key,
@@ -128,62 +128,60 @@ class _InstallationEquipmentDialogState
     final content =
         Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       Padding(
-          padding: const EdgeInsets.fromLTRB(20, 14, 8, 0),
+          padding: const EdgeInsets.fromLTRB(20, 12, 8, 0),
           child: Row(children: [
+            const Icon(Icons.inventory_2_outlined,
+                size: 24, color: InstallationStyle.primary),
+            const SizedBox(width: 10),
             const Expanded(
-                child: Text('Choisir un équipement',
+                child: Text('Équipements',
                     style: TextStyle(
-                        fontSize: 18,
+                        fontSize: 19,
                         fontWeight: FontWeight.w700,
                         color: InstallationStyle.ink))),
             IconButton(
                 tooltip: 'Fermer',
+                iconSize: 26,
                 onPressed: () => Navigator.pop(context),
-                icon: const Icon(Icons.close, size: 22))
+                icon: const Icon(Icons.close))
           ])),
       Padding(
-          padding: const EdgeInsets.fromLTRB(20, 10, 20, 6),
+          padding: const EdgeInsets.fromLTRB(16, 8, 16, 8),
           child: TextField(
               controller: _search,
               textInputAction: TextInputAction.search,
               onChanged: (query) => setState(() => _query = query),
               decoration: InputDecoration(
-                  hintText: 'Rechercher un équipement…',
-                  prefixIcon: const Icon(Icons.search, size: 20),
+                  hintText: 'Rechercher',
+                  prefixIcon: const Icon(Icons.search, size: 22),
                   suffixIcon: _query.isEmpty
                       ? null
                       : IconButton(
                           tooltip: 'Effacer la recherche',
-                          icon: const Icon(Icons.close, size: 18),
+                          icon: const Icon(Icons.close, size: 20),
                           onPressed: () {
                             _search.clear();
                             setState(() => _query = '');
                           })))),
-      Padding(
-          padding: const EdgeInsets.fromLTRB(20, 2, 20, 8),
-          child: Text(
-              _query.isEmpty
-                  ? '${widget.catalog.length} équipement${widget.catalog.length > 1 ? 's' : ''} dans le catalogue'
-                  : '${matches.length} résultat${matches.length > 1 ? 's' : ''}',
-              style: InstallationStyle.caption)),
       Expanded(
           child: matches.isEmpty
               ? ListView(padding: const EdgeInsets.all(20), children: const [
-                  Icon(Icons.search_off_outlined,
-                      size: 30, color: InstallationStyle.muted),
-                  SizedBox(height: 10),
-                  Text(
-                      'Aucun équipement trouvé.\nVous pouvez saisir une désignation.',
+                  Icon(Icons.search_off,
+                      size: 34, color: InstallationStyle.muted),
+                  SizedBox(height: 8),
+                  Text('Aucun résultat',
                       textAlign: TextAlign.center,
                       style: TextStyle(
-                          color: InstallationStyle.muted, height: 1.6)),
+                          fontSize: 15,
+                          fontWeight: FontWeight.w600,
+                          color: InstallationStyle.muted)),
                 ])
               : ListView.builder(
-                  padding: const EdgeInsets.fromLTRB(10, 0, 10, 10),
+                  padding: const EdgeInsets.fromLTRB(8, 0, 8, 8),
                   keyboardDismissBehavior:
                       ScrollViewKeyboardDismissBehavior.onDrag,
                   itemCount: matches.length,
-                  itemExtent: 56,
+                  itemExtent: 58,
                   itemBuilder: (context, index) {
                     final item = matches[index];
                     final selected = item.id == widget.selected;
@@ -194,36 +192,31 @@ class _InstallationEquipmentDialogState
                             borderRadius: BorderRadius.circular(10)),
                         contentPadding:
                             const EdgeInsets.symmetric(horizontal: 12),
-                        leading: const Icon(Icons.inventory_2_outlined,
-                            size: 20, color: InstallationStyle.primary),
+                        leading: Icon(
+                            selected
+                                ? Icons.check_circle
+                                : Icons.inventory_2_outlined,
+                            size: 24,
+                            color: InstallationStyle.primary),
                         title: Text(item.label,
                             maxLines: 2,
                             overflow: TextOverflow.ellipsis,
                             style: const TextStyle(
-                                fontSize: 14, fontWeight: FontWeight.w500)),
-                        trailing: selected
-                            ? const Icon(Icons.check_circle,
-                                color: InstallationStyle.primary, size: 21)
-                            : null,
+                                fontSize: 15, fontWeight: FontWeight.w500)),
                         onTap: () => Navigator.pop(context, item.id));
                   })),
       const Divider(height: 1),
       SafeArea(
           top: false,
           child: Padding(
-              padding: const EdgeInsets.fromLTRB(20, 10, 20, 12),
-              child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.stretch,
-                  children: [
-                    const Text('Équipement absent du catalogue ?',
-                        style: InstallationStyle.caption),
-                    const SizedBox(height: 6),
-                    OutlinedButton.icon(
-                        onPressed: () => Navigator.pop(context, ''),
-                        icon: const Icon(Icons.edit_outlined, size: 17),
-                        label: const Text('Saisir une désignation',
-                            overflow: TextOverflow.ellipsis)),
-                  ]))),
+              padding: const EdgeInsets.fromLTRB(16, 10, 16, 12),
+              child: OutlinedButton.icon(
+                  style: OutlinedButton.styleFrom(
+                      minimumSize: const Size(double.infinity, 52)),
+                  onPressed: () => Navigator.pop(context, ''),
+                  icon: const Icon(Icons.edit_outlined, size: 20),
+                  label: const Text('Autre équipement',
+                      overflow: TextOverflow.ellipsis)))),
     ]);
     if (widget.fullScreen) {
       return Dialog.fullscreen(

@@ -37,13 +37,13 @@ class InstallationTabs extends StatelessWidget {
       decoration: BoxDecoration(
           color: const Color(0xFFE9EDF4),
           borderRadius: BorderRadius.circular(12)),
-      child: SingleChildScrollView(
-          scrollDirection: Axis.horizontal,
-          child: Row(children: [
-            for (final tab in tabs)
-              Semantics(
+      child: Row(children: [
+        for (final tab in tabs)
+          Expanded(
+              child: Semantics(
                   selected: tab.id == selected,
                   button: true,
+                  label: tab.label,
                   child: Material(
                       color: tab.id == selected
                           ? Colors.white
@@ -54,32 +54,38 @@ class InstallationTabs extends StatelessWidget {
                       child: InkWell(
                           borderRadius: BorderRadius.circular(9),
                           onTap: () => onSelected(tab.id),
-                          child: ConstrainedBox(
-                              constraints: const BoxConstraints(minHeight: 42),
-                              child: Padding(
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 12, vertical: 10),
-                                  child: Row(
-                                      mainAxisSize: MainAxisSize.min,
-                                      children: [
-                                        Icon(tab.icon,
-                                            size: 17,
-                                            color: tab.id == selected
-                                                ? InstallationStyle.primary
-                                                : InstallationStyle.muted),
-                                        const SizedBox(width: 7),
-                                        Text(tab.label,
-                                            style: TextStyle(
-                                                fontSize: 13,
-                                                fontWeight: FontWeight.w600,
+                          child: ExcludeSemantics(
+                              child: ConstrainedBox(
+                                  constraints:
+                                      const BoxConstraints(minHeight: 56),
+                                  child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 4, vertical: 6),
+                                      child: Column(
+                                          mainAxisAlignment:
+                                              MainAxisAlignment.center,
+                                          children: [
+                                            Icon(tab.icon,
+                                                size: 22,
                                                 color: tab.id == selected
-                                                    ? InstallationStyle.ink
-                                                    : InstallationStyle.muted)),
-                                      ])))))),
-          ])));
+                                                    ? InstallationStyle.primary
+                                                    : InstallationStyle.muted),
+                                            const SizedBox(height: 3),
+                                            Text(tab.label,
+                                                maxLines: 1,
+                                                overflow: TextOverflow.ellipsis,
+                                                style: TextStyle(
+                                                    fontSize: 12,
+                                                    fontWeight: FontWeight.w600,
+                                                    color: tab.id == selected
+                                                        ? InstallationStyle.ink
+                                                        : InstallationStyle
+                                                            .muted)),
+                                          ])))))))),
+      ]));
 }
 
-/// Status, who acts next and the overall progress of a request.
+/// Status with its colour and icon, who acts next and the progress.
 class InstallationNextStepCard extends StatelessWidget {
   const InstallationNextStepCard(
       {super.key,
@@ -95,66 +101,61 @@ class InstallationNextStepCard extends StatelessWidget {
   final Widget? extra;
   @override
   Widget build(BuildContext context) {
+    final color = installationStatusColor(status);
     final mine = guidance.owner == 'À vous';
-    final text =
-        Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-      Wrap(
-          spacing: 8,
-          runSpacing: 6,
-          crossAxisAlignment: WrapCrossAlignment.center,
-          children: [
-            InstallationStatusBadge(status, label: badgeLabel),
-            Container(
-                padding: const EdgeInsets.symmetric(horizontal: 9, vertical: 5),
-                decoration: BoxDecoration(
-                    color: mine
-                        ? InstallationStyle.primary
-                        : InstallationStyle.background,
-                    borderRadius: BorderRadius.circular(20)),
-                child: Text(guidance.owner,
-                    style: TextStyle(
-                        fontSize: 12,
-                        fontWeight: FontWeight.w600,
-                        color: mine ? Colors.white : InstallationStyle.muted))),
-          ]),
-      const SizedBox(height: 12),
-      const Text('PROCHAINE ÉTAPE', style: InstallationStyle.overline),
-      const SizedBox(height: 4),
-      Text(guidance.title,
-          style: const TextStyle(
-              fontSize: 16,
-              fontWeight: FontWeight.w700,
-              color: InstallationStyle.ink)),
-      const SizedBox(height: 4),
-      Text(guidance.detail,
-          style: const TextStyle(
-              fontSize: 13.5, height: 1.5, color: InstallationStyle.muted)),
-      if (extra != null) ...[const SizedBox(height: 10), extra!],
-    ]);
     return InstallationPanel(
         padding: const EdgeInsets.all(16),
-        child: LayoutBuilder(
-            builder: (context, c) => !showProgress
-                ? text
-                : c.maxWidth < 760
-                    ? Column(
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                            text,
-                            const SizedBox(height: 16),
-                            InstallationProgress(status),
-                          ])
-                    : Row(children: [
-                        Expanded(child: text),
-                        const SizedBox(width: 32),
-                        SizedBox(
-                            width: 360, child: InstallationProgress(status)),
-                      ])));
+        child:
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
+          Row(children: [
+            Container(
+                width: 52,
+                height: 52,
+                decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+                child: Icon(installationStatusIcon(status),
+                    size: 28, color: Colors.white)),
+            const SizedBox(width: 14),
+            Expanded(
+                child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                  Text(badgeLabel ?? status.label,
+                      style: TextStyle(
+                          fontSize: 20,
+                          fontWeight: FontWeight.w800,
+                          color: color)),
+                  const SizedBox(height: 4),
+                  Row(children: [
+                    Icon(guidance.icon ?? installationOwnerIcon(guidance.owner),
+                        size: 17,
+                        color: mine
+                            ? InstallationStyle.primary
+                            : InstallationStyle.muted),
+                    const SizedBox(width: 5),
+                    Flexible(
+                        child: Text('${guidance.owner} · ${guidance.title}',
+                            style: TextStyle(
+                                fontSize: 14,
+                                fontWeight:
+                                    mine ? FontWeight.w700 : FontWeight.w500,
+                                color: mine
+                                    ? InstallationStyle.primary
+                                    : InstallationStyle.ink))),
+                  ]),
+                ])),
+          ]),
+          if (extra != null) ...[const SizedBox(height: 10), extra!],
+          if (showProgress) ...[
+            const SizedBox(height: 16),
+            InstallationProgress(status),
+          ],
+        ]));
   }
 }
 
 class _Value {
-  const _Value(this.label, this.value, {this.required = true});
+  const _Value(this.icon, this.label, this.value, {this.required = true});
+  final IconData icon;
   final String label;
   final String value;
   final bool required;
@@ -167,167 +168,201 @@ class _Values extends StatelessWidget {
   Widget build(BuildContext context) => LayoutBuilder(builder: (context, c) {
         final columns = c.maxWidth >= 560 ? 2 : 1;
         final width = (c.maxWidth - (columns - 1) * 20) / columns;
-        return Wrap(spacing: 20, runSpacing: 14, children: [
+        return Wrap(spacing: 20, runSpacing: 12, children: [
           for (final entry in values)
             SizedBox(
                 width: width,
-                child: Column(
+                child: Row(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(entry.label, style: InstallationStyle.caption),
-                      const SizedBox(height: 3),
-                      Text(
-                          entry.value.isEmpty
-                              ? entry.required
-                                  ? 'À compléter'
-                                  : 'Non renseigné'
-                              : entry.value,
-                          style: TextStyle(
-                              color: entry.value.isEmpty
-                                  ? entry.required
-                                      ? InstallationStyle.warning
-                                      : InstallationStyle.muted
-                                  : InstallationStyle.ink,
-                              fontWeight: FontWeight.w500,
-                              fontSize: 14)),
+                      Padding(
+                          padding: const EdgeInsets.only(top: 2),
+                          child: Icon(entry.icon,
+                              size: 20, color: InstallationStyle.muted)),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(entry.label, style: InstallationStyle.caption),
+                            const SizedBox(height: 2),
+                            Text(
+                                entry.value.isEmpty
+                                    ? entry.required
+                                        ? 'Manquant'
+                                        : '—'
+                                    : entry.value,
+                                style: TextStyle(
+                                    color: entry.value.isEmpty && entry.required
+                                        ? InstallationStyle.warning
+                                        : InstallationStyle.ink,
+                                    fontWeight: FontWeight.w600,
+                                    fontSize: 14.5)),
+                          ])),
                     ])),
         ]);
       });
 }
 
-/// Request displayed without form controls (transmitted, approved…).
+/// Request displayed without form controls (sent, validated…).
 class InstallationReadOnly extends StatelessWidget {
   const InstallationReadOnly(this.order, {super.key});
   final InstallationOrder order;
 
-  Widget _section(String title, Widget child, {String? count}) =>
+  Widget _section(IconData icon, String title, Widget child, {int? count}) =>
       InstallationPanel(
+          padding: const EdgeInsets.all(16),
           child:
               Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-        Row(children: [
-          Expanded(child: Text(title, style: InstallationStyle.sectionTitle)),
-          if (count != null)
-            Text(count,
-                style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w600,
-                    color: InstallationStyle.muted)),
-        ]),
-        const SizedBox(height: 14),
-        child,
-      ]));
+            Row(children: [
+              Icon(icon, size: 22, color: InstallationStyle.primary),
+              const SizedBox(width: 8),
+              Expanded(
+                  child: Text(title, style: InstallationStyle.sectionTitle)),
+              if (count != null)
+                Container(
+                    padding:
+                        const EdgeInsets.symmetric(horizontal: 10, vertical: 3),
+                    decoration: BoxDecoration(
+                        color: InstallationStyle.background,
+                        borderRadius: BorderRadius.circular(12)),
+                    child: Text('$count',
+                        style: const TextStyle(
+                            fontWeight: FontWeight.w700,
+                            color: InstallationStyle.ink))),
+            ]),
+            const SizedBox(height: 14),
+            child,
+          ]));
+
+  Widget _missing(String text) => Row(children: [
+        const Icon(Icons.warning_amber_rounded,
+            size: 18, color: InstallationStyle.warning),
+        const SizedBox(width: 6),
+        Text(text,
+            style: const TextStyle(
+                color: InstallationStyle.warning, fontWeight: FontWeight.w600)),
+      ]);
 
   @override
   Widget build(BuildContext context) =>
       Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
         _section(
-            'Site et client',
+            Icons.storefront,
+            'Site',
             _Values([
-              _Value('Client', order.clientName),
-              _Value('Site', order.siteName),
-              _Value('Adresse', order.address),
-              _Value('Téléphone du contact', order.phone),
-              _Value('Prestation', order.serviceLabel),
+              _Value(Icons.storefront_outlined, 'Site', order.siteName),
+              _Value(Icons.business_outlined, 'Client', order.clientName),
+              _Value(Icons.place_outlined, 'Adresse', order.address),
+              _Value(Icons.phone_outlined, 'Téléphone', order.phone),
+              _Value(
+                  order.isSecurity
+                      ? Icons.shield_outlined
+                      : Icons.cleaning_services_outlined,
+                  'Prestation',
+                  order.serviceLabel),
               if (order.bonNumber.isNotEmpty)
-                _Value('Numéro du bon', order.bonNumber),
+                _Value(Icons.numbers, 'N° du bon', order.bonNumber),
             ])),
         const SizedBox(height: 12),
         _section(
-            'Agents prévus',
+            Icons.groups_outlined,
+            'Agents',
             order.agents.isEmpty
-                ? const Text('Aucun agent renseigné.',
-                    style: TextStyle(
-                        color: InstallationStyle.warning, fontSize: 13))
+                ? _missing('Aucun agent')
                 : Column(children: [
                     for (var i = 0; i < order.agents.length; i++)
                       Padding(
                           padding: EdgeInsets.only(
                               bottom: i == order.agents.length - 1 ? 0 : 12),
-                          child: Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                CircleAvatar(
-                                    radius: 15,
-                                    backgroundColor:
-                                        InstallationStyle.background,
-                                    child: Text('${i + 1}',
-                                        style: const TextStyle(
-                                            fontSize: 11,
-                                            fontWeight: FontWeight.w700,
-                                            color: InstallationStyle.muted))),
-                                const SizedBox(width: 10),
-                                Expanded(
-                                    child: Column(
-                                        crossAxisAlignment:
-                                            CrossAxisAlignment.start,
-                                        children: [
-                                      Text(
-                                          order.agents[i].name.isEmpty
-                                              ? 'Nom à compléter'
-                                              : order.agents[i].name,
-                                          style: const TextStyle(
-                                              fontWeight: FontWeight.w600,
-                                              color: InstallationStyle.ink)),
-                                      Text(
-                                          [
-                                            order.agents[i].type,
-                                            order.agents[i].phone
-                                          ]
-                                              .where((s) => s.isNotEmpty)
-                                              .join(' · '),
-                                          style: InstallationStyle.caption)
-                                    ]))
-                              ])),
+                          child: Row(children: [
+                            CircleAvatar(
+                                radius: 16,
+                                backgroundColor: InstallationStyle.background,
+                                child: Text('${i + 1}',
+                                    style: const TextStyle(
+                                        fontSize: 12,
+                                        fontWeight: FontWeight.w700,
+                                        color: InstallationStyle.muted))),
+                            const SizedBox(width: 10),
+                            Expanded(
+                                child: Column(
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                  Text(
+                                      order.agents[i].name.isEmpty
+                                          ? 'Nom manquant'
+                                          : order.agents[i].name,
+                                      style: const TextStyle(
+                                          fontWeight: FontWeight.w600,
+                                          color: InstallationStyle.ink)),
+                                  Text(
+                                      [
+                                        order.agents[i].type,
+                                        order.agents[i].phone
+                                      ].where((s) => s.isNotEmpty).join(' · '),
+                                      style: InstallationStyle.caption)
+                                ]))
+                          ])),
                   ]),
-            count: '${order.agents.length}'),
+            count: order.agents.length),
         const SizedBox(height: 12),
         _section(
+            Icons.inventory_2_outlined,
             'Équipements',
             order.equipment.isEmpty
-                ? const Text('Aucun équipement renseigné.',
-                    style: TextStyle(
-                        color: InstallationStyle.warning, fontSize: 13))
+                ? _missing('Aucun équipement')
                 : Column(children: [
                     for (final item in order.equipment)
                       Padding(
-                          padding: const EdgeInsets.symmetric(vertical: 7),
+                          padding: const EdgeInsets.symmetric(vertical: 6),
                           child: Row(children: [
-                            const Icon(Icons.inventory_2_outlined,
-                                size: 17, color: InstallationStyle.muted),
-                            const SizedBox(width: 10),
                             Expanded(
                                 child: Text(
                                     item.designation.isEmpty
-                                        ? 'Désignation à compléter'
+                                        ? 'Nom manquant'
                                         : item.designation,
                                     style: const TextStyle(
+                                        fontSize: 14.5,
                                         color: InstallationStyle.ink))),
                             Text('× ${item.quantity}',
                                 style: const TextStyle(
+                                    fontSize: 15,
                                     fontWeight: FontWeight.w700,
                                     color: InstallationStyle.ink))
                           ])),
                   ]),
-            count: '${order.equipment.length}'),
+            count: order.equipment.length),
         const SizedBox(height: 12),
         _section(
-            'Organisation du site',
+            Icons.tune,
+            'Organisation',
             _Values([
-              _Value('Zone', order.zone?['name'] as String? ?? ''),
-              _Value('Superviseur', installationPersonName(order.supervisor)),
-              _Value('Second superviseur',
+              _Value(Icons.map_outlined, 'Zone',
+                  order.zone?['name'] as String? ?? ''),
+              _Value(Icons.badge_outlined, 'Superviseur',
+                  installationPersonName(order.supervisor)),
+              _Value(Icons.badge_outlined, '2e superviseur',
                   installationPersonName(order.supervisor2),
                   required: false),
-              _Value('Effectif et rondes',
-                  '${order.agentCount} agent(s) · ${order.roundCount} ronde(s)'),
-              _Value('Pointage', installationPointageLabel(order.pointageType)),
+              _Value(Icons.groups_outlined, 'Agents / rondes',
+                  '${order.agentCount} / ${order.roundCount}'),
               _Value(
+                  order.pointageType == 'nuit'
+                      ? Icons.nightlight_outlined
+                      : Icons.wb_sunny_outlined,
+                  'Pointage',
+                  installationPointageLabel(order.pointageType)),
+              _Value(
+                  Icons.event_outlined,
                   'Date du contrat',
                   order.contractDate == null
                       ? ''
                       : installationDateLabel(order.contractDate)),
               _Value(
-                  'Position GPS',
+                  Icons.my_location,
+                  'GPS',
                   order.latitude != null && order.longitude != null
                       ? '${order.latitude}, ${order.longitude}'
                       : '',
@@ -347,18 +382,18 @@ class InstallationEventTile extends StatelessWidget {
     final author = installationMap(event['author'])['name'] as String? ?? '';
     final at = installationDate(event['at']);
     final when = pending
-        ? 'En attente d’envoi'
+        ? 'En attente'
         : at == null
             ? ''
-            : '${installationDateLabel(at)} · ${installationTimeLabel(at)}';
+            : '${installationDateLabel(at)} ${installationTimeLabel(at)}';
     final message = event['message'] as String? ?? '';
     if (!comment) {
       return Padding(
-          padding: const EdgeInsets.symmetric(vertical: 8),
+          padding: const EdgeInsets.symmetric(vertical: 7),
           child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
             Container(
-                width: 28,
-                height: 28,
+                width: 30,
+                height: 30,
                 decoration: const BoxDecoration(
                     color: InstallationStyle.background,
                     shape: BoxShape.circle),
@@ -366,7 +401,7 @@ class InstallationEventTile extends StatelessWidget {
                     event['kind'] == 'attachment'
                         ? Icons.attach_file
                         : Icons.flag_outlined,
-                    size: 14,
+                    size: 16,
                     color: InstallationStyle.muted)),
             const SizedBox(width: 12),
             Expanded(
@@ -375,34 +410,33 @@ class InstallationEventTile extends StatelessWidget {
                     children: [
                   Text(message,
                       style: const TextStyle(
-                          fontSize: 13,
+                          fontSize: 13.5,
                           fontWeight: FontWeight.w600,
                           color: InstallationStyle.ink)),
-                  const SizedBox(height: 2),
                   Text(
                       [if (author.isNotEmpty) author, if (when.isNotEmpty) when]
                           .join(' · '),
                       style: const TextStyle(
-                          color: InstallationStyle.muted, fontSize: 11.5)),
+                          color: InstallationStyle.muted, fontSize: 12)),
                 ])),
           ]));
     }
     return Padding(
-        padding: const EdgeInsets.symmetric(vertical: 8),
+        padding: const EdgeInsets.symmetric(vertical: 7),
         child: Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
           CircleAvatar(
-              radius: 14,
+              radius: 15,
               backgroundColor: InstallationStyle.primarySoft,
               child: Text(
                   author.isEmpty ? '?' : author.characters.first.toUpperCase(),
                   style: const TextStyle(
-                      fontSize: 12,
+                      fontSize: 13,
                       fontWeight: FontWeight.w700,
                       color: InstallationStyle.primary))),
-          const SizedBox(width: 12),
+          const SizedBox(width: 10),
           Expanded(
               child: Container(
-                  padding: const EdgeInsets.fromLTRB(12, 10, 12, 10),
+                  padding: const EdgeInsets.fromLTRB(12, 9, 12, 9),
                   decoration: BoxDecoration(
                       color: pending
                           ? InstallationStyle.warningSoft
@@ -414,30 +448,31 @@ class InstallationEventTile extends StatelessWidget {
                   child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Text(author.isEmpty ? 'Suivi du dossier' : author,
+                        Text(author.isEmpty ? 'Message' : author,
                             style: const TextStyle(
                                 fontSize: 12,
                                 fontWeight: FontWeight.w700,
                                 color: InstallationStyle.ink)),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         SelectableText(message,
                             style: const TextStyle(
-                                fontSize: 13.5,
-                                height: 1.45,
+                                fontSize: 14.5,
+                                height: 1.4,
                                 color: InstallationStyle.ink)),
-                        const SizedBox(height: 4),
+                        const SizedBox(height: 3),
                         Row(children: [
-                          if (pending) ...[
-                            const Icon(Icons.schedule,
-                                size: 13, color: InstallationStyle.warning),
-                            const SizedBox(width: 4),
-                          ],
+                          Icon(pending ? Icons.schedule : Icons.done_all,
+                              size: 14,
+                              color: pending
+                                  ? InstallationStyle.warning
+                                  : InstallationStyle.muted),
+                          const SizedBox(width: 4),
                           Text(when,
                               style: TextStyle(
                                   color: pending
                                       ? InstallationStyle.warning
                                       : InstallationStyle.muted,
-                                  fontSize: 11.5)),
+                                  fontSize: 12)),
                         ]),
                       ]))),
         ]));
@@ -450,7 +485,7 @@ class InstallationCommentComposer extends StatefulWidget {
       {super.key,
       required this.onSend,
       this.enabled = true,
-      this.hint = 'Écrire un message…',
+      this.hint = 'Message…',
       this.note});
   final Future<void> Function(String message) onSend;
   final bool enabled;
@@ -499,7 +534,7 @@ class _InstallationCommentComposerState
                   controller: _controller,
                   enabled: widget.enabled && !_sending,
                   minLines: 1,
-                  maxLines: 5,
+                  maxLines: 4,
                   maxLength: 4000,
                   textCapitalization: TextCapitalization.sentences,
                   buildCounter: (context,
@@ -521,7 +556,7 @@ class _InstallationCommentComposerState
                       style: IconButton.styleFrom(
                           backgroundColor: InstallationStyle.primary,
                           foregroundColor: Colors.white,
-                          minimumSize: const Size(48, 48)),
+                          minimumSize: const Size(52, 52)),
                       onPressed: !widget.enabled ||
                               _sending ||
                               value.text.trim().isEmpty
@@ -529,14 +564,14 @@ class _InstallationCommentComposerState
                           : _send,
                       icon: _sending
                           ? const SizedBox(
-                              width: 18,
-                              height: 18,
+                              width: 20,
+                              height: 20,
                               child: CircularProgressIndicator(
                                   strokeWidth: 2, color: Colors.white))
-                          : const Icon(Icons.send_rounded, size: 20)))),
+                          : const Icon(Icons.send_rounded, size: 22)))),
         ]),
         if (widget.note != null) ...[
-          const SizedBox(height: 6),
+          const SizedBox(height: 4),
           Text(widget.note!, style: InstallationStyle.caption),
         ],
       ]);
@@ -553,11 +588,8 @@ class InstallationFollowUp extends StatelessWidget {
       this.onRetry,
       this.onSend,
       this.composerEnabled = true,
-      this.composerHint = 'Écrire un message…',
-      this.composerNote,
-      this.subtitle =
-          'Les échanges avec le bureau et les étapes du dossier sont conservés ici.',
-      this.emptyMessage = 'Aucun échange pour le moment.'});
+      this.composerHint = 'Message…',
+      this.composerNote});
 
   /// Events in chronological order.
   final List<Map<String, dynamic>> events;
@@ -569,55 +601,49 @@ class InstallationFollowUp extends StatelessWidget {
   final bool composerEnabled;
   final String composerHint;
   final String? composerNote;
-  final String subtitle;
-  final String emptyMessage;
 
   @override
   Widget build(BuildContext context) {
     final ordered = events.reversed.toList();
     return InstallationPanel(
+        padding: const EdgeInsets.all(16),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      const Text('Suivi', style: InstallationStyle.sectionTitle),
-      const SizedBox(height: 4),
-      Text(subtitle, style: InstallationStyle.caption),
-      if (onSend != null) ...[
-        const SizedBox(height: 16),
-        InstallationCommentComposer(
-            onSend: onSend!,
-            enabled: composerEnabled,
-            hint: composerHint,
-            note: composerNote),
-      ],
-      const SizedBox(height: 8),
-      const Divider(height: 24),
-      if (error != null)
-        InstallationNotice(
-            tone: InstallationTone.error,
-            message: error!,
-            action: onRetry == null
-                ? null
-                : TextButton(
-                    onPressed: onRetry, child: const Text('Réessayer')))
-      else if (loading)
-        const Padding(
-            padding: EdgeInsets.symmetric(vertical: 24),
-            child: Center(
-                child: SizedBox(
-                    width: 26,
-                    height: 26,
-                    child: CircularProgressIndicator(strokeWidth: 2.5))))
-      else if (ordered.isEmpty)
-        Padding(
-            padding: const EdgeInsets.symmetric(vertical: 16),
-            child: Text(emptyMessage,
-                textAlign: TextAlign.center, style: InstallationStyle.caption))
-      else
-        for (final event in ordered)
-          InstallationEventTile(
-              event: event,
-              pending: pendingIds.contains(event['id'] as String? ?? '')),
-    ]));
+          if (onSend != null) ...[
+            InstallationCommentComposer(
+                onSend: onSend!,
+                enabled: composerEnabled,
+                hint: composerHint,
+                note: composerNote),
+            const Divider(height: 28),
+          ],
+          if (error != null)
+            InstallationNotice(
+                tone: InstallationTone.error,
+                message: error!,
+                action: onRetry == null
+                    ? null
+                    : TextButton.icon(
+                        onPressed: onRetry,
+                        icon: const Icon(Icons.refresh, size: 18),
+                        label: const Text('Réessayer')))
+          else if (loading)
+            const Padding(
+                padding: EdgeInsets.symmetric(vertical: 24),
+                child: Center(
+                    child: SizedBox(
+                        width: 28,
+                        height: 28,
+                        child: CircularProgressIndicator(strokeWidth: 3))))
+          else if (ordered.isEmpty)
+            const InstallationStateMessage(
+                icon: Icons.chat_bubble_outline, title: 'Aucun message')
+          else
+            for (final event in ordered)
+              InstallationEventTile(
+                  event: event,
+                  pending: pendingIds.contains(event['id'] as String? ?? '')),
+        ]));
   }
 }
 
@@ -628,9 +654,8 @@ class InstallationAttachmentList extends StatelessWidget {
   final ValueChanged<Map<String, dynamic>> onOpen;
   @override
   Widget build(BuildContext context) => attachments.isEmpty
-      ? const InstallationNotice(
-          icon: Icons.description_outlined,
-          message: 'Aucun document joint pour le moment.')
+      ? const InstallationStateMessage(
+          icon: Icons.description_outlined, title: 'Aucun document')
       : Column(children: [
           for (final attachment in attachments)
             Padding(
@@ -639,6 +664,7 @@ class InstallationAttachmentList extends StatelessWidget {
                     color: InstallationStyle.background,
                     borderRadius: BorderRadius.circular(10),
                     child: ListTile(
+                        minTileHeight: 56,
                         shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10)),
                         leading: Icon(
@@ -648,11 +674,11 @@ class InstallationAttachmentList extends StatelessWidget {
                                 : Icons.image_outlined,
                             color: InstallationStyle.primary),
                         title: Text(
-                            attachment['name'] as String? ?? 'Document signé',
+                            attachment['name'] as String? ?? 'Bon signé',
                             maxLines: 1,
                             overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(fontSize: 14)),
-                        trailing: const Icon(Icons.open_in_new, size: 18),
+                            style: const TextStyle(fontSize: 14.5)),
+                        trailing: const Icon(Icons.open_in_new, size: 20),
                         onTap: () => onOpen(attachment)))),
         ]);
 }
@@ -666,25 +692,30 @@ class InstallationAction {
   final bool danger;
 }
 
-/// Bottom bar with a single primary action, an optional save button and
-/// secondary actions grouped in a menu on small screens.
+/// Bottom bar: one large primary action. Secondary actions stay discreet:
+/// a back button, an icon save button and a menu for the others.
 class InstallationActionBar extends StatelessWidget {
   const InstallationActionBar(
       {super.key,
       this.primary,
+      this.back,
       this.save,
       this.secondary = const [],
       this.status,
       this.statusWarning = false,
       this.busy = false});
   final InstallationAction? primary;
+  final InstallationAction? back;
   final InstallationAction? save;
   final List<InstallationAction> secondary;
+
+  /// A few words next to a cloud icon (save state).
   final String? status;
   final bool statusWarning;
   final bool busy;
 
-  bool get isEmpty => primary == null && save == null && secondary.isEmpty;
+  bool get isEmpty =>
+      primary == null && back == null && save == null && secondary.isEmpty;
 
   Widget _menu() => PopupMenuButton<int>(
       tooltip: 'Autres actions',
@@ -694,78 +725,35 @@ class InstallationActionBar extends StatelessWidget {
             for (var i = 0; i < secondary.length; i++)
               PopupMenuItem(
                   value: i,
+                  height: 52,
                   enabled: secondary[i].onPressed != null,
                   child: Row(children: [
                     Icon(secondary[i].icon ?? Icons.chevron_right,
-                        size: 19,
+                        size: 22,
                         color: secondary[i].danger
                             ? InstallationStyle.danger
                             : InstallationStyle.ink),
                     const SizedBox(width: 12),
                     Text(secondary[i].label,
                         style: TextStyle(
+                            fontSize: 15,
                             color: secondary[i].danger
                                 ? InstallationStyle.danger
                                 : InstallationStyle.ink)),
                   ]))
           ],
       child: Container(
-          width: 48,
-          height: 48,
+          width: 52,
+          height: 52,
           decoration: BoxDecoration(
               border: Border.all(color: InstallationStyle.strongLine),
-              borderRadius: BorderRadius.circular(10)),
+              borderRadius: BorderRadius.circular(12)),
           child: const Icon(Icons.more_horiz, color: InstallationStyle.ink)));
-
-  Widget _primaryButton(bool compact) => FilledButton.icon(
-      style: compact
-          ? FilledButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12))
-          : null,
-      onPressed: busy ? null : primary!.onPressed,
-      icon: busy
-          ? const SizedBox(
-              width: 16,
-              height: 16,
-              child: CircularProgressIndicator(strokeWidth: 2))
-          : Icon(primary!.icon ?? Icons.arrow_forward, size: 18),
-      label:
-          Text(primary!.label, maxLines: 1, overflow: TextOverflow.ellipsis));
-
-  Widget _saveButton(bool compact) => OutlinedButton.icon(
-      style: compact
-          ? OutlinedButton.styleFrom(
-              padding: const EdgeInsets.symmetric(horizontal: 12))
-          : null,
-      onPressed: busy ? null : save!.onPressed,
-      icon: Icon(save!.icon ?? Icons.save_outlined, size: 18),
-      label: Text(save!.label, maxLines: 1, overflow: TextOverflow.ellipsis));
 
   @override
   Widget build(BuildContext context) {
     if (isEmpty && status == null) return const SizedBox.shrink();
-    final statusText = status == null
-        ? null
-        : Row(mainAxisSize: MainAxisSize.min, children: [
-            Icon(
-                statusWarning
-                    ? Icons.edit_note_outlined
-                    : Icons.cloud_done_outlined,
-                size: 15,
-                color: statusWarning
-                    ? InstallationStyle.warning
-                    : InstallationStyle.green),
-            const SizedBox(width: 6),
-            Flexible(
-                child: Text(status!,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: TextStyle(
-                        fontSize: 12,
-                        color: statusWarning
-                            ? InstallationStyle.warning
-                            : InstallationStyle.muted))),
-          ]);
+    final compact = MediaQuery.sizeOf(context).width < 640;
     return Container(
         decoration: const BoxDecoration(
             color: Colors.white,
@@ -773,62 +761,98 @@ class InstallationActionBar extends StatelessWidget {
         child: SafeArea(
             top: false,
             child: Padding(
-                padding: const EdgeInsets.fromLTRB(16, 10, 16, 10),
-                child: LayoutBuilder(builder: (context, c) {
-                  final compact = c.maxWidth < 640;
-                  if (compact) {
-                    return Column(
-                        mainAxisSize: MainAxisSize.min,
-                        crossAxisAlignment: CrossAxisAlignment.stretch,
-                        children: [
-                          if (statusText != null) ...[
-                            statusText,
-                            if (!isEmpty) const SizedBox(height: 8),
-                          ],
-                          if (!isEmpty)
-                            Row(children: [
-                              if (secondary.isNotEmpty) ...[
-                                _menu(),
-                                const SizedBox(width: 8),
+                padding: const EdgeInsets.fromLTRB(12, 8, 12, 8),
+                child: Row(children: [
+                  if (status != null)
+                    Tooltip(
+                        message: status!,
+                        child: Padding(
+                            padding: const EdgeInsets.only(right: 8),
+                            child:
+                                Row(mainAxisSize: MainAxisSize.min, children: [
+                              Icon(
+                                  statusWarning
+                                      ? Icons.cloud_upload
+                                      : Icons.cloud_done,
+                                  size: 22,
+                                  color: statusWarning
+                                      ? InstallationStyle.warning
+                                      : InstallationStyle.green),
+                              if (!compact) ...[
+                                const SizedBox(width: 6),
+                                Text(status!,
+                                    style: TextStyle(
+                                        fontSize: 13,
+                                        color: statusWarning
+                                            ? InstallationStyle.warning
+                                            : InstallationStyle.muted)),
                               ],
-                              if (save != null)
-                                Expanded(flex: 2, child: _saveButton(true)),
-                              if (save != null && primary != null)
-                                const SizedBox(width: 8),
-                              if (primary != null)
-                                Expanded(flex: 3, child: _primaryButton(true)),
-                              if (save == null && primary == null)
-                                const Spacer(),
-                            ]),
-                        ]);
-                  }
-                  return Row(children: [
+                            ]))),
+                  if (secondary.isNotEmpty) ...[
+                    _menu(),
+                    const SizedBox(width: 8),
+                  ],
+                  if (save != null) ...[
+                    compact
+                        ? IconButton.outlined(
+                            tooltip: save!.label,
+                            style: IconButton.styleFrom(
+                                minimumSize: const Size(52, 52),
+                                side: const BorderSide(
+                                    color: InstallationStyle.strongLine)),
+                            onPressed: busy ? null : save!.onPressed,
+                            icon: Icon(save!.icon ?? Icons.save_outlined))
+                        : OutlinedButton.icon(
+                            style: OutlinedButton.styleFrom(
+                                minimumSize: const Size(0, 52)),
+                            onPressed: busy ? null : save!.onPressed,
+                            icon: Icon(save!.icon ?? Icons.save_outlined,
+                                size: 20),
+                            label: Text(save!.label)),
+                    const SizedBox(width: 8),
+                  ],
+                  if (back != null) ...[
+                    OutlinedButton.icon(
+                        style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 52),
+                            padding:
+                                const EdgeInsets.symmetric(horizontal: 14)),
+                        onPressed: busy ? null : back!.onPressed,
+                        icon: Icon(back!.icon ?? Icons.arrow_back, size: 20),
+                        label: Text(back!.label)),
+                    const SizedBox(width: 8),
+                  ],
+                  if (primary != null)
                     Expanded(
                         child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: statusText ?? const SizedBox.shrink())),
-                    if (secondary.length > 2) ...[
-                      _menu(),
-                      const SizedBox(width: 10),
-                    ] else
-                      for (final action in secondary) ...[
-                        OutlinedButton.icon(
-                            style: action.danger
-                                ? OutlinedButton.styleFrom(
-                                    foregroundColor: InstallationStyle.danger)
-                                : null,
-                            onPressed: busy ? null : action.onPressed,
-                            icon: Icon(action.icon ?? Icons.chevron_right,
-                                size: 18),
-                            label: Text(action.label)),
-                        const SizedBox(width: 10),
-                      ],
-                    if (save != null) ...[
-                      _saveButton(false),
-                      const SizedBox(width: 10),
-                    ],
-                    if (primary != null) _primaryButton(false),
-                  ]);
-                }))));
+                            alignment: Alignment.centerRight,
+                            child: ConstrainedBox(
+                                constraints: BoxConstraints(
+                                    maxWidth: compact ? double.infinity : 320),
+                                child: SizedBox(
+                                    width: double.infinity,
+                                    child: FilledButton.icon(
+                                        style: FilledButton.styleFrom(
+                                            minimumSize: const Size(0, 54),
+                                            padding: const EdgeInsets.symmetric(
+                                                horizontal: 14),
+                                            textStyle: const TextStyle(
+                                                fontSize: 16,
+                                                fontWeight: FontWeight.w700)),
+                                        onPressed:
+                                            busy ? null : primary!.onPressed,
+                                        icon: busy
+                                            ? const SizedBox(
+                                                width: 18,
+                                                height: 18,
+                                                child: CircularProgressIndicator(
+                                                    strokeWidth: 2))
+                                            : Icon(
+                                                primary!.icon ?? Icons.arrow_forward,
+                                                size: 22),
+                                        label: Text(primary!.label, maxLines: 1, overflow: TextOverflow.ellipsis))))))
+                  else
+                    const Spacer(),
+                ]))));
   }
 }

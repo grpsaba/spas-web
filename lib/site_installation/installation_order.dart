@@ -15,11 +15,11 @@ enum InstallationStatus {
 extension InstallationStatusLabel on InstallationStatus {
   String get label => const {
         InstallationStatus.draft: 'Brouillon',
-        InstallationStatus.submitted: 'À vérifier',
+        InstallationStatus.submitted: 'Envoyé',
         InstallationStatus.changesRequested: 'À corriger',
-        InstallationStatus.approved: 'Bon prêt à imprimer',
-        InstallationStatus.awaitingSignature: 'En attente du retour signé',
-        InstallationStatus.signedReturned: 'Retour signé reçu',
+        InstallationStatus.approved: 'Validé',
+        InstallationStatus.awaitingSignature: 'À signer',
+        InstallationStatus.signedReturned: 'Signé',
         InstallationStatus.finalized: 'Site créé',
       }[this]!;
 
@@ -269,7 +269,7 @@ class InstallationOrder {
   List<String> validate({bool forApproval = false, bool forSite = false}) {
     final errors = [for (var step = 0; step < 4; step++) ...validateStep(step)];
     if ((forApproval || forSite) && bonNumber.trim().isEmpty) {
-      errors.add('Le numéro du bon doit être attribué à la validation.');
+      errors.add('Numéro du bon manquant');
     }
     return errors;
   }
@@ -277,35 +277,31 @@ class InstallationOrder {
   List<String> validateStep(int step) {
     final errors = <String>[];
     if (step == 0) {
-      if (siteName.trim().isEmpty) errors.add('Renseigner le nom du site.');
-      if (clientName.trim().isEmpty) errors.add('Renseigner le client.');
-      if (address.trim().isEmpty) errors.add('Renseigner l’adresse du site.');
-      if (phone.trim().isEmpty) {
-        errors.add('Renseigner le téléphone du contact.');
-      }
+      if (siteName.trim().isEmpty) errors.add('Nom du site manquant');
+      if (clientName.trim().isEmpty) errors.add('Client manquant');
+      if (address.trim().isEmpty) errors.add('Adresse manquante');
+      if (phone.trim().isEmpty) errors.add('Téléphone manquant');
       if (!['security', 'cleaning'].contains(departmentId)) {
-        errors.add('Choisir la prestation.');
+        errors.add('Prestation manquante');
       }
     }
     if (step == 1) {
-      if (agents.isEmpty) errors.add('Ajouter au moins un agent.');
+      if (agents.isEmpty) errors.add('Aucun agent');
       if (agents.any((agent) => agent.name.trim().isEmpty)) {
-        errors.add(
-            'Compléter le nom de chaque agent ou supprimer la ligne vide.');
+        errors.add('Nom d’agent manquant');
       }
       if (agents.any((agent) => agent.type.trim().isEmpty)) {
-        errors.add('Renseigner le type de chaque agent.');
+        errors.add('Type d’agent manquant');
       }
       if (agents.any((agent) => agent.phone.trim().isEmpty)) {
-        errors.add('Renseigner le contact de chaque agent.');
+        errors.add('Téléphone d’agent manquant');
       }
     }
     if (step == 2) {
-      if (equipment.isEmpty) errors.add('Ajouter au moins un équipement.');
+      if (equipment.isEmpty) errors.add('Aucun équipement');
       if (equipment.any(
           (item) => item.designation.trim().isEmpty || item.quantity <= 0)) {
-        errors.add(
-            'Chaque équipement doit avoir une désignation et une quantité positive.');
+        errors.add('Équipement ou quantité manquant');
       }
     }
     if (step == 3) {
@@ -313,30 +309,30 @@ class InstallationOrder {
       // are still saved progressively without calling validate().
       if (zone?['codeZone'] is! String ||
           (zone!['codeZone'] as String).isEmpty) {
-        errors.add('Choisir une zone.');
+        errors.add('Zone manquante');
       }
       if (supervisor?['UID'] is! String ||
           (supervisor!['UID'] as String).isEmpty) {
-        errors.add('Choisir le superviseur du site.');
+        errors.add('Superviseur manquant');
       }
       if (supervisor2?['UID'] != null &&
           supervisor2?['UID'] == supervisor?['UID']) {
-        errors.add('Choisir deux superviseurs distincts.');
+        errors.add('Superviseurs identiques');
       }
       if (!['jour', 'nuit', 'jour_nuit'].contains(pointageType)) {
-        errors.add('Choisir un type de pointage valide.');
+        errors.add('Pointage manquant');
       }
-      if (contractDate == null) errors.add('Renseigner la date du contrat.');
-      if (agentCount <= 0) errors.add('Renseigner l’effectif prévu.');
-      if (roundCount <= 0) errors.add('Le nombre de rondes doit être positif.');
+      if (contractDate == null) errors.add('Date du contrat manquante');
+      if (agentCount <= 0) errors.add('Nombre d’agents manquant');
+      if (roundCount <= 0) errors.add('Nombre de rondes manquant');
       if ((latitude == null) != (longitude == null)) {
-        errors.add('Renseigner les deux coordonnées GPS ou les laisser vides.');
+        errors.add('GPS incomplet');
       } else if (latitude != null &&
           (!latitude!.isFinite ||
               latitude!.abs() > 90 ||
               !longitude!.isFinite ||
               longitude!.abs() > 180)) {
-        errors.add('Renseigner des coordonnées GPS valides.');
+        errors.add('GPS invalide');
       }
     }
     return errors;

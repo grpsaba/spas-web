@@ -7,29 +7,36 @@ import 'installation_catalog.dart';
 import 'installation_equipment_picker.dart';
 
 const installationFormSteps = [
-  'Site et client',
+  'Site',
   'Agents',
   'Équipements',
   'Organisation',
 ];
 
-const _stepDescriptions = [
-  'Identifiez le client et le lieu de la prestation.',
-  'Indiquez les personnes qui figureront sur le bon.',
-  'Choisissez les articles du catalogue et leurs quantités.',
-  'Préparez les informations nécessaires à l’ouverture du site.',
+const installationFormStepIcons = [
+  Icons.storefront,
+  Icons.groups,
+  Icons.inventory_2,
+  Icons.tune,
 ];
 
-/// Lets a page validate the whole request before its transmission.
-class InstallationFormController {
+/// Lets a page drive the guided form from its own action bar.
+class InstallationFormController extends ChangeNotifier {
   _InstallationFormState? _state;
 
   /// Checks every step. On failure, opens the first incomplete step, shows
-  /// what is missing and moves to the first field to correct.
+  /// the short errors and moves to the first field to correct.
   bool validate() => _state?._validateAll() ?? true;
 
-  /// Current step of the guided form.
+  /// Current step (0 to 3).
   int get step => _state?._step ?? 0;
+  bool get isLast => step == installationFormSteps.length - 1;
+
+  /// Next step, blocked while the current or a previous step is incomplete.
+  void next() => _state?._goToStep(step + 1);
+  void back() => _state?._goToStep(step - 1);
+
+  void _changed() => notifyListeners();
 }
 
 class _Field {
@@ -57,6 +64,7 @@ class InstallationForm extends StatefulWidget {
     this.guided = false,
     this.validationAttempt = 0,
     this.controller,
+    this.showNavigation = true,
   });
 
   final InstallationOrder order;
@@ -74,6 +82,10 @@ class InstallationForm extends StatefulWidget {
   final int validationAttempt;
   final InstallationFormController? controller;
 
+  /// « Retour » / « Suivant » under the step. Pages with their own action
+  /// bar hide them and use the [controller].
+  final bool showNavigation;
+
   @override
   State<InstallationForm> createState() => _InstallationFormState();
 }
@@ -88,6 +100,8 @@ class _InstallationFormState extends State<InstallationForm> {
   final Map<String, _Field> _fields = {};
   final Map<String, TextEditingController> _quantities = {};
   final _date = TextEditingController();
+  final _summaryKey = GlobalKey();
+  final _stepHeaderKey = GlobalKey();
 
   // Reference lists are filtered once, not for every row and every build.
   List<Object>? _catalogSource;
@@ -129,6 +143,13 @@ class _InstallationFormState extends State<InstallationForm> {
     }
     _date.dispose();
     super.dispose();
+  }
+
+  /// The page action bar follows the step; notified after the frame.
+  void _stepChanged() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted) widget.controller?._changed();
+    });
   }
 
   bool get _allAttempted => widget.validationAttempt > 0;
@@ -188,7 +209,10 @@ class _InstallationFormState extends State<InstallationForm> {
 
   void _openFirstIncomplete({bool reveal = true}) {
     final incomplete = _firstIncomplete;
-    if (widget.guided) _step = incomplete ?? 3;
+    if (widget.guided) {
+      _step = incomplete ?? 3;
+      _stepChanged();
+    }
     if (reveal && incomplete != null) _revealFirstError(incomplete);
   }
 
@@ -198,6 +222,7 @@ class _InstallationFormState extends State<InstallationForm> {
       _attemptedSteps.add(step);
       if (widget.guided) _step = step;
     });
+    _stepChanged();
     _revealFirstError(step);
   }
 
@@ -222,15 +247,13 @@ class _InstallationFormState extends State<InstallationForm> {
           first?.key.currentState?.context ?? _summaryKey.currentContext;
       if (target == null) return;
       Scrollable.ensureVisible(target,
-          alignment: .15, duration: const Duration(milliseconds: 250));
+          alignment: .2, duration: const Duration(milliseconds: 250));
       first?.focus?.requestFocus();
     });
   }
 
-  final _summaryKey = GlobalKey();
-
   void _goToStep(int target) {
-    if (target == _step) return;
+    if (target == _step || target < 0 || target > 3) return;
     FocusScope.of(context).unfocus();
     if (target > _step) {
       for (var step = 0; step < target; step++) {
@@ -241,6 +264,7 @@ class _InstallationFormState extends State<InstallationForm> {
       }
     }
     setState(() => _step = target);
+    _stepChanged();
     WidgetsBinding.instance.addPostFrameCallback((_) {
       final context = _stepHeaderKey.currentContext;
       if (mounted && context != null) {
@@ -250,8 +274,6 @@ class _InstallationFormState extends State<InstallationForm> {
     });
   }
 
-  final _stepHeaderKey = GlobalKey();
-
   void _change(VoidCallback action) {
     setState(action);
     widget.onChanged?.call();
@@ -260,6 +282,14 @@ class _InstallationFormState extends State<InstallationForm> {
   void _typed(ValueChanged<String> changed, String value) {
     changed(value);
     widget.onChanged?.call();
+  }
+
+  static bool _same(List<Object>? a, List<Object> b) {
+    if (a == null || a.length != b.length) return false;
+    for (var i = 0; i < a.length; i++) {
+      if (!identical(a[i], b[i]) && a[i] != b[i]) return false;
+    }
+    return true;
   }
 
   List<InstallationOption> get _catalogOptions {
@@ -292,14 +322,6 @@ class _InstallationFormState extends State<InstallationForm> {
     return _supervisorOptions;
   }
 
-  static bool _same(List<Object>? a, List<Object> b) {
-    if (a == null || a.length != b.length) return false;
-    for (var i = 0; i < a.length; i++) {
-      if (!identical(a[i], b[i]) && a[i] != b[i]) return false;
-    }
-    return true;
-  }
-
   @override
   Widget build(BuildContext context) {
     final sections = [
@@ -310,44 +332,34 @@ class _InstallationFormState extends State<InstallationForm> {
     ];
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
       if (widget.guided) ...[
-        KeyedSubtree(key: _stepHeaderKey, child: _stepHeader()),
-        const SizedBox(height: 14),
-      ] else
-        const Padding(
-            padding: EdgeInsets.only(bottom: 12),
-            child: Text(
-                'Les champs marqués * sont obligatoires pour transmettre la demande. Le brouillon peut être enregistré à tout moment.',
-                style: InstallationStyle.caption)),
+        KeyedSubtree(key: _stepHeaderKey, child: _stepper()),
+        const SizedBox(height: 12),
+      ],
       for (var i = 0; i < sections.length; i++)
         Visibility(
             visible: !widget.guided || _step == i,
             maintainState: true,
             child: Padding(
-                padding: const EdgeInsets.only(bottom: 14),
+                padding: const EdgeInsets.only(bottom: 12),
                 child: InstallationPanel(
-                    padding: const EdgeInsets.fromLTRB(16, 18, 16, 18),
+                    padding: const EdgeInsets.fromLTRB(16, 16, 16, 18),
                     child: Column(
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: [
-                          if (!widget.guided) ...[
-                            Text(
-                                const [
-                                  'Client et site',
-                                  'Agents prévus',
-                                  'Équipements',
-                                  'Organisation du site'
-                                ][i],
-                                style: InstallationStyle.sectionTitle),
-                            const SizedBox(height: 4),
-                            Text(_stepDescriptions[i],
-                                style: InstallationStyle.caption),
-                            const SizedBox(height: 16),
-                          ],
+                          Row(children: [
+                            Icon(installationFormStepIcons[i],
+                                size: 24, color: InstallationStyle.primary),
+                            const SizedBox(width: 10),
+                            Text(installationFormSteps[i],
+                                style: InstallationStyle.sectionTitle
+                                    .copyWith(fontSize: 19)),
+                          ]),
+                          const SizedBox(height: 14),
                           if (_attemptedSteps.contains(i) || _allAttempted)
                             _summary(i),
                           ...sections[i](),
                         ])))),
-      if (widget.guided) _footer(),
+      if (widget.guided && widget.showNavigation) _navigation(),
     ]);
   }
 
@@ -356,46 +368,38 @@ class _InstallationFormState extends State<InstallationForm> {
     if (missing.isEmpty && _fieldsValid(step)) return const SizedBox.shrink();
     return Padding(
         key: step == _step ? _summaryKey : null,
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 14),
         child: InstallationNotice(
             tone: InstallationTone.error,
-            title: 'À compléter avant de continuer',
-            message: missing.isEmpty
-                ? 'Corrigez les champs signalés en rouge.'
-                : missing.length == 1
-                    ? missing.single
-                    : 'Il manque ${missing.length} informations :',
-            lines: missing.length > 1 ? missing : const []));
+            message: missing.isEmpty ? 'Champ à corriger' : missing.first,
+            lines: missing.length > 1
+                ? missing.skip(1).take(3).toList()
+                : const []));
   }
 
-  Widget _stepHeader() {
-    final complete = [for (var i = 0; i < 4; i++) _stepComplete(i)];
-    return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
-      Text('ÉTAPE ${_step + 1} SUR 4', style: InstallationStyle.overline),
-      const SizedBox(height: 4),
-      Text(installationFormSteps[_step],
-          style: InstallationStyle.pageTitle.copyWith(fontSize: 20)),
-      const SizedBox(height: 2),
-      Text(_stepDescriptions[_step], style: InstallationStyle.caption),
-      const SizedBox(height: 14),
-      Row(children: [
+  Widget _stepper() => Row(children: [
         for (var i = 0; i < 4; i++) ...[
-          if (i > 0) const SizedBox(width: 6),
-          Expanded(child: _stepButton(i, complete[i])),
+          if (i > 0)
+            Container(
+                width: 12,
+                height: 3,
+                margin: const EdgeInsets.only(bottom: 22),
+                color: i <= _step
+                    ? InstallationStyle.primary
+                    : InstallationStyle.line),
+          Expanded(child: _stepButton(i, _stepComplete(i))),
         ]
-      ]),
-    ]);
-  }
+      ]);
 
   Widget _stepButton(int index, bool complete) {
     final current = _step == index;
     final error = !complete &&
         (_attemptedSteps.contains(index) || _allAttempted) &&
         !current;
-    final color = current
-        ? InstallationStyle.primary
-        : error
-            ? InstallationStyle.danger
+    final color = error
+        ? InstallationStyle.danger
+        : current
+            ? InstallationStyle.primary
             : complete
                 ? InstallationStyle.green
                 : InstallationStyle.muted;
@@ -406,129 +410,136 @@ class _InstallationFormState extends State<InstallationForm> {
             'Étape ${index + 1} : ${installationFormSteps[index]}${complete ? ', complète' : error ? ', à compléter' : ''}',
         child: InkWell(
             key: ValueKey('installation-step-$index'),
-            borderRadius: BorderRadius.circular(8),
+            borderRadius: BorderRadius.circular(12),
             onTap: widget.enabled ? () => _goToStep(index) : null,
             child: ExcludeSemantics(
                 child: Padding(
-                    padding: const EdgeInsets.only(top: 2, bottom: 6),
-                    child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Container(
-                              height: 4,
-                              decoration: BoxDecoration(
-                                  color: current || complete || error
+                    padding: const EdgeInsets.symmetric(vertical: 4),
+                    child: Column(children: [
+                      Container(
+                          width: 44,
+                          height: 44,
+                          alignment: Alignment.center,
+                          decoration: BoxDecoration(
+                              shape: BoxShape.circle,
+                              color: current || error || complete
+                                  ? color
+                                  : Colors.white,
+                              border: Border.all(
+                                  color: current || error || complete
                                       ? color
-                                      : InstallationStyle.line,
-                                  borderRadius: BorderRadius.circular(2))),
-                          const SizedBox(height: 7),
-                          Row(children: [
-                            Icon(
-                                error
-                                    ? Icons.error_outline
-                                    : complete && !current
-                                        ? Icons.check_circle
-                                        : Icons.circle_outlined,
-                                size: 13,
-                                color: color),
-                            const SizedBox(width: 4),
-                            Expanded(
-                                child: Text(installationFormSteps[index],
-                                    maxLines: 2,
-                                    overflow: TextOverflow.ellipsis,
-                                    style: TextStyle(
-                                        fontSize: 11.5,
-                                        height: 1.2,
-                                        fontWeight: current
-                                            ? FontWeight.w700
-                                            : FontWeight.w500,
-                                        color: current
-                                            ? InstallationStyle.ink
-                                            : InstallationStyle.muted))),
-                          ]),
-                        ])))));
+                                      : InstallationStyle.strongLine,
+                                  width: 2)),
+                          child: error
+                              ? const Icon(Icons.priority_high,
+                                  size: 22, color: Colors.white)
+                              : complete && !current
+                                  ? const Icon(Icons.check,
+                                      size: 22, color: Colors.white)
+                                  : Text('${index + 1}',
+                                      style: TextStyle(
+                                          fontSize: 18,
+                                          fontWeight: FontWeight.w800,
+                                          color: current
+                                              ? Colors.white
+                                              : InstallationStyle.muted))),
+                      const SizedBox(height: 4),
+                      FittedBox(
+                          fit: BoxFit.scaleDown,
+                          child: Text(installationFormSteps[index],
+                              maxLines: 1,
+                              style: TextStyle(
+                                  fontSize: 12,
+                                  fontWeight: current
+                                      ? FontWeight.w800
+                                      : FontWeight.w500,
+                                  color: current
+                                      ? InstallationStyle.ink
+                                      : InstallationStyle.muted))),
+                    ])))));
   }
 
-  Widget _footer() => Padding(
+  Widget _navigation() => Padding(
       padding: const EdgeInsets.only(bottom: 8),
       child: Row(children: [
         if (_step > 0)
           Flexible(
-              child: TextButton.icon(
+              child: OutlinedButton.icon(
+                  style:
+                      OutlinedButton.styleFrom(minimumSize: const Size(0, 52)),
                   onPressed: widget.enabled ? () => _goToStep(_step - 1) : null,
-                  icon: const Icon(Icons.arrow_back, size: 17),
-                  label: const Text('Précédent',
-                      overflow: TextOverflow.ellipsis))),
-        const SizedBox(width: 8),
+                  icon: const Icon(Icons.arrow_back, size: 20),
+                  label:
+                      const Text('Retour', overflow: TextOverflow.ellipsis))),
+        const SizedBox(width: 10),
         if (_step < 3)
           Expanded(
-              child: Align(
-                  alignment: Alignment.centerRight,
-                  child: FilledButton.tonalIcon(
-                      style: FilledButton.styleFrom(
-                          backgroundColor: InstallationStyle.primarySoft,
-                          foregroundColor: InstallationStyle.primary,
-                          iconAlignment: IconAlignment.end),
-                      onPressed:
-                          widget.enabled ? () => _goToStep(_step + 1) : null,
-                      icon: const Icon(Icons.arrow_forward, size: 17),
-                      label: const Text('Continuer',
-                          overflow: TextOverflow.ellipsis))))
+              child: FilledButton.icon(
+                  style: FilledButton.styleFrom(
+                      minimumSize: const Size(0, 52),
+                      iconAlignment: IconAlignment.end),
+                  onPressed: widget.enabled ? () => _goToStep(_step + 1) : null,
+                  icon: const Icon(Icons.arrow_forward, size: 20),
+                  label:
+                      const Text('Suivant', overflow: TextOverflow.ellipsis)))
         else
-          const Expanded(
-              child: Text('Dernière étape : vérifiez puis transmettez.',
-                  textAlign: TextAlign.right,
-                  style: InstallationStyle.caption)),
+          const Spacer(),
       ]));
 
   List<Widget> _siteStep() => [
         _grid([
           _text('siteName', 0, 'Nom du site', order.siteName,
               (value) => order.siteName = value,
+              icon: Icons.storefront_outlined,
+              missing: 'Nom du site manquant',
               capitalization: TextCapitalization.words),
           _text('clientName', 0, 'Client', order.clientName,
               (value) => order.clientName = value,
+              icon: Icons.business_outlined,
+              missing: 'Client manquant',
               capitalization: TextCapitalization.words),
           _text('address', 0, 'Adresse', order.address,
               (value) => order.address = value,
+              icon: Icons.place_outlined,
+              missing: 'Adresse manquante',
               capitalization: TextCapitalization.sentences),
-          _text('phone', 0, 'Téléphone du contact', order.phone,
+          _text('phone', 0, 'Téléphone', order.phone,
               (value) => order.phone = value,
-              keyboard: TextInputType.phone, action: TextInputAction.done),
+              icon: Icons.phone_outlined,
+              missing: 'Téléphone manquant',
+              keyboard: TextInputType.phone,
+              action: TextInputAction.done),
         ]),
         const SizedBox(height: 14),
         _department(),
-        const SizedBox(height: 14),
-        Row(children: [
-          const Icon(Icons.numbers, size: 16, color: InstallationStyle.muted),
-          const SizedBox(width: 6),
-          Expanded(
-              child: Text(
-                  order.bonNumber.isEmpty
-                      ? 'Le numéro du bon sera attribué automatiquement lors de la validation par le responsable.'
-                      : 'Bon n° ${order.bonNumber} · Ce numéro est définitif.',
-                  style: InstallationStyle.caption)),
-        ]),
+        if (order.bonNumber.isNotEmpty) ...[
+          const SizedBox(height: 12),
+          Row(children: [
+            const Icon(Icons.numbers, size: 18, color: InstallationStyle.muted),
+            const SizedBox(width: 6),
+            Text('Bon n° ${order.bonNumber}',
+                style: const TextStyle(
+                    fontWeight: FontWeight.w700, color: InstallationStyle.ink)),
+          ]),
+        ],
       ];
 
   Widget _department() {
     final departments = widget.departments;
     if (departments.length == 1 && departments.single == order.departmentId) {
       return Row(children: [
-        const Text('Prestation', style: InstallationStyle.caption),
-        const SizedBox(width: 10),
         Chip(
             avatar: Icon(
                 order.isSecurity
                     ? Icons.shield_outlined
                     : Icons.cleaning_services_outlined,
-                size: 16,
+                size: 18,
                 color: InstallationStyle.primary),
             label: Text(order.serviceLabel),
             side: BorderSide.none,
             backgroundColor: InstallationStyle.primarySoft,
             labelStyle: const TextStyle(
-                fontWeight: FontWeight.w600, color: InstallationStyle.primary)),
+                fontWeight: FontWeight.w700, color: InstallationStyle.primary)),
       ]);
     }
     return FormField<String>(
@@ -538,15 +549,15 @@ class _InstallationFormState extends State<InstallationForm> {
             : null,
         autovalidateMode: _mode(0),
         validator: (value) => value == null || !departments.contains(value)
-            ? 'Choisir une prestation.'
+            ? 'Prestation manquante'
             : null,
         builder: (field) =>
-            Column(crossAxisAlignment: CrossAxisAlignment.start, children: [
-              const Text('Prestation *', style: InstallationStyle.caption),
-              const SizedBox(height: 6),
+            Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
               SegmentedButton<String>(
                   showSelectedIcon: false,
                   emptySelectionAllowed: true,
+                  style:
+                      SegmentedButton.styleFrom(minimumSize: const Size(0, 50)),
                   segments: [
                     for (final id in departments)
                       ButtonSegment(
@@ -557,7 +568,7 @@ class _InstallationFormState extends State<InstallationForm> {
                               id == 'security'
                                   ? Icons.shield_outlined
                                   : Icons.cleaning_services_outlined,
-                              size: 17)),
+                              size: 18)),
                   ],
                   selected: {if (field.value != null) field.value!},
                   onSelectionChanged: widget.enabled
@@ -582,23 +593,25 @@ class _InstallationFormState extends State<InstallationForm> {
                     padding: const EdgeInsets.only(top: 6, left: 12),
                     child: Text(field.errorText!,
                         style: const TextStyle(
-                            color: InstallationStyle.danger, fontSize: 12))),
+                            color: InstallationStyle.danger, fontSize: 12.5))),
             ]));
   }
 
+  Widget _addButton(String label, IconData icon, VoidCallback onPressed) =>
+      OutlinedButton.icon(
+          style: OutlinedButton.styleFrom(
+              minimumSize: const Size(double.infinity, 52),
+              foregroundColor: InstallationStyle.primary,
+              side: const BorderSide(color: InstallationStyle.primary)),
+          onPressed: onPressed,
+          icon: Icon(icon, size: 22),
+          label: Text(label));
+
   List<Widget> _agentsStep() => [
-        if (order.agents.isEmpty)
-          _empty(Icons.people_outline, 'Aucun agent pour le moment',
-              'Ajoutez au moins un agent avec son type et son contact.'),
+        if (order.agents.isEmpty) _empty(Icons.groups_outlined, 'Aucun agent'),
         for (var i = 0; i < order.agents.length; i++) _agentCard(i),
         if (widget.enabled)
-          Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: _addAgent,
-                icon: const Icon(Icons.person_add_alt, size: 19),
-                label: const Text('Ajouter un agent'),
-              )),
+          _addButton('Ajouter un agent', Icons.person_add_alt_1, _addAgent),
       ];
 
   void _addAgent() {
@@ -620,37 +633,54 @@ class _InstallationFormState extends State<InstallationForm> {
     return Container(
         key: ValueKey(agent.id),
         margin: const EdgeInsets.only(bottom: 12),
-        padding: const EdgeInsets.fromLTRB(14, 8, 6, 14),
+        padding: const EdgeInsets.fromLTRB(12, 4, 4, 12),
         decoration: BoxDecoration(
             color: InstallationStyle.background,
             borderRadius: BorderRadius.circular(12)),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           Row(children: [
-            Text('Agent ${index + 1}',
-                style: const TextStyle(
-                    fontSize: 13,
+            CircleAvatar(
+                radius: 14,
+                backgroundColor: InstallationStyle.primary,
+                child: Text('${index + 1}',
+                    style: const TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w800,
+                        color: Colors.white))),
+            const SizedBox(width: 8),
+            const Text('Agent',
+                style: TextStyle(
+                    fontSize: 14,
                     fontWeight: FontWeight.w700,
                     color: InstallationStyle.ink)),
             const Spacer(),
             if (widget.enabled)
               IconButton(
                   tooltip: 'Supprimer cet agent',
+                  iconSize: 24,
                   onPressed: () => _removeAgent(index),
                   icon: const Icon(Icons.delete_outline,
-                      size: 20, color: InstallationStyle.muted)),
+                      color: InstallationStyle.danger)),
           ]),
+          const SizedBox(height: 4),
           Padding(
               padding: const EdgeInsets.only(right: 8),
               child: _grid([
-                _text('${prefix}name', 1, 'Nom et prénoms', agent.name,
+                _text('${prefix}name', 1, 'Nom', agent.name,
                     (value) => agent.name = value,
+                    icon: Icons.person_outline,
+                    missing: 'Nom manquant',
                     capitalization: TextCapitalization.words),
-                _text('${prefix}type', 1, 'Type d’agent', agent.type,
+                _text('${prefix}type', 1, 'Type', agent.type,
                     (value) => agent.type = value,
+                    icon: Icons.badge_outlined,
+                    missing: 'Type manquant',
                     capitalization: TextCapitalization.sentences),
-                _text('${prefix}phone', 1, 'Contact', agent.phone,
+                _text('${prefix}phone', 1, 'Téléphone', agent.phone,
                     (value) => agent.phone = value,
+                    icon: Icons.phone_outlined,
+                    missing: 'Téléphone manquant',
                     keyboard: TextInputType.phone,
                     action: TextInputAction.done),
               ], minWidth: 200)),
@@ -672,7 +702,11 @@ class _InstallationFormState extends State<InstallationForm> {
     messenger
       ?..hideCurrentSnackBar()
       ..showSnackBar(SnackBar(
-          content: Text(message),
+          content: Row(children: [
+            const Icon(Icons.delete_outline, color: Colors.white, size: 20),
+            const SizedBox(width: 10),
+            Flexible(child: Text(message)),
+          ]),
           duration: const Duration(seconds: 5),
           action: SnackBarAction(
               label: 'Annuler',
@@ -682,25 +716,15 @@ class _InstallationFormState extends State<InstallationForm> {
   }
 
   List<Widget> _equipmentStep() => [
-        if (widget.catalog.isEmpty)
-          const Padding(
-              padding: EdgeInsets.only(bottom: 12),
-              child: InstallationNotice(
-                  message:
-                      'Catalogue indisponible pour cette prestation. Saisissez une désignation et une quantité.')),
         if (order.equipment.isEmpty)
-          _empty(Icons.inventory_2_outlined, 'Aucun équipement pour le moment',
-              'Ajoutez les articles du catalogue et leurs quantités.'),
+          _empty(Icons.inventory_2_outlined, 'Aucun équipement'),
         for (var i = 0; i < order.equipment.length; i++) _equipmentRow(i),
         if (widget.enabled)
-          Align(
-              alignment: Alignment.centerLeft,
-              child: OutlinedButton.icon(
-                onPressed: () =>
-                    _change(() => order.equipment.add(InstallationEquipment())),
-                icon: const Icon(Icons.add, size: 19),
-                label: const Text('Ajouter un équipement'),
-              )),
+          _addButton(
+              'Ajouter un équipement',
+              Icons.add_box_outlined,
+              () =>
+                  _change(() => order.equipment.add(InstallationEquipment()))),
       ];
 
   TextEditingController _quantity(InstallationEquipment item) =>
@@ -729,27 +753,28 @@ class _InstallationFormState extends State<InstallationForm> {
     final prefix = 'equipment:${item.id}:';
     final free = item.needsCatalogEntry &&
         (_freeEntry.contains(item.id) || item.designation.isNotEmpty);
-    final quantity = _quantity(item);
     final quantityField = TextFormField(
       key: _field('${prefix}quantity', 2, focusable: true).key,
       focusNode: _fields['${prefix}quantity']!.focus,
-      controller: quantity,
+      controller: _quantity(item),
       enabled: widget.enabled,
       keyboardType: TextInputType.number,
       textAlign: TextAlign.center,
+      style: const TextStyle(fontSize: 17, fontWeight: FontWeight.w700),
       inputFormatters: [FilteringTextInputFormatter.digitsOnly],
-      decoration: _decoration('Quantité').copyWith(
+      decoration: InputDecoration(
+          labelText: 'Quantité',
           contentPadding: const EdgeInsets.symmetric(vertical: 15),
           prefixIcon: IconButton(
               tooltip: 'Diminuer la quantité',
               onPressed: widget.enabled ? () => _stepQuantity(item, -1) : null,
-              icon: const Icon(Icons.remove, size: 18)),
+              icon: const Icon(Icons.remove_circle_outline, size: 24)),
           suffixIcon: IconButton(
               tooltip: 'Augmenter la quantité',
               onPressed: widget.enabled ? () => _stepQuantity(item, 1) : null,
-              icon: const Icon(Icons.add, size: 18))),
+              icon: const Icon(Icons.add_circle_outline, size: 24))),
       autovalidateMode: _mode(2),
-      validator: _positive,
+      validator: (value) => _positive(value, 'Quantité manquante'),
       onChanged: (value) =>
           _typed((value) => item.quantity = int.tryParse(value) ?? 0, value),
     );
@@ -770,63 +795,58 @@ class _InstallationFormState extends State<InstallationForm> {
                           children: [
                               Expanded(child: _picker(item, options, prefix)),
                               const SizedBox(width: 12),
-                              SizedBox(width: 168, child: quantityField),
+                              SizedBox(width: 180, child: quantityField),
                             ])
                       : Column(
                           crossAxisAlignment: CrossAxisAlignment.stretch,
                           children: [
                               _picker(item, options, prefix),
                               const SizedBox(height: 12),
-                              SizedBox(width: 168, child: quantityField),
+                              SizedBox(width: 180, child: quantityField),
                             ]))),
           if (widget.enabled)
             IconButton(
                 tooltip: 'Supprimer cet équipement',
+                iconSize: 24,
                 onPressed: () => _removeEquipment(index),
                 icon: const Icon(Icons.delete_outline,
-                    size: 20, color: InstallationStyle.muted)),
+                    color: InstallationStyle.danger)),
         ]),
         if (free) ...[
           const SizedBox(height: 12),
           Padding(
               padding: const EdgeInsets.only(right: 8),
-              child: _text('${prefix}designation', 2, 'Désignation',
+              child: _text('${prefix}designation', 2, 'Nom de l’équipement',
                   item.designation, (value) => item.designation = value,
+                  icon: Icons.edit_outlined,
+                  missing: 'Nom manquant',
                   capitalization: TextCapitalization.sentences,
                   action: TextInputAction.done)),
-          const SizedBox(height: 8),
-          const Padding(
-              padding: EdgeInsets.only(right: 8),
-              child:
-                  Row(crossAxisAlignment: CrossAxisAlignment.start, children: [
-                Icon(Icons.info_outline,
-                    size: 16, color: InstallationStyle.warning),
-                SizedBox(width: 6),
-                Expanded(
-                    child: Text(
-                        'Équipement absent du catalogue : pensez à le créer pour les prochains bons.',
-                        style: TextStyle(
-                            fontSize: 12.5,
-                            height: 1.4,
-                            color: InstallationStyle.warning))),
-              ])),
-          if (widget.enabled && widget.createEquipment != null)
-            Align(
-                alignment: Alignment.centerLeft,
-                child: TextButton.icon(
-                  onPressed: _adding.contains(item.id)
-                      ? null
-                      : () => _createEquipment(item),
-                  icon: _adding.contains(item.id)
-                      ? const SizedBox(
-                          width: 16,
-                          height: 16,
-                          child: CircularProgressIndicator(strokeWidth: 2))
-                      : const Icon(Icons.playlist_add),
-                  label: Text(_adding.contains(item.id)
-                      ? 'Création…'
-                      : 'Créer dans le catalogue'),
-                )),
+          const SizedBox(height: 6),
+          Row(children: [
+            const Icon(Icons.info_outline,
+                size: 18, color: InstallationStyle.warning),
+            const SizedBox(width: 6),
+            const Expanded(
+                child: Text('Hors catalogue',
+                    style: TextStyle(
+                        fontSize: 13,
+                        fontWeight: FontWeight.w600,
+                        color: InstallationStyle.warning))),
+            if (widget.enabled && widget.createEquipment != null)
+              TextButton.icon(
+                onPressed: _adding.contains(item.id)
+                    ? null
+                    : () => _createEquipment(item),
+                icon: _adding.contains(item.id)
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2))
+                    : const Icon(Icons.playlist_add, size: 20),
+                label: const Text('Ajouter au catalogue'),
+              ),
+          ]),
         ],
       ]),
     );
@@ -875,8 +895,7 @@ class _InstallationFormState extends State<InstallationForm> {
   Future<void> _createEquipment(InstallationEquipment item) async {
     final messenger = ScaffoldMessenger.maybeOf(context);
     if (item.designation.trim().isEmpty) {
-      messenger?.showSnackBar(
-          const SnackBar(content: Text('Saisissez d’abord la désignation.')));
+      messenger?.showSnackBar(const SnackBar(content: Text('Nom manquant')));
       return;
     }
     setState(() => _adding.add(item.id));
@@ -890,8 +909,8 @@ class _InstallationFormState extends State<InstallationForm> {
         item.designation = option.label;
       });
       widget.onChanged?.call();
-      messenger?.showSnackBar(
-          SnackBar(content: Text('« ${option.label} » ajouté au catalogue.')));
+      messenger
+          ?.showSnackBar(const SnackBar(content: Text('Ajouté au catalogue')));
     } catch (error) {
       messenger?.showSnackBar(
           SnackBar(content: Text(installationReadableError(error))));
@@ -905,37 +924,41 @@ class _InstallationFormState extends State<InstallationForm> {
           _choice(
               'zone',
               'Zone',
+              Icons.map_outlined,
               widget.zones,
               order.zone?['codeZone'] as String?,
               order.zone?['name'] as String? ?? '',
-              (value) => order.zone = value?.data),
+              (value) => order.zone = value?.data,
+              missing: 'Zone manquante'),
           _choice(
               'supervisor:${order.departmentId}',
-              'Superviseur 1',
+              'Superviseur',
+              Icons.badge_outlined,
               _supervisors,
               order.supervisor?['UID'] as String?,
               installationPersonName(order.supervisor),
-              (value) => order.supervisor = value?.data),
+              (value) => order.supervisor = value?.data,
+              missing: 'Superviseur manquant'),
           _choice(
               'supervisor2:${order.departmentId}',
-              'Superviseur 2 (facultatif)',
+              '2e superviseur',
+              Icons.badge_outlined,
               _supervisors,
               order.supervisor2?['UID'] as String?,
               installationPersonName(order.supervisor2),
-              (value) => order.supervisor2 = value?.data,
-              optional: true),
+              (value) => order.supervisor2 = value?.data),
           TextFormField(
             key: _field('contractDate', 3).key,
             controller: _date,
             readOnly: true,
             enabled: widget.enabled,
-            decoration: _decoration('Date du contrat').copyWith(
-                suffixIcon:
-                    const Icon(Icons.calendar_today_outlined, size: 18)),
+            decoration: const InputDecoration(
+                labelText: 'Date du contrat',
+                prefixIcon: Icon(Icons.event_outlined, size: 22),
+                suffixIcon: Icon(Icons.arrow_drop_down)),
             autovalidateMode: _mode(3),
-            validator: (_) => order.contractDate == null
-                ? 'Renseigner la date du contrat.'
-                : null,
+            validator: (_) =>
+                order.contractDate == null ? 'Date manquante' : null,
             onTap: widget.enabled ? _pickDate : null,
           ),
         ]),
@@ -944,35 +967,45 @@ class _InstallationFormState extends State<InstallationForm> {
           _text(
               'agentCount',
               3,
-              'Effectif prévu',
+              'Nombre d’agents',
               order.agentCount == 0 ? '' : '${order.agentCount}',
               (value) => order.agentCount = int.tryParse(value) ?? 0,
+              icon: Icons.groups_outlined,
               keyboard: TextInputType.number,
-              validator: _positive,
+              validator: (value) => _positive(value, 'Nombre manquant'),
               digits: true),
-          _text('roundCount', 3, 'Rondes prévues', '${order.roundCount}',
+          _text('roundCount', 3, 'Rondes', '${order.roundCount}',
               (value) => order.roundCount = int.tryParse(value) ?? 0,
+              icon: Icons.directions_walk,
               keyboard: TextInputType.number,
-              validator: _positive,
+              validator: (value) => _positive(value, 'Nombre manquant'),
               digits: true,
               action: TextInputAction.done),
-        ], minWidth: 120),
+        ], minWidth: 130),
         const SizedBox(height: 16),
-        const Text('Type de pointage *', style: InstallationStyle.caption),
-        const SizedBox(height: 6),
         SizedBox(
             width: double.infinity,
             child: SegmentedButton<String>(
                 showSelectedIcon: false,
                 emptySelectionAllowed: true,
                 style: SegmentedButton.styleFrom(
-                    textStyle: const TextStyle(fontSize: 13),
-                    padding: const EdgeInsets.symmetric(horizontal: 6)),
+                    minimumSize: const Size(0, 52),
+                    textStyle: const TextStyle(
+                        fontSize: 13.5, fontWeight: FontWeight.w600),
+                    padding: const EdgeInsets.symmetric(horizontal: 4)),
                 segments: const [
-                  ButtonSegment(value: 'jour', label: Text('Jour')),
-                  ButtonSegment(value: 'nuit', label: Text('Nuit')),
                   ButtonSegment(
-                      value: 'jour_nuit', label: Text('Jour et nuit')),
+                      value: 'jour',
+                      label: Text('Jour'),
+                      icon: Icon(Icons.wb_sunny_outlined, size: 18)),
+                  ButtonSegment(
+                      value: 'nuit',
+                      label: Text('Nuit'),
+                      icon: Icon(Icons.nightlight_outlined, size: 18)),
+                  ButtonSegment(
+                      value: 'jour_nuit',
+                      label: Text('Jour et nuit'),
+                      icon: Icon(Icons.brightness_6_outlined, size: 18)),
                 ],
                 selected: {
                   if (['jour', 'nuit', 'jour_nuit']
@@ -986,14 +1019,15 @@ class _InstallationFormState extends State<InstallationForm> {
                       }
                     : null)),
         const SizedBox(height: 18),
-        const Text('Position GPS (facultatif)',
-            style: TextStyle(
-                fontSize: 13,
-                fontWeight: FontWeight.w600,
-                color: InstallationStyle.ink)),
-        const SizedBox(height: 4),
-        const Text('Renseignez les deux coordonnées ou laissez-les vides.',
-            style: InstallationStyle.caption),
+        const Row(children: [
+          Icon(Icons.my_location, size: 20, color: InstallationStyle.muted),
+          SizedBox(width: 8),
+          Text('GPS',
+              style: TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.w600,
+                  color: InstallationStyle.ink)),
+        ]),
         const SizedBox(height: 10),
         _grid([
           _text(
@@ -1006,7 +1040,7 @@ class _InstallationFormState extends State<InstallationForm> {
               keyboard: const TextInputType.numberWithOptions(
                   decimal: true, signed: true),
               validator: (value) => _coordinate(value, 90),
-              required: false),
+              optional: true),
           _text(
               'longitude',
               3,
@@ -1017,7 +1051,7 @@ class _InstallationFormState extends State<InstallationForm> {
               keyboard: const TextInputType.numberWithOptions(
                   decimal: true, signed: true),
               validator: (value) => _coordinate(value, 180),
-              required: false,
+              optional: true,
               action: TextInputAction.done),
         ], minWidth: 120),
       ];
@@ -1028,7 +1062,7 @@ class _InstallationFormState extends State<InstallationForm> {
         context: context,
         helpText: 'Date du contrat',
         cancelText: 'Annuler',
-        confirmText: 'Valider',
+        confirmText: 'OK',
         initialDate: order.contractDate ?? DateTime.now(),
         firstDate: DateTime(2000),
         lastDate: DateTime(2100));
@@ -1039,10 +1073,10 @@ class _InstallationFormState extends State<InstallationForm> {
     }
   }
 
-  static String? _positive(String? value) {
+  static String? _positive(String? value, String missing) {
     final text = (value ?? '').trim();
-    if (text.isEmpty) return 'Champ obligatoire.';
-    return (int.tryParse(text) ?? 0) <= 0 ? 'Saisir un entier positif.' : null;
+    if (text.isEmpty) return missing;
+    return (int.tryParse(text) ?? 0) <= 0 ? 'Nombre invalide' : null;
   }
 
   static String? _coordinate(String? value, double limit) {
@@ -1052,38 +1086,37 @@ class _InstallationFormState extends State<InstallationForm> {
     return coordinate == null ||
             !coordinate.isFinite ||
             coordinate.abs() > limit
-        ? 'Coordonnée invalide.'
+        ? 'Coordonnée invalide'
         : null;
   }
 
-  Widget _empty(IconData icon, String title, String subtitle) => Container(
-      margin: const EdgeInsets.only(bottom: 14),
-      padding: const EdgeInsets.symmetric(vertical: 20, horizontal: 16),
+  Widget _empty(IconData icon, String title) => Container(
+      margin: const EdgeInsets.only(bottom: 12),
+      padding: const EdgeInsets.symmetric(vertical: 18, horizontal: 16),
       decoration: BoxDecoration(
           border: Border.all(color: InstallationStyle.line),
           borderRadius: BorderRadius.circular(12)),
       child: Column(children: [
-        Icon(icon, color: InstallationStyle.primary, size: 28),
-        const SizedBox(height: 10),
+        Icon(icon, color: InstallationStyle.muted, size: 32),
+        const SizedBox(height: 6),
         Text(title,
             textAlign: TextAlign.center,
             style: const TextStyle(
                 fontSize: 15,
                 fontWeight: FontWeight.w600,
-                color: InstallationStyle.ink)),
-        const SizedBox(height: 6),
-        Text(subtitle,
-            textAlign: TextAlign.center, style: InstallationStyle.caption),
+                color: InstallationStyle.muted)),
       ]));
 
   Widget _choice(
       String id,
       String label,
+      IconData icon,
       List<InstallationOption> options,
       String? value,
       String currentLabel,
       ValueChanged<InstallationOption?> changed,
-      {bool optional = false}) {
+      {String? missing}) {
+    final optional = missing == null;
     var choices = options;
     if (value != null && !choices.any((option) => option.id == value)) {
       choices = [...options, InstallationOption(value, currentLabel)];
@@ -1092,11 +1125,14 @@ class _InstallationFormState extends State<InstallationForm> {
       key: _field(id, 3).key,
       initialValue: value,
       isExpanded: true,
-      decoration: _decoration(label),
+      itemHeight: 52,
+      decoration: InputDecoration(
+          labelText: label,
+          helperText: optional ? 'Facultatif' : null,
+          prefixIcon: Icon(icon, size: 22)),
       autovalidateMode: _mode(3),
-      validator: (value) => !optional && (value == null || value.isEmpty)
-          ? 'Choisir une valeur.'
-          : null,
+      validator: (value) =>
+          !optional && (value == null || value.isEmpty) ? missing : null,
       items: [
         if (optional) const DropdownMenuItem(value: '', child: Text('Aucun')),
         ...choices.map((option) => DropdownMenuItem(
@@ -1111,13 +1147,16 @@ class _InstallationFormState extends State<InstallationForm> {
     );
   }
 
+  /// Required when [missing] or [validator] is given; otherwise optional.
   Widget _text(String id, int step, String label, String value,
       ValueChanged<String> changed,
-      {TextInputType? keyboard,
+      {IconData? icon,
+      String? missing,
+      TextInputType? keyboard,
       TextInputAction action = TextInputAction.next,
       TextCapitalization capitalization = TextCapitalization.none,
       FormFieldValidator<String>? validator,
-      bool required = true,
+      bool optional = false,
       bool digits = false}) {
     final field = _field(id, step, focusable: true);
     return TextFormField(
@@ -1128,11 +1167,16 @@ class _InstallationFormState extends State<InstallationForm> {
       keyboardType: keyboard,
       textInputAction: action,
       textCapitalization: capitalization,
+      scrollPadding: const EdgeInsets.fromLTRB(20, 20, 20, 96),
       inputFormatters: digits ? [FilteringTextInputFormatter.digitsOnly] : null,
-      decoration: _decoration(label, required: required),
+      decoration: InputDecoration(
+          labelText: label,
+          helperText: optional ? 'Facultatif' : null,
+          prefixIcon: icon == null ? null : Icon(icon, size: 22)),
       autovalidateMode: _mode(step),
       validator: validator ??
-          (value) => (value ?? '').trim().isEmpty ? 'Champ obligatoire.' : null,
+          (value) =>
+              missing != null && (value ?? '').trim().isEmpty ? missing : null,
       onChanged: (value) => _typed(changed, value),
     );
   }
@@ -1149,13 +1193,6 @@ class _InstallationFormState extends State<InstallationForm> {
                 .map((child) => SizedBox(width: width, child: child))
                 .toList());
       });
-
-  InputDecoration _decoration(String label, {bool required = true}) =>
-      InputDecoration(
-          labelText:
-              required && !label.contains('facultatif') ? '$label *' : label,
-          helperText:
-              required || label.contains('facultatif') ? null : 'Facultatif');
 
   static String _formatDate(DateTime? value) => value == null
       ? ''

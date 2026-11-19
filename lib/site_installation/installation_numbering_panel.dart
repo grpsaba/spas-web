@@ -24,31 +24,26 @@ class InstallationNumberingPanel extends StatelessWidget {
           return InstallationNotice(
               tone: InstallationTone.error,
               message:
-                  'Impossible de lire le compteur des bons. ${installationErrorMessage(snapshot.error!)}');
+                  'Compteur illisible : ${installationErrorMessage(snapshot.error!)}');
         }
         if (snapshot.connectionState == ConnectionState.waiting) {
-          return const _Bar(
-              icon: Icons.numbers,
-              text: 'Chargement de la numérotation…',
-              loading: true);
+          return const _Bar(text: 'Compteur…', loading: true);
         }
         final numbering = snapshot.data;
         if (numbering != null) {
-          return _Bar(
-              icon: Icons.numbers,
-              text:
-                  'Numérotation commune · Dernier numéro utilisé : ${numbering.lastNumber}');
+          return _Bar(text: 'Dernier numéro utilisé : ${numbering.lastNumber}');
         }
         return InstallationNotice(
             tone: InstallationTone.warning,
-            title: 'Numérotation à initialiser',
-            message: canInitialize
-                ? 'Renseignez le dernier numéro de bon déjà utilisé avant la première validation.'
-                : 'Un administrateur doit renseigner le dernier numéro utilisé avant la première validation.',
+            icon: Icons.numbers,
+            message: 'Compteur non initialisé',
+            lines: canInitialize
+                ? const []
+                : const ['Un administrateur doit l’initialiser'],
             action: canInitialize
-                ? OutlinedButton.icon(
+                ? FilledButton.icon(
                     onPressed: () => _initialize(context),
-                    icon: const Icon(Icons.numbers, size: 18),
+                    icon: const Icon(Icons.numbers, size: 20),
                     label: const Text('Initialiser le compteur'))
                 : null);
       });
@@ -62,24 +57,23 @@ class InstallationNumberingPanel extends StatelessWidget {
 }
 
 class _Bar extends StatelessWidget {
-  const _Bar({required this.icon, required this.text, this.loading = false});
-  final IconData icon;
+  const _Bar({required this.text, this.loading = false});
   final String text;
   final bool loading;
   @override
   Widget build(BuildContext context) => Row(children: [
         if (loading)
           const SizedBox(
-              width: 14,
-              height: 14,
+              width: 16,
+              height: 16,
               child: CircularProgressIndicator(strokeWidth: 2))
         else
-          Icon(icon, size: 16, color: InstallationStyle.muted),
+          const Icon(Icons.numbers, size: 20, color: InstallationStyle.muted),
         const SizedBox(width: 8),
         Flexible(
             child: Text(text,
                 style: const TextStyle(
-                    fontSize: 13, color: InstallationStyle.muted))),
+                    fontSize: 14, color: InstallationStyle.muted))),
       ]);
 }
 
@@ -130,16 +124,16 @@ class _NumberingInitializationDialogState
       canPop: !_busy,
       child: AlertDialog(
           scrollable: true,
-          title: const Text('Initialiser la numérotation'),
+          title: const Text('Initialiser le compteur'),
           content: SizedBox(
               width: 420,
               child: Column(
                   mainAxisSize: MainAxisSize.min,
                   crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    const Text(
-                        'Renseignez le dernier numéro réellement utilisé, toutes sociétés et prestations confondues. Cette initialisation est unique.'),
-                    const SizedBox(height: 20),
+                    const Text('Une seule fois.',
+                        style: InstallationStyle.caption),
+                    const SizedBox(height: 14),
                     TextField(
                         controller: _controller,
                         enabled: !_busy,
@@ -147,7 +141,7 @@ class _NumberingInitializationDialogState
                         keyboardType: TextInputType.number,
                         onSubmitted: (_) => _busy ? null : _save(),
                         decoration: InputDecoration(
-                            labelText: 'Dernier numéro déjà utilisé',
+                            labelText: 'Dernier numéro utilisé',
                             errorText: _error),
                         onChanged: (_) => setState(() => _error = null)),
                     const SizedBox(height: 12),
@@ -163,8 +157,8 @@ class _NumberingInitializationDialogState
                           }
                           return Text(
                               last == null
-                                  ? 'Le prochain numéro sera attribué à la validation d’un bon.'
-                                  : 'Le prochain bon validé recevra le numéro ${last + 1}.',
+                                  ? ''
+                                  : 'Prochain numéro : ${last + 1}',
                               style: InstallationStyle.caption);
                         }),
                   ])),

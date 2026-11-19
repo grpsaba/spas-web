@@ -60,8 +60,7 @@ void main() {
     expect(find.textContaining('numéro entier positif valide'), findsOneWidget);
     await tester.enterText(find.byType(TextField), '31502');
     await tester.pump();
-    expect(find.text('Le prochain bon validé recevra le numéro 31503.'),
-        findsOneWidget);
+    expect(find.text('Prochain numéro : 31503'), findsOneWidget);
     await tester.tap(find.text('Initialiser'));
     await tester.pumpAndSettle();
     expect(saved, '31502');

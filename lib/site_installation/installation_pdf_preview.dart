@@ -89,8 +89,7 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
       }
     } catch (error) {
       if (mounted) {
-        setState(() => _error =
-            'Impossible de préparer le document : ${installationReadableError(error)}');
+        setState(() => _error = 'Échec : ${installationReadableError(error)}');
       }
     } finally {
       if (mounted) setState(() => _exporting = false);
@@ -119,57 +118,64 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                         onPressed: exportable
                             ? () => _export(state.data!, print: true)
                             : null,
-                        icon: const Icon(Icons.print_outlined, size: 18),
+                        style: FilledButton.styleFrom(
+                            minimumSize: const Size(0, 52)),
+                        icon: const Icon(Icons.print_outlined, size: 20),
                         label: const Text('Imprimer')),
                     OutlinedButton.icon(
                         onPressed: exportable
                             ? () => _export(state.data!, print: false)
                             : null,
-                        icon: const Icon(Icons.download_outlined, size: 18),
-                        label: const Text('Télécharger le PDF')),
+                        style: OutlinedButton.styleFrom(
+                            minimumSize: const Size(0, 52)),
+                        icon: const Icon(Icons.download_outlined, size: 20),
+                        label: const Text('Télécharger')),
                   ]
                 : const <Widget>[];
             return Column(
                 crossAxisAlignment: CrossAxisAlignment.stretch,
                 children: [
                   Row(children: [
+                    const Icon(Icons.picture_as_pdf_outlined,
+                        size: 24, color: InstallationStyle.primary),
+                    const SizedBox(width: 8),
                     const Expanded(
-                        child: Text('Aperçu du bon',
+                        child: Text('Aperçu',
                             style: InstallationStyle.sectionTitle)),
                     if (official)
-                      Text('Bon n° ${_snapshot.bonNumber}',
+                      Text('N° ${_snapshot.bonNumber}',
                           style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w600,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w700,
                               color: InstallationStyle.ink))
                     else
                       Container(
                           padding: const EdgeInsets.symmetric(
-                              horizontal: 9, vertical: 4),
+                              horizontal: 10, vertical: 5),
                           decoration: BoxDecoration(
-                              color: InstallationStyle.warningSoft,
+                              color: installationStatusColor(
+                                  InstallationStatus.draft),
                               borderRadius: BorderRadius.circular(20)),
-                          child: const Text('Brouillon',
-                              style: TextStyle(
-                                  fontSize: 12,
-                                  fontWeight: FontWeight.w600,
-                                  color: InstallationStyle.warning))),
+                          child: const Row(
+                              mainAxisSize: MainAxisSize.min,
+                              children: [
+                                Icon(Icons.edit_note,
+                                    size: 15, color: Colors.white),
+                                SizedBox(width: 4),
+                                Text('Brouillon',
+                                    style: TextStyle(
+                                        fontSize: 12.5,
+                                        fontWeight: FontWeight.w700,
+                                        color: Colors.white)),
+                              ])),
                   ]),
-                  const SizedBox(height: 6),
-                  Text(
-                      !official
-                          ? 'Aperçu du brouillon. Le document définitif sera disponible après validation du bon.'
-                          : widget.hasUnsavedChanges
-                              ? 'Enregistrez les modifications avant de télécharger le document.'
-                              : widget.canPrint
-                                  ? 'Format A4 · Le téléchargement et l’impression utilisent le document affiché.'
-                                  : 'Format A4 · Bon n° ${_snapshot.bonNumber}',
-                      style: TextStyle(
-                          fontSize: 12.5,
-                          height: 1.5,
-                          color: official && widget.hasUnsavedChanges
-                              ? InstallationStyle.warning
-                              : InstallationStyle.muted)),
+                  if (official && widget.hasUnsavedChanges) ...[
+                    const SizedBox(height: 10),
+                    const InstallationNotice(
+                        tone: InstallationTone.warning,
+                        icon: Icons.save_outlined,
+                        message: 'Enregistrez d’abord'),
+                  ],
                   if (actions.isNotEmpty) ...[
                     const SizedBox(height: 12),
                     if (compact)
@@ -195,18 +201,16 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                     InstallationNotice(
                         tone: InstallationTone.error,
                         message:
-                            'Impossible de générer l’aperçu : ${installationReadableError(state.error!)}',
-                        action: TextButton(
+                            'Aperçu impossible : ${installationReadableError(state.error!)}',
+                        action: TextButton.icon(
                             onPressed: () => setState(_buildPdf),
-                            child: const Text('Réessayer')))
+                            icon: const Icon(Icons.refresh, size: 18),
+                            label: const Text('Réessayer')))
                   else if (!ready)
                     const SizedBox(
-                        height: 320,
+                        height: 280,
                         child: InstallationStateMessage(
-                            loading: true,
-                            title: 'Préparation de l’aperçu…',
-                            message:
-                                'Le document A4 est généré sur cet appareil.'))
+                            loading: true, title: 'Préparation…'))
                   else
                     SizedBox(
                         height: MediaQuery.sizeOf(context)
@@ -233,7 +237,7 @@ class _InstallationPdfPreviewState extends State<InstallationPdfPreview> {
                                   onError: (_, error) => InstallationNotice(
                                       tone: InstallationTone.error,
                                       message:
-                                          'Le lecteur PDF n’a pas pu afficher le document. ${installationReadableError(error)}'),
+                                          'Affichage impossible : ${installationReadableError(error)}'),
                                 )))),
                 ]);
           }));
