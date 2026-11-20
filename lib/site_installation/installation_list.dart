@@ -171,6 +171,7 @@ class InstallationWorkspace extends StatefulWidget {
       this.syncLabels = const {},
       this.attentionIds = const {},
       this.headerExtra,
+      this.ownOnly = false,
       this.notices = const []});
   final List<InstallationOrder> orders;
   final String ownerUid;
@@ -183,6 +184,9 @@ class InstallationWorkspace extends StatefulWidget {
 
   /// Displayed under the page title (e.g. the numbering panel on the web).
   final Widget? headerExtra;
+
+  /// The list already contains only the user's requests (no « Mes demandes »).
+  final bool ownOnly;
 
   /// Short banners displayed above the filters (offline, synchronisation…).
   final List<Widget> notices;
@@ -231,7 +235,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
         if (widget.reviewer && !widget.mobile)
           const _View(
               'action', 'À traiter', Icons.notifications_active, _actionable),
-        if (!widget.mobile)
+        if (!widget.mobile && !widget.ownOnly)
           _View('mine', 'Mes demandes', Icons.person,
               (o) => o.authorUid == widget.ownerUid),
       ];

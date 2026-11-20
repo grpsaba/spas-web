@@ -32,6 +32,10 @@ class InstallationService {
   bool get canPrint => AccessControl.canPrint(ModuleName.BON_MISE_EN_PLACE);
   bool get canConfigureNumbering => AccessControl.isAdministrator;
 
+  /// Bon managers (validation) and printers see every request in their
+  /// scope; other managers only see the requests they created.
+  bool get canSeeAll => canReview || canPrint;
+
   DocumentReference<Map<String, dynamic>> get _counter => _db
       .collection(InstallationNumbering.collection)
       .doc(InstallationNumbering.document);
@@ -139,8 +143,11 @@ class InstallationService {
 
   Stream<List<InstallationOrder>> watchAll() {
     _require(canView);
-    final query = DepartmentScope.applyToDepartmentQuery(
+    var query = DepartmentScope.applyToDepartmentQuery(
         TenantScope.applyToQuery(_orders));
+    if (!canSeeAll) {
+      query = query.where('createdBy.uid', isEqualTo: actor['uid']);
+    }
     return query.snapshots().map((snapshot) {
       final result = snapshot.docs
           .map((doc) => InstallationOrder.fromJson(doc.id, doc.data()))
@@ -157,6 +164,7 @@ class InstallationService {
     if (!snapshot.exists) throw StateError('Fiche introuvable.');
     final order = InstallationOrder.fromJson(id, snapshot.data()!);
     _scope(order);
+    _require(canSeeAll || order.authorUid == actor['uid']);
     return order;
   }
 

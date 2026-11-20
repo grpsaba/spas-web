@@ -66,6 +66,7 @@ class _InstallationListPageState extends State<InstallationListPage> {
                           orders: snapshot.data!,
                           ownerUid: _service.actor['uid'] as String,
                           reviewer: _service.canReview,
+                          ownOnly: !_service.canSeeAll,
                           headerExtra: _numbering == null
                               ? null
                               : InstallationNumberingPanel(
