@@ -6,6 +6,8 @@ import 'package:spas_web/services/access_control.dart';
 import 'package:spas_web/services/mobile_config.dart';
 import 'package:spas_web/services/tenant.dart';
 import 'package:spas_web/mobile_config/background_tracking_control.dart';
+import 'package:spas_web/mobile_config/geo_pointing_settings_panel.dart';
+import 'package:spas_web/widgets/pointage_mode_override_field.dart';
 
 class MobileConfigPage extends StatefulWidget {
   const MobileConfigPage({super.key});
@@ -30,6 +32,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
   bool _backgroundTrackingEnabled =
       MobileConfig.defaultBackgroundTrackingEnabled;
   double _photoQuality = MobileConfig.defaultPointingPhotoQuality.toDouble();
+  GeoPointingConfig _geoPointing = const GeoPointingConfig.recommended();
   bool _isSaving = false;
   bool _isSavingTracking = false;
   final Set<String> _savingPointageTenantIds = <String>{};
@@ -89,6 +92,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
 
   void _applyConfig(MobileConfig config) {
     _backgroundTrackingEnabled = config.backgroundTrackingEnabled;
+    _geoPointing = config.geoPointing;
     _photoQuality = config.pointingPhotoQuality.toDouble();
     _maxWidthController.text = _formatOptionalDouble(
       config.pointingPhotoMaxWidth,
@@ -123,6 +127,8 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
                   const SizedBox(height: 16),
                 ],
                 _buildPointageModesPanel(canEditPointageModes),
+                const SizedBox(height: 16),
+                _buildGeoPointingPanel(canEdit),
                 const SizedBox(height: 16),
                 _buildTrackingPanel(
                     canEdit && AccessControl.canBypassTenantFilter),
@@ -285,6 +291,8 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          const PointageModeOverrideHint(),
           const SizedBox(height: 16),
           StreamBuilder<List<Tenant>>(
             stream: _tenantService.watchPointageModeTenants(
@@ -512,6 +520,48 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
         ],
       ),
     );
+  }
+
+  /// Settings shared by every country: same gate as the global tracking.
+  Widget _buildGeoPointingPanel(bool canEdit) {
+    final canEditGeo = canEdit && AccessControl.canBypassTenantFilter;
+    return GeoPointingSettingsPanel(
+      initial: _geoPointing,
+      canEdit: canEditGeo,
+      readOnlyReason: canEditGeo
+          ? null
+          : 'Réglage commun à tous les pays : seuls les administrateurs et la '
+              'direction générale peuvent le modifier.',
+      onSave: _saveGeoPointing,
+    );
+  }
+
+  Future<void> _saveGeoPointing(GeoPointingConfig config) async {
+    if (!AccessControl.canBypassTenantFilter ||
+        !AccessControl.canAdd(ModuleName.MOBILE_CONFIG)) {
+      return;
+    }
+    final manager = AccessControl.currentManager;
+    final name = manager == null
+        ? ''
+        : '${manager.firstName} ${manager.lastName}'.trim();
+    try {
+      await _service.saveGeoPointing(
+        config,
+        author: GeoConfigAuthor(
+          uid: manager?.UID,
+          name: name.isEmpty ? null : name,
+          email: manager?.email,
+        ),
+      );
+      final saved = await _service.getConfig();
+      if (!mounted) return;
+      setState(() => _geoPointing = saved.geoPointing);
+      _showSnackBar('Réglage du pointage par géolocalisation enregistré.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnackBar('Erreur pendant l enregistrement: $error', isError: true);
+    }
   }
 
   Widget _buildTrackingPanel(bool canEdit) {
@@ -904,7 +954,9 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
 
     try {
       await _service.resetToDefaults();
-      const config = MobileConfig.defaults();
+      // The photo reset does not touch the geolocation settings.
+      final config =
+          const MobileConfig.defaults().copyWith(geoPointing: _geoPointing);
       if (!mounted) return;
       _applyConfig(config);
       setState(() {
