@@ -56,36 +56,68 @@ class InstallationOrderTile extends StatelessWidget {
     if (desktop) {
       return InkWell(
           onTap: onTap,
-          child: ConstrainedBox(
-              constraints: const BoxConstraints(minHeight: 64),
-              child: Padding(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
-                  child: Row(children: [
-                    Expanded(flex: 4, child: identity),
-                    const SizedBox(width: 16),
-                    Expanded(
-                        flex: 2,
-                        child: Text(order.authorName,
-                            maxLines: 2,
-                            overflow: TextOverflow.ellipsis,
-                            style: const TextStyle(
-                                color: InstallationStyle.ink, fontSize: 13))),
-                    Expanded(
-                        flex: 2,
-                        child: Align(
-                            alignment: Alignment.centerLeft,
-                            child: InstallationStatusBadge(order.status))),
-                    Expanded(
-                        flex: 2,
-                        child: Text(
-                            order.bonNumber.isEmpty
-                                ? installationDateLabel(order.updatedAt)
-                                : 'N° ${installationBonLabel(order.bonNumber)}',
-                            style: InstallationStyle.caption)),
-                    const Icon(Icons.chevron_right,
-                        size: 22, color: InstallationStyle.muted),
-                  ]))));
+          child: Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 7),
+              child: Row(children: [
+                Expanded(
+                    flex: 5,
+                    child: Row(children: [
+                      Icon(installationStatusIcon(order.status),
+                          size: 20, color: color),
+                      const SizedBox(width: 10),
+                      Expanded(
+                          child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                            Text(_title,
+                                maxLines: 1,
+                                overflow: TextOverflow.ellipsis,
+                                style: TextStyle(
+                                    fontWeight: FontWeight.w700,
+                                    fontSize: 14,
+                                    color: order.siteName.isEmpty
+                                        ? InstallationStyle.muted
+                                        : InstallationStyle.ink)),
+                            if (order.clientName.isNotEmpty)
+                              Text(order.clientName,
+                                  maxLines: 1,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: InstallationStyle.caption),
+                          ])),
+                    ])),
+                const SizedBox(width: 12),
+                Expanded(
+                    flex: 3,
+                    child: Text(order.authorName,
+                        maxLines: 1,
+                        overflow: TextOverflow.ellipsis,
+                        style: const TextStyle(
+                            color: InstallationStyle.ink, fontSize: 13))),
+                Expanded(
+                    flex: 3,
+                    child: Align(
+                        alignment: Alignment.centerLeft,
+                        child: InstallationStatusBadge(order.status))),
+                Expanded(
+                    flex: 2,
+                    child: Text(
+                        order.bonNumber.isEmpty
+                            ? '—'
+                            : installationBonLabel(order.bonNumber),
+                        style: TextStyle(
+                            fontSize: 13,
+                            fontWeight: FontWeight.w600,
+                            color: order.bonNumber.isEmpty
+                                ? InstallationStyle.muted
+                                : InstallationStyle.ink))),
+                Expanded(
+                    flex: 2,
+                    child: Text(installationDateLabel(order.updatedAt),
+                        style:
+                            InstallationStyle.caption.copyWith(fontSize: 13))),
+                const Icon(Icons.chevron_right,
+                    size: 20, color: InstallationStyle.muted),
+              ])));
     }
     return Material(
         color: Colors.white,
@@ -333,7 +365,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
     ];
     return LayoutBuilder(builder: (context, constraints) {
       final narrow = constraints.maxWidth < 680;
-      final desktop = constraints.maxWidth >= 1050 && !widget.mobile;
+      final desktop = constraints.maxWidth >= 760 && !widget.mobile;
       final horizontal = narrow ? 16.0 : 32.0;
       final contentWidth =
           (constraints.maxWidth - 2 * horizontal).clamp(0.0, 1280.0);
@@ -345,7 +377,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
           physics: const AlwaysScrollableScrollPhysics(),
           keyboardDismissBehavior: ScrollViewKeyboardDismissBehavior.onDrag,
           slivers: [
-            SliverToBoxAdapter(child: SizedBox(height: narrow ? 14 : 28)),
+            SliverToBoxAdapter(child: SizedBox(height: narrow ? 10 : 14)),
             box(_header(narrow)),
             if (!widget.mobile) box(_counters(contentWidth)),
             for (final notice in widget.notices)
@@ -361,7 +393,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                         icon:
                             const Icon(Icons.filter_alt_off_outlined, size: 18),
                         label: const Text('Effacer')))
-                : const SizedBox(height: 12)),
+                : const SizedBox(height: 8)),
             if (orders.isEmpty)
               box(InstallationPanel(child: _empty()))
             else if (desktop)
@@ -411,7 +443,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
     if (widget.mobile) return const SizedBox.shrink();
     final title = Text('Bons de mise en place',
         style:
-            InstallationStyle.pageTitle.copyWith(fontSize: narrow ? 22 : 26));
+            InstallationStyle.pageTitle.copyWith(fontSize: narrow ? 20 : 22));
     final create = widget.onCreate == null
         ? null
         : FilledButton.icon(
@@ -419,7 +451,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
             icon: const Icon(Icons.add, size: 22),
             label: const Text('Nouvelle demande'));
     return Padding(
-        padding: const EdgeInsets.only(bottom: 16),
+        padding: const EdgeInsets.only(bottom: 10),
         child:
             Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
           if (narrow) ...[
@@ -431,7 +463,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
               if (create != null) ...[const SizedBox(width: 24), create],
             ]),
           if (widget.headerExtra != null) ...[
-            const SizedBox(height: 12),
+            const SizedBox(height: 4),
             widget.headerExtra!,
           ],
         ]));
@@ -450,7 +482,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
         _counter(entry.key, entry.value, compact: compact),
     ];
     return Padding(
-        padding: const EdgeInsets.only(bottom: 14),
+        padding: const EdgeInsets.only(bottom: 10),
         child: compact
             ? SingleChildScrollView(
                 scrollDirection: Axis.horizontal,
@@ -461,7 +493,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                 ]))
             : Row(children: [
                 for (var i = 0; i < tiles.length; i++) ...[
-                  if (i > 0) const SizedBox(width: 12),
+                  if (i > 0) const SizedBox(width: 8),
                   Expanded(child: tiles[i]),
                 ]
               ]));
@@ -488,7 +520,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                 onTap: () => setState(() => _status = selected ? null : status),
                 child: Padding(
                     padding: EdgeInsets.symmetric(
-                        horizontal: 14, vertical: compact ? 10 : 14),
+                        horizontal: 12, vertical: compact ? 10 : 8),
                     child: ExcludeSemantics(
                         child: Row(
                             mainAxisSize:
@@ -499,7 +531,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                           const SizedBox(width: 10),
                           Text('$count',
                               style: TextStyle(
-                                  fontSize: compact ? 16 : 22,
+                                  fontSize: compact ? 16 : 18,
                                   fontWeight: FontWeight.w700,
                                   color: InstallationStyle.ink)),
                           const SizedBox(width: 8),
@@ -525,6 +557,10 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
         textInputAction: TextInputAction.search,
         decoration: InputDecoration(
             hintText: 'Rechercher',
+            isDense: !narrow,
+            contentPadding: narrow
+                ? null
+                : const EdgeInsets.symmetric(horizontal: 12, vertical: 13),
             prefixIcon: const Icon(Icons.search, size: 22),
             suffixIcon: _query.isEmpty
                 ? null
@@ -537,9 +573,10 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                         }))),
         onChanged: (v) => setState(() => _query = v.trim()));
     final status = _status;
+    final control = narrow ? 56.0 : 48.0;
     final statusButton = SizedBox(
-        width: 56,
-        height: 56,
+        width: control,
+        height: control,
         child: status == null
             ? IconButton.outlined(
                 tooltip: 'Statut',
@@ -566,7 +603,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
     final segments = Row(children: [
       for (var i = 0; i < shortcuts.length; i++) ...[
         if (i > 0) const SizedBox(width: 6),
-        Expanded(child: _viewSegment(shortcuts[i])),
+        Expanded(child: _viewSegment(shortcuts[i], height: control)),
       ]
     ]);
     return Column(crossAxisAlignment: CrossAxisAlignment.stretch, children: [
@@ -578,26 +615,21 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
           const SizedBox(width: 8),
           statusButton,
         ]),
-      ] else ...[
+      ] else
+        // One row on large screens: search, shortcuts and status filter.
         Row(children: [
-          Expanded(child: search),
-          const SizedBox(width: 12),
+          Expanded(child: SizedBox(height: control, child: search)),
+          if (shortcuts.isNotEmpty) ...[
+            const SizedBox(width: 8),
+            SizedBox(width: 150.0 * shortcuts.length, child: segments),
+          ],
+          const SizedBox(width: 8),
           statusButton,
         ]),
-        if (shortcuts.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Align(
-              alignment: Alignment.centerLeft,
-              child: ConstrainedBox(
-                  constraints:
-                      BoxConstraints(maxWidth: 180.0 * shortcuts.length),
-                  child: segments)),
-        ],
-      ],
     ]);
   }
 
-  Widget _viewSegment(_View view) {
+  Widget _viewSegment(_View view, {double height = 56}) {
     final selected = _view == view.id;
     final color =
         selected ? InstallationStyle.primary : InstallationStyle.muted;
@@ -620,7 +652,7 @@ class _InstallationWorkspaceState extends State<InstallationWorkspace> {
                 onTap: () => setState(() => _view = selected ? 'all' : view.id),
                 child: ExcludeSemantics(
                     child: SizedBox(
-                        height: 56,
+                        height: height,
                         child: Padding(
                             padding: const EdgeInsets.symmetric(horizontal: 4),
                             child: Column(
@@ -682,13 +714,14 @@ class _TableHeader extends StatelessWidget {
           color: Color(0xFFF9FAFC),
           borderRadius: BorderRadius.vertical(top: Radius.circular(14)),
           border: Border(bottom: BorderSide(color: InstallationStyle.line))),
-      padding: const EdgeInsets.symmetric(horizontal: 20, vertical: 12),
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: const Row(children: [
-        Expanded(flex: 4, child: Text('SITE', style: _style)),
-        SizedBox(width: 16),
-        Expanded(flex: 2, child: Text('INITIATEUR', style: _style)),
-        Expanded(flex: 2, child: Text('STATUT', style: _style)),
-        Expanded(flex: 2, child: Text('DATE', style: _style)),
-        SizedBox(width: 22),
+        Expanded(flex: 5, child: Text('SITE', style: _style)),
+        SizedBox(width: 12),
+        Expanded(flex: 3, child: Text('INITIATEUR', style: _style)),
+        Expanded(flex: 3, child: Text('STATUT', style: _style)),
+        Expanded(flex: 2, child: Text('N° BON', style: _style)),
+        Expanded(flex: 2, child: Text('MISE À JOUR', style: _style)),
+        SizedBox(width: 20),
       ]));
 }
