@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../model.dart';
+import '../models/pointage_mode_override.dart';
 import 'authentication.dart';
 import 'department_scope.dart';
 import 'tenant_scope.dart';
@@ -22,7 +23,10 @@ class ZoneMemberService {
         await AuthService().createUserWithEmail(zoneMember.email, password);
     if (user != null) {
       zoneMember.UID = user.uid;
-      await _collectionReference.doc(user.uid).set(zoneMember.toJson());
+      await _collectionReference.doc(user.uid).set({
+        ...zoneMember.toJson(),
+        ...PointageModeOverride.createFields(zoneMember.pointageModeOverride),
+      });
     }
     if (user == null) {
       throw StateError('Impossible de créer le compte du chef de zone');
@@ -48,6 +52,7 @@ class ZoneMemberService {
 
     return collection;
   }
+
   Future<List<ZoneMember>> allActifAsModel() async {
     var snapshot = await TenantScope.getQuery(
       'ZoneMemberService.allActifAsModel',
@@ -75,9 +80,17 @@ class ZoneMemberService {
     return ZoneMember.fromJson(json);
   }
 
-  Future<void> update(ZoneMember zoneMember) {
+  /// See [SupervisorService.update] for [writePointageModeOverride].
+  Future<void> update(
+    ZoneMember zoneMember, {
+    bool writePointageModeOverride = false,
+  }) {
     _prepareForWrite(zoneMember);
-    return _collectionReference.doc(zoneMember.UID).update(zoneMember.toJson());
+    return _collectionReference.doc(zoneMember.UID).update({
+      ...zoneMember.toJson(),
+      if (writePointageModeOverride)
+        ...PointageModeOverride.updateFields(zoneMember.pointageModeOverride),
+    });
   }
 
   void _prepareForWrite(ZoneMember member) {

@@ -3,6 +3,9 @@ import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:equatable/equatable.dart';
 
+import 'models/pointage_mode_override.dart';
+import 'models/pointing_method.dart';
+
 class TenantDefaults {
   static const String maliTenantId = 'ml';
   static const String defaultTenantId = maliTenantId;
@@ -336,6 +339,11 @@ class Supervisor {
   final bool isSpecial;
   Department? department;
   Zone? zone;
+
+  /// "photo" / "geo" forces the mode; null follows the country. Not part of
+  /// [toJson] (embedded copies in pointings must not carry it): written only
+  /// through [SupervisorService] with [PointageModeOverride] helpers.
+  String? pointageModeOverride;
   Supervisor(
       {required this.UID,
       required this.code,
@@ -352,6 +360,7 @@ class Supervisor {
       this.hasTenantId = false,
       this.isSpecial = false,
       this.zone,
+      this.pointageModeOverride,
       required this.department});
 
   factory Supervisor.fromJson(Map<String, dynamic> json) {
@@ -385,6 +394,7 @@ class Supervisor {
           : Department.fromJson(json['department']),
       latlng:
           json["latlng"] != null ? LatLngModel.fromJson(json["latlng"]) : null,
+      pointageModeOverride: PointageModeOverride.fromJson(json),
     );
   }
 
@@ -765,6 +775,9 @@ class ZoneMember extends Equatable {
   bool hasTenantId;
   String? departmentId;
   String zoneScope;
+
+  /// See [Supervisor.pointageModeOverride]; not part of [toJson].
+  String? pointageModeOverride;
   ZoneMember(
       {required this.UID,
       required this.code,
@@ -779,6 +792,7 @@ class ZoneMember extends Equatable {
       this.hasTenantId = false,
       this.departmentId,
       this.zoneScope = ZoneMemberScope.assigned,
+      this.pointageModeOverride,
       this.token = ""});
 
   factory ZoneMember.fromJson(Map<String, dynamic> json) {
@@ -797,6 +811,7 @@ class ZoneMember extends Equatable {
       hasTenantId: hasTenantIdInJson(json),
       departmentId: departmentIdFromJson(json),
       zoneScope: ZoneMemberScope.normalize(json['zoneScope']),
+      pointageModeOverride: PointageModeOverride.fromJson(json),
     );
   }
 
@@ -848,6 +863,14 @@ class PointingZone {
   double distance;
   String tenantId;
   String? departmentId;
+  String? agentPhotoUrl;
+
+  /// Raw `pointingMethod` / `geoAttempts` of the visit (mobile >= geo fallback)
+  /// and presence of the old `geoMetadata`, used by [methodInfo].
+  String? pointingMethod;
+  Map<String, dynamic>? geoAttempts;
+  bool hasGeoMetadata;
+  String? visitId;
   PointingZone(
       {required this.site,
       required this.latlng,
@@ -855,7 +878,19 @@ class PointingZone {
       required this.distance,
       required this.zoneMember,
       this.tenantId = TenantDefaults.defaultTenantId,
-      this.departmentId});
+      this.departmentId,
+      this.agentPhotoUrl,
+      this.pointingMethod,
+      this.geoAttempts,
+      this.hasGeoMetadata = false,
+      this.visitId});
+
+  PointingMethodInfo? get methodInfo => PointingMethodInfo.resolve(
+        pointingMethod: pointingMethod,
+        geoAttempts: geoAttempts,
+        hasGeoMetadata: hasGeoMetadata,
+        photoUrl: agentPhotoUrl,
+      );
 
   factory PointingZone.fromJson(Map<String, dynamic> json) {
     DateTime? parsedDate;
@@ -874,7 +909,13 @@ class PointingZone {
         zoneMember: ZoneMember.fromJson(json["zoneMember"]),
         distance: json["distance"],
         tenantId: tenantIdFromJson(json),
-        departmentId: departmentIdFromJson(json));
+        departmentId: departmentIdFromJson(json),
+        agentPhotoUrl: json["agentPhotoUrl"] as String?,
+        pointingMethod: json["pointingMethod"]?.toString(),
+        geoAttempts: _optionalMap(json["geoAttempts"]),
+        hasGeoMetadata:
+            json["geoMetadata"] is Map || json["hasGeoMetadata"] == true,
+        visitId: json["visitId"]?.toString());
   }
 
   Map<String, dynamic> toJson() {
@@ -888,6 +929,10 @@ class PointingZone {
       "tenantId":
           effectiveTenantId(tenantId, [site.tenantId, zoneMember?.tenantId]),
       "departmentId": departmentId ?? zoneMember?.departmentId,
+      // Optional read-side fields: absent for pointings created on the web.
+      if (agentPhotoUrl != null) "agentPhotoUrl": agentPhotoUrl,
+      ..._pointingMethodJson(
+          pointingMethod, geoAttempts, hasGeoMetadata, visitId),
     };
   }
 
@@ -908,6 +953,12 @@ class PointingSite {
   String? agentPhotoUrl;
   String tenantId;
   String? departmentId;
+
+  /// See [PointingZone.pointingMethod].
+  String? pointingMethod;
+  Map<String, dynamic>? geoAttempts;
+  bool hasGeoMetadata;
+  String? visitId;
   PointingSite(
       {required this.site,
       required this.latlng,
@@ -916,7 +967,18 @@ class PointingSite {
       required this.supervisor,
       this.tenantId = TenantDefaults.defaultTenantId,
       this.departmentId,
-      this.agentPhotoUrl});
+      this.agentPhotoUrl,
+      this.pointingMethod,
+      this.geoAttempts,
+      this.hasGeoMetadata = false,
+      this.visitId});
+
+  PointingMethodInfo? get methodInfo => PointingMethodInfo.resolve(
+        pointingMethod: pointingMethod,
+        geoAttempts: geoAttempts,
+        hasGeoMetadata: hasGeoMetadata,
+        photoUrl: agentPhotoUrl,
+      );
 
   factory PointingSite.fromJson(Map<String, dynamic> json) {
     DateTime? parsedDate;
@@ -941,7 +1003,12 @@ class PointingSite {
         distance: json["distance"],
         tenantId: tenantIdFromJson(json),
         departmentId: departmentIdFromJson(json),
-        agentPhotoUrl: json["agentPhotoUrl"] as String?);
+        agentPhotoUrl: json["agentPhotoUrl"] as String?,
+        pointingMethod: json["pointingMethod"]?.toString(),
+        geoAttempts: _optionalMap(json["geoAttempts"]),
+        hasGeoMetadata:
+            json["geoMetadata"] is Map || json["hasGeoMetadata"] == true,
+        visitId: json["visitId"]?.toString());
   }
 
   Map<String, dynamic> toJson() {
@@ -956,6 +1023,8 @@ class PointingSite {
       "tenantId":
           effectiveTenantId(tenantId, [site.tenantId, supervisor?.tenantId]),
       "departmentId": departmentId ?? supervisor?.departmentId,
+      ..._pointingMethodJson(
+          pointingMethod, geoAttempts, hasGeoMetadata, visitId),
     };
   }
 
@@ -1647,3 +1716,22 @@ class Consigne_model {
   String tache;
   Consigne_model({required this.consigne, required this.tache});
 }
+
+Map<String, dynamic>? _optionalMap(Object? value) =>
+    value is Map ? Map<String, dynamic>.from(value) : null;
+
+/// Read-side pointing fields kept through the web caches (toJson/fromJson).
+/// Nothing is emitted for pointings created on the web, so their Firestore
+/// writes are unchanged.
+Map<String, dynamic> _pointingMethodJson(
+  String? pointingMethod,
+  Map<String, dynamic>? geoAttempts,
+  bool hasGeoMetadata,
+  String? visitId,
+) =>
+    {
+      if (pointingMethod != null) 'pointingMethod': pointingMethod,
+      if (geoAttempts != null) 'geoAttempts': geoAttempts,
+      if (hasGeoMetadata) 'hasGeoMetadata': true,
+      if (visitId != null) 'visitId': visitId,
+    };

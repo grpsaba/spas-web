@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 
 import '../model.dart';
 import '../pointage_redesign/presentation/design_system.dart';
+import '../widgets/pointage_mode_override_field.dart';
 
 /// Natural card heights avoid clipping when the viewport or text scale changes.
 class ZoneMemberCardGrid extends StatelessWidget {
@@ -108,6 +109,12 @@ class ZoneMemberCard extends StatelessWidget {
                         overflow: TextOverflow.ellipsis,
                         style: PointageTextStyles.caption,
                       ),
+                      if (member.pointageModeOverride != null) ...[
+                        const SizedBox(height: 4),
+                        PointageModeOverrideBadge(
+                          mode: member.pointageModeOverride,
+                        ),
+                      ],
                     ],
                   ),
                 ),

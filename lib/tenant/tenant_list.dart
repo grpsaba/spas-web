@@ -4,6 +4,7 @@ import 'package:spas_web/model.dart';
 import 'package:spas_web/services/access_control.dart';
 import 'package:spas_web/services/loading.dart';
 import 'package:spas_web/services/tenant.dart';
+import 'package:spas_web/widgets/pointage_mode_override_field.dart';
 
 class TenantListPage extends StatefulWidget {
   const TenantListPage({super.key});
@@ -51,45 +52,58 @@ class _TenantListPageState extends State<TenantListPage> {
           }).toList();
 
           return SingleChildScrollView(
-            child: SingleChildScrollView(
-              scrollDirection: Axis.horizontal,
-              child: DataTable(
-                headingRowColor: MaterialStateProperty.all(
-                  Theme.of(context).primaryColor.withOpacity(0.08),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                const Padding(
+                  padding: EdgeInsets.only(bottom: 12),
+                  child: PointageModeOverrideHint(),
                 ),
-                columns: const [
-                  DataColumn(label: Text('Code')),
-                  DataColumn(label: Text('Pays')),
-                  DataColumn(label: Text('Code pays')),
-                  DataColumn(label: Text('Pointage superviseurs')),
-                  DataColumn(label: Text('Pointage chefs zone')),
-                  DataColumn(label: Text('Affectations')),
-                  DataColumn(label: Text('Statut')),
-                  DataColumn(label: Text('Action')),
-                ],
-                rows: [
-                  ...tenants.map(_buildRow),
-                  DataRow(cells: [
-                    DataCell(
-                      TextButton.icon(
-                        onPressed: _showTenantDialog,
-                        icon: const Icon(Icons.add),
-                        label: const Text('Ajouter un pays'),
-                      ),
-                    ),
-                    const DataCell(SizedBox.shrink()),
-                    const DataCell(SizedBox.shrink()),
-                    const DataCell(SizedBox.shrink()),
-                    const DataCell(SizedBox.shrink()),
-                    const DataCell(SizedBox.shrink()),
-                    const DataCell(SizedBox.shrink()),
-                    const DataCell(SizedBox.shrink()),
-                  ]),
-                ],
-              ),
+                _buildTable(tenants),
+              ],
             ),
           );
         },
+      ),
+    );
+  }
+
+  Widget _buildTable(List<Tenant> tenants) {
+    return SingleChildScrollView(
+      scrollDirection: Axis.horizontal,
+      child: DataTable(
+        headingRowColor: MaterialStateProperty.all(
+          Theme.of(context).primaryColor.withOpacity(0.08),
+        ),
+        columns: const [
+          DataColumn(label: Text('Code')),
+          DataColumn(label: Text('Pays')),
+          DataColumn(label: Text('Code pays')),
+          DataColumn(label: Text('Pointage superviseurs')),
+          DataColumn(label: Text('Pointage chefs zone')),
+          DataColumn(label: Text('Affectations')),
+          DataColumn(label: Text('Statut')),
+          DataColumn(label: Text('Action')),
+        ],
+        rows: [
+          ...tenants.map(_buildRow),
+          DataRow(cells: [
+            DataCell(
+              TextButton.icon(
+                onPressed: _showTenantDialog,
+                icon: const Icon(Icons.add),
+                label: const Text('Ajouter un pays'),
+              ),
+            ),
+            const DataCell(SizedBox.shrink()),
+            const DataCell(SizedBox.shrink()),
+            const DataCell(SizedBox.shrink()),
+            const DataCell(SizedBox.shrink()),
+            const DataCell(SizedBox.shrink()),
+            const DataCell(SizedBox.shrink()),
+            const DataCell(SizedBox.shrink()),
+          ]),
+        ],
       ),
     );
   }
@@ -274,6 +288,8 @@ class _TenantListPageState extends State<TenantListPage> {
                           });
                         },
                       ),
+                      const SizedBox(height: 12),
+                      const PointageModeOverrideHint(),
                     ],
                   ),
                 ),

@@ -6,6 +6,7 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/foundation.dart' show debugPrint;
 
 import '../model.dart';
+import '../models/pointage_mode_override.dart';
 import 'authentication.dart';
 import 'department_scope.dart';
 import 'tenant_scope.dart';
@@ -24,7 +25,10 @@ class SupervisorService {
         await AuthService().createUserWithEmail(supervisor.email, password);
     if (user != null) {
       supervisor.UID = user.uid;
-      _collectionReference.doc(supervisor.UID).set(supervisor.toJson());
+      _collectionReference.doc(supervisor.UID).set({
+        ...supervisor.toJson(),
+        ...PointageModeOverride.createFields(supervisor.pointageModeOverride),
+      });
 
       //database.child(user.uid).set(supervisor.toJson());
     }
@@ -89,9 +93,18 @@ class SupervisorService {
     }
   }
 
-  Future<void> update(Supervisor supervisor) {
+  /// [writePointageModeOverride] is set only by the edit form: other callers
+  /// (e.g. the list's active toggle) never touch the per-person mode.
+  Future<void> update(
+    Supervisor supervisor, {
+    bool writePointageModeOverride = false,
+  }) {
     TenantScope.applyTenantIdForWrite(supervisor);
-    return _collectionReference.doc(supervisor.UID).update(supervisor.toJson());
+    return _collectionReference.doc(supervisor.UID).update({
+      ...supervisor.toJson(),
+      if (writePointageModeOverride)
+        ...PointageModeOverride.updateFields(supervisor.pointageModeOverride),
+    });
   }
 
   Future<void> saveToken(String? token, String UID) {

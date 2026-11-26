@@ -15,6 +15,7 @@ import '../services/department.dart';
 import '../services/tenant.dart';
 import '../services/tenant_scope.dart';
 import '../services/department_scope.dart';
+import '../widgets/pointage_mode_override_field.dart';
 import 'zone_member_site_scope_fields.dart';
 
 /// Modern zone member form with design system
@@ -31,6 +32,8 @@ class ZoneMemberFormModern extends StatefulWidget {
 class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
   final GlobalKey<FormState> _formKey = GlobalKey<FormState>();
   late final _tenantStream = TenantService().all();
+  // Separate subscription: Firestore snapshot streams are single-listener.
+  late final _tenantModeStream = TenantService().all();
   late final _departmentStream = DepartmentService().all();
   Stream<List<Zone>>? _zoneStream;
   String? _zoneStreamTenantId;
@@ -51,6 +54,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
   String? _selectedTenantId;
   String? _selectedDepartmentId;
   String _zoneScope = ZoneMemberScope.assigned;
+  String? _pointageModeOverride;
   List<String> _validationErrors = [];
 
   // Animation state for sections
@@ -86,6 +90,7 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
       _selectedDepartmentId = 'security';
     }
     _zoneScope = ZoneMemberScope.normalize(widget.zoneMember.zoneScope);
+    _pointageModeOverride = widget.zoneMember.pointageModeOverride;
   }
 
   @override
@@ -183,12 +188,16 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
     widget.zoneMember.lastName = _lastNameCtrl.text;
     widget.zoneMember.email = _emailCtrl.text;
     widget.zoneMember.phone = _phoneCtrl.text;
+    widget.zoneMember.pointageModeOverride = _pointageModeOverride;
 
     try {
       if (_isNewMember) {
         await ZoneMemberService().add(widget.zoneMember, _passCtrl.text);
       } else {
-        await ZoneMemberService().update(widget.zoneMember);
+        await ZoneMemberService().update(
+          widget.zoneMember,
+          writePointageModeOverride: true,
+        );
       }
 
       if (!mounted) return;
@@ -372,6 +381,8 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                     icon: Icons.work_outline,
                     validator: (v) => _requiredValidator(v, 'Poste'),
                   ),
+                  const SizedBox(height: PointageSpacing.md),
+                  _buildPointageModeField(),
                 ],
               ),
 
@@ -711,6 +722,33 @@ class _ZoneMemberFormModernState extends State<ZoneMemberFormModern> {
                   });
                 },
           validator: (value) => value == null ? 'Pays obligatoire' : null,
+        );
+      },
+    );
+  }
+
+  /// Zone chiefs follow the country's `zoneChiefPointageMode` by default.
+  Widget _buildPointageModeField() {
+    return StreamBuilder(
+      stream: _tenantModeStream,
+      builder: (context, snapshot) {
+        String? countryMode;
+        for (final doc in snapshot.data?.docs ?? const []) {
+          if (doc.id != _selectedTenantId) continue;
+          countryMode = Tenant.fromJson({
+            ...Map<String, dynamic>.from(doc.data() as Map),
+            'id': doc.id,
+          }).zoneChiefPointageMode;
+        }
+        return PointageModeOverrideField(
+          value: _pointageModeOverride,
+          countryMode: countryMode,
+          enabled: !_isSubmitting,
+          decoration: const InputDecoration(
+            border: OutlineInputBorder(),
+            prefixIcon: Icon(Icons.rule),
+          ),
+          onChanged: (value) => setState(() => _pointageModeOverride = value),
         );
       },
     );
