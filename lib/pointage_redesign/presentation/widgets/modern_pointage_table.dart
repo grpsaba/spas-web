@@ -3,6 +3,7 @@ import 'dart:html' as html;
 import 'package:flutter/material.dart';
 import '../../../model.dart';
 import '../design_system.dart';
+import '../../../widgets/pointing_method_chip.dart';
 
 /// Configuration for table sorting
 class TableSortConfig {
@@ -137,6 +138,12 @@ class ModernPointageTable extends StatelessWidget {
             style: PointageTextStyles.label,
           ),
         ),
+      const DataColumn(
+        label: Text(
+          'Méthode',
+          style: PointageTextStyles.label,
+        ),
+      ),
     ];
   }
 
@@ -299,6 +306,7 @@ class ModernPointageTable extends StatelessWidget {
           if (evidenceMode == PointageEvidenceMode.photo ||
               evidenceMode == PointageEvidenceMode.both)
             DataCell(_buildPhotoCell(tableContext, pointage)),
+          DataCell(PointingMethodChip(info: pointage.methodInfo)),
         ],
       );
     }).toList();
