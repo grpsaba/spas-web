@@ -7,6 +7,7 @@ import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/error_logs/models/error_log_model.dart';
 import 'package:spas_web/error_logs/providers/error_log_provider.dart';
 import 'package:spas_web/error_logs/widgets/error_type_badge.dart';
+import 'package:spas_web/error_logs/widgets/geo_attempt_sections.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/pointage_redesign/presentation/design_system.dart';
 import 'package:spas_web/pointage_redesign/presentation/dialogs/modern_dialog.dart';
@@ -32,6 +33,15 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
   void initState() {
     super.initState();
     _currentLog = widget.errorLog;
+  }
+
+  @override
+  void didUpdateWidget(covariant ErrorLogDetailPage oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    // Opening another log of the same visit reuses this page.
+    if (oldWidget.errorLog.id != widget.errorLog.id) {
+      _currentLog = widget.errorLog;
+    }
   }
 
   @override
@@ -63,6 +73,7 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
               const SizedBox(height: PointageSpacing.lg),
               _buildMapCard(),
             ],
+            ..._buildGeoAttemptSections(isDesktop),
             const SizedBox(height: PointageSpacing.lg),
             _buildTechnicalDetails(),
             if (_currentLog.isResolved) ...[
@@ -73,6 +84,46 @@ class _ErrorLogDetailPageState extends State<ErrorLogDetailPage> {
         ),
       ),
     );
+  }
+
+  /// Phone/attempt fields, readable geoDiagnostic and the visit timeline.
+  List<Widget> _buildGeoAttemptSections(bool isDesktop) {
+    final log = _currentLog;
+    final diagnostic = log.geoDiagnosticSummary;
+    final cards = <Widget>[
+      if (ErrorLogPhoneAttemptCard.hasContent(log))
+        ErrorLogPhoneAttemptCard(log: log),
+      if (diagnostic != null) GeoDiagnosticCard(summary: diagnostic),
+    ];
+    return [
+      if (cards.isNotEmpty) ...[
+        const SizedBox(height: PointageSpacing.lg),
+        if (isDesktop && cards.length == 2)
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Expanded(child: cards[0]),
+              const SizedBox(width: PointageSpacing.lg),
+              Expanded(child: cards[1]),
+            ],
+          )
+        else
+          for (var i = 0; i < cards.length; i++) ...[
+            if (i > 0) const SizedBox(height: PointageSpacing.lg),
+            cards[i],
+          ],
+      ],
+      if (log.visitId != null) ...[
+        const SizedBox(height: PointageSpacing.lg),
+        VisitTimelineCard(
+          key: ValueKey('timeline:${log.id}'),
+          visitId: log.visitId!,
+          currentLogId: log.id,
+          onOpenErrorLog: (other) =>
+              context.go('/errorlogs/detail', extra: other),
+        ),
+      ],
+    ];
   }
 
   Widget _buildHeader(BuildContext context) {

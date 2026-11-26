@@ -1,6 +1,8 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 
+import 'geo_diagnostic.dart';
+
 /// Model representing a pointing error log from Firestore
 /// Note: supervisor, site, agent are simplified Maps, NOT full model objects
 class ErrorLog {
@@ -40,6 +42,17 @@ class ErrorLog {
   final DateTime? resolvedAt;
   final String? resolvedBy;
 
+  // Mobile app / phone (v1.7+) and geolocation attempt fields.
+  final String? appVersion;
+  final Map<String, dynamic>? deviceInfo;
+  final Map<String, dynamic>? geoDiagnostic;
+  final String? visitId;
+  final int? attemptNumber;
+  final String? attemptOutcome;
+  final int? attemptDurationMs;
+  final Map<String, dynamic>? geoSettings;
+  final int? geoRuleVersion;
+
   ErrorLog({
     required this.id,
     required this.type,
@@ -72,12 +85,24 @@ class ErrorLog {
     this.isResolved = false,
     this.resolvedAt,
     this.resolvedBy,
+    this.appVersion,
+    this.deviceInfo,
+    this.geoDiagnostic,
+    this.visitId,
+    this.attemptNumber,
+    this.attemptOutcome,
+    this.attemptDurationMs,
+    this.geoSettings,
+    this.geoRuleVersion,
   });
 
   factory ErrorLog.fromFirestore(DocumentSnapshot doc) {
-    final data = doc.data() as Map<String, dynamic>;
+    return ErrorLog.fromMap(doc.id, doc.data() as Map<String, dynamic>);
+  }
+
+  factory ErrorLog.fromMap(String id, Map<String, dynamic> data) {
     return ErrorLog(
-      id: doc.id,
+      id: id,
       type: data['type'] ?? 'unknown',
       errorType: data['errorType'] ?? 'unknown',
       timestamp: _parseDateTime(data['timestamp']) ?? DateTime.now(),
@@ -123,7 +148,21 @@ class ErrorLog {
       isResolved: data['isResolved'] ?? false,
       resolvedAt: _parseDateTime(data['resolvedAt']),
       resolvedBy: data['resolvedBy'],
+      appVersion: _parseText(data['appVersion']),
+      deviceInfo: asStringMap(data['deviceInfo']),
+      geoDiagnostic: asStringMap(data['geoDiagnostic']),
+      visitId: _parseText(data['visitId']),
+      attemptNumber: _parseInt(data['attemptNumber']),
+      attemptOutcome: _parseText(data['attemptOutcome']),
+      attemptDurationMs: _parseInt(data['attemptDurationMs']),
+      geoSettings: asStringMap(data['geoSettings']),
+      geoRuleVersion: _parseInt(data['geoRuleVersion']),
     );
+  }
+
+  static String? _parseText(dynamic value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
   }
 
   Map<String, dynamic> toJson() {
@@ -162,6 +201,15 @@ class ErrorLog {
       'isResolved': isResolved,
       'resolvedAt': resolvedAt != null ? Timestamp.fromDate(resolvedAt!) : null,
       'resolvedBy': resolvedBy,
+      'appVersion': appVersion,
+      'deviceInfo': deviceInfo,
+      'geoDiagnostic': geoDiagnostic,
+      'visitId': visitId,
+      'attemptNumber': attemptNumber,
+      'attemptOutcome': attemptOutcome,
+      'attemptDurationMs': attemptDurationMs,
+      'geoSettings': geoSettings,
+      'geoRuleVersion': geoRuleVersion,
     };
   }
 
@@ -202,6 +250,38 @@ class ErrorLog {
     final name = '$firstName $lastName'.trim();
     if (name.isNotEmpty) return name;
     return _mapString(data, 'name');
+  }
+
+  DeviceInfoView? get device => DeviceInfoView.fromMap(deviceInfo);
+
+  /// Raw `deviceInfo.model`, the value used by the phone model filter.
+  String? get deviceModel => _parseText(deviceInfo?['model']);
+
+  GeoDiagnosticSummary? get geoDiagnosticSummary =>
+      GeoDiagnosticSummary.fromMap(geoDiagnostic);
+
+  bool get hasAttemptInfo =>
+      attemptNumber != null ||
+      attemptOutcome != null ||
+      attemptDurationMs != null;
+
+  /// "Essai 2 · GPS trop lent · 25 s", or null for older logs.
+  String? get attemptLabel {
+    if (!hasAttemptInfo) return null;
+    return [
+      if (attemptNumber != null) 'Essai $attemptNumber',
+      if (attemptOutcome != null) AttemptOutcome.label(attemptOutcome),
+      if (attemptDurationMs != null) formatDurationMs(attemptDurationMs),
+    ].join(' · ');
+  }
+
+  /// "v1.7.0+16 · Tecno KG5" for the list rows.
+  String? get appAndDeviceLabel {
+    final parts = [
+      if (appVersion != null) 'v$appVersion',
+      if (device != null) device!.modelLabel,
+    ];
+    return parts.isEmpty ? null : parts.join(' · ');
   }
 
   bool get isSitePointing => type == 'pointing_site';
@@ -336,6 +416,8 @@ class ErrorLog {
         return 2;
       case 'siteNotFound':
       case 'agentNotFound':
+      case 'geoAttemptCancelled':
+      case 'sitePositionReported':
         return 1;
       default:
         return 1;
@@ -379,6 +461,15 @@ class ErrorLog {
       isResolved: true,
       resolvedAt: resolvedAt,
       resolvedBy: resolvedBy,
+      appVersion: appVersion,
+      deviceInfo: deviceInfo,
+      geoDiagnostic: geoDiagnostic,
+      visitId: visitId,
+      attemptNumber: attemptNumber,
+      attemptOutcome: attemptOutcome,
+      attemptDurationMs: attemptDurationMs,
+      geoSettings: geoSettings,
+      geoRuleVersion: geoRuleVersion,
     );
   }
 }
@@ -407,6 +498,10 @@ class ErrorTypeConfig {
         return 'Erreur serveur';
       case 'technicalError':
         return 'Erreur technique';
+      case 'geoAttemptCancelled':
+        return 'Essai GPS annulé';
+      case 'sitePositionReported':
+        return 'Position de site signalée';
       default:
         return errorType;
     }
@@ -431,6 +526,10 @@ class ErrorTypeConfig {
       case 'siteNotFound':
       case 'agentNotFound':
         return const Color(0xFF607D8B); // Blue Grey
+      case 'geoAttemptCancelled':
+        return const Color(0xFF795548); // Brown
+      case 'sitePositionReported':
+        return const Color(0xFF009688); // Teal
       default:
         return const Color(0xFF9E9E9E); // Grey
     }
@@ -458,6 +557,10 @@ class ErrorTypeConfig {
         return Icons.cloud_off;
       case 'technicalError':
         return Icons.error_outline;
+      case 'geoAttemptCancelled':
+        return Icons.cancel_schedule_send;
+      case 'sitePositionReported':
+        return Icons.wrong_location;
       default:
         return Icons.help_outline;
     }
@@ -474,6 +577,8 @@ class ErrorTypeConfig {
     'gpsTimeoutError',
     'firebaseError',
     'technicalError',
+    'geoAttemptCancelled',
+    'sitePositionReported',
   ];
 }
 
@@ -485,6 +590,9 @@ class ErrorLogFilters {
   final bool? isResolved;
   final String? searchQuery;
   final String? type; // pointing_site | pointing_agent | pointing_zone
+  final String? attemptOutcome;
+  final String? appVersion;
+  final String? deviceModel; // raw deviceInfo.model
 
   const ErrorLogFilters({
     this.errorType,
@@ -493,6 +601,9 @@ class ErrorLogFilters {
     this.isResolved,
     this.searchQuery,
     this.type,
+    this.attemptOutcome,
+    this.appVersion,
+    this.deviceModel,
   });
 
   ErrorLogFilters copyWith({
@@ -502,12 +613,18 @@ class ErrorLogFilters {
     bool? isResolved,
     String? searchQuery,
     String? type,
+    String? attemptOutcome,
+    String? appVersion,
+    String? deviceModel,
     bool clearErrorType = false,
     bool clearSupervisorId = false,
     bool clearDateRange = false,
     bool clearIsResolved = false,
     bool clearSearchQuery = false,
     bool clearType = false,
+    bool clearAttemptOutcome = false,
+    bool clearAppVersion = false,
+    bool clearDeviceModel = false,
   }) {
     return ErrorLogFilters(
       errorType: clearErrorType ? null : (errorType ?? this.errorType),
@@ -517,6 +634,10 @@ class ErrorLogFilters {
       isResolved: clearIsResolved ? null : (isResolved ?? this.isResolved),
       searchQuery: clearSearchQuery ? null : (searchQuery ?? this.searchQuery),
       type: clearType ? null : (type ?? this.type),
+      attemptOutcome:
+          clearAttemptOutcome ? null : (attemptOutcome ?? this.attemptOutcome),
+      appVersion: clearAppVersion ? null : (appVersion ?? this.appVersion),
+      deviceModel: clearDeviceModel ? null : (deviceModel ?? this.deviceModel),
     );
   }
 
@@ -526,7 +647,10 @@ class ErrorLogFilters {
       dateRange != null ||
       isResolved != null ||
       (searchQuery != null && searchQuery!.isNotEmpty) ||
-      type != null;
+      type != null ||
+      attemptOutcome != null ||
+      appVersion != null ||
+      deviceModel != null;
 }
 
 /// Stats model for error logs
@@ -537,13 +661,48 @@ class ErrorLogStats {
   final Map<String, int> byErrorType;
   final Map<String, int> byType;
 
+  /// Counts over the recent logs, used to offer the new filter values.
+  final Map<String, int> byAttemptOutcome;
+  final Map<String, int> byAppVersion;
+  final Map<String, int> byDeviceModel; // raw deviceInfo.model
+
   const ErrorLogStats({
     this.total = 0,
     this.resolved = 0,
     this.unresolved = 0,
     this.byErrorType = const {},
     this.byType = const {},
+    this.byAttemptOutcome = const {},
+    this.byAppVersion = const {},
+    this.byDeviceModel = const {},
   });
+
+  /// Counts by error type, outcome, app version and phone model.
+  static Map<String, Map<String, int>> countRecent(
+      Iterable<Map<String, dynamic>> docs) {
+    final result = <String, Map<String, int>>{
+      'errorType': {},
+      'type': {},
+      'attemptOutcome': {},
+      'appVersion': {},
+      'deviceModel': {},
+    };
+    void inc(String bucket, Object? key) {
+      final text = key?.toString().trim();
+      if (text == null || text.isEmpty) return;
+      result[bucket]![text] = (result[bucket]![text] ?? 0) + 1;
+    }
+
+    for (final data in docs) {
+      inc('errorType', data['errorType'] ?? 'unknown');
+      inc('type', data['type'] ?? 'unknown');
+      inc('attemptOutcome', data['attemptOutcome']);
+      inc('appVersion', data['appVersion']);
+      final device = data['deviceInfo'];
+      inc('deviceModel', device is Map ? device['model'] : null);
+    }
+    return result;
+  }
 
   factory ErrorLogStats.fromLogs(List<ErrorLog> logs) {
     final byErrorType = <String, int>{};
