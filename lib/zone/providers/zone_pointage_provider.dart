@@ -48,8 +48,10 @@ class ZonePointageListProvider extends ChangeNotifier {
     
     final keyword = _searchKeyword.toLowerCase();
     return _stats.where((stat) {
-      final fullName = '${stat.zoneMember.firstName} ${stat.zoneMember.lastName}'.toLowerCase();
-      final zoneName = stat.zoneMember.zone?.name.toLowerCase() ?? '';
+      final fullName =
+          '${stat.zoneMember.firstName} ${stat.zoneMember.lastName}'
+              .toLowerCase();
+      final zoneName = stat.zoneMember.zoneScopeLabel.toLowerCase();
       final zoneCode = stat.zoneMember.zone?.codeZone.toLowerCase() ?? '';
       return fullName.contains(keyword) || zoneName.contains(keyword) || zoneCode.contains(keyword);
     }).toList();
@@ -126,7 +128,7 @@ class ZonePointageListProvider extends ChangeNotifier {
     DateTime endDate,
   ) async {
     try {
-      if (zoneMember.zone == null) {
+      if (!zoneMember.hasSiteScope) {
         return ZoneMemberPointageStats(
           zoneMember: zoneMember,
           totalSites: 0,
@@ -136,12 +138,12 @@ class ZonePointageListProvider extends ChangeNotifier {
       
       // Requêtes en parallèle
       final results = await Future.wait([
-        _siteService.allSitesCountByZone(zoneMember.zone!),
+        _siteService.countSitesForZoneMember(zoneMember),
         _getVisitedSitesCount(zoneMember, startDate, endDate),
       ]);
       
-      final totalSites = results[0] as int? ?? 0;
-      final visitedSites = results[1] as int;
+      final totalSites = results[0];
+      final visitedSites = results[1];
       
       return ZoneMemberPointageStats(
         zoneMember: zoneMember,

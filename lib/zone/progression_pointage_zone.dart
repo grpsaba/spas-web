@@ -332,9 +332,7 @@ class _ZonePointageProgressionListState
                     ),
                     const SizedBox(height: 3),
                     Text(
-                      zoneMember.zone?.name ??
-                          zoneMember.zone?.codeZone ??
-                          'Zone non renseignée',
+                      zoneMember.zoneScopeLabel,
                       maxLines: 1,
                       overflow: TextOverflow.ellipsis,
                       style: const TextStyle(color: _muted, fontSize: 11),

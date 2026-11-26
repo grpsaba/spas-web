@@ -14,10 +14,10 @@ class ZoneService {
     await _collectionReference.doc(zone.codeZone).set(zone.toJson());
   }
 
-  Stream<QuerySnapshot> all() {
+  Stream<QuerySnapshot> all({String? tenantId}) {
     return TenantScope.watchQuery(
       'ZoneService.all',
-      TenantScope.applyToQuery(_collectionReference),
+      TenantScope.applyToQuery(_collectionReference, tenantId: tenantId),
     );
   }
 

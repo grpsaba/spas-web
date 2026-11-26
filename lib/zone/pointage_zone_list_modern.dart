@@ -15,6 +15,7 @@ import '../pointage_redesign/presentation/widgets/statistics_card.dart';
 import '../services/site.dart';
 import '../services/zone.dart';
 import '../services/zoneMember.dart';
+import 'package:spas_web/widgets/pointing_method_chip.dart';
 
 /// Modern zone pointage list aligned with the site pointage experience.
 class PointageZoneListModern extends StatefulWidget {
@@ -518,6 +519,9 @@ class ModernZonePointageTable extends StatelessWidget {
         label: Text('Distance', style: PointageTextStyles.label),
       ),
       const DataColumn(
+        label: Text('Méthode', style: PointageTextStyles.label),
+      ),
+      const DataColumn(
         label: Text('Contact', style: PointageTextStyles.label),
       ),
     ];
@@ -595,10 +599,11 @@ class ModernZonePointageTable extends StatelessWidget {
         cells: [
           DataCell(_ZoneMemberCell(zoneMember: pointage.zoneMember)),
           DataCell(_SiteCell(site: pointage.site)),
-          DataCell(_ZoneCell(zone: pointage.zoneMember?.zone)),
+          DataCell(_ZoneCell(zone: pointage.site.zone)),
           DataCell(_DateChip(date: pointage.date)),
           DataCell(_TimeChip(date: pointage.date)),
           DataCell(_DistanceChip(distance: pointage.distance)),
+          DataCell(PointingMethodChip(info: pointage.methodInfo)),
           DataCell(Text(pointage.zoneMember?.phone ?? 'N/A')),
         ],
       );

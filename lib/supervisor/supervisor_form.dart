@@ -11,6 +11,7 @@ import '../services/department.dart';
 import '../services/loading.dart';
 import '../services/supervisor.dart';
 import '../services/tenant_options.dart';
+import '../widgets/pointage_mode_override_field.dart';
 
 class AddSupervisor extends StatefulWidget {
   const AddSupervisor({
@@ -44,6 +45,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
   bool _loadingTenants = true;
   List<Tenant> _tenants = TenantOptions.fallback;
   String? _selectedTenantId;
+  String? _pointageModeOverride;
 
   @override
   void initState() {
@@ -54,6 +56,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
     _lastNameCtrl.text = widget.supervisor.lastName;
     _phoneCtrl.text = widget.supervisor.phone;
     _passCtrl.text = widget.supervisor.code;
+    _pointageModeOverride = widget.supervisor.pointageModeOverride;
     _selectedTenantId =
         widget.supervisor.hasTenantId ? widget.supervisor.tenantId : null;
     if (!AccessControl.canBypassTenantFilter) {
@@ -63,7 +66,8 @@ class _AddSupervisorState extends State<AddSupervisor> {
   }
 
   Future<void> _loadTenants() async {
-    final tenants = await TenantOptions.load(includeTenantId: _selectedTenantId);
+    final tenants =
+        await TenantOptions.load(includeTenantId: _selectedTenantId);
     if (!mounted) return;
 
     setState(() {
@@ -114,6 +118,7 @@ class _AddSupervisorState extends State<AddSupervisor> {
     widget.supervisor.lastName = _lastNameCtrl.text;
     widget.supervisor.email = _emailCtrl.text;
     widget.supervisor.phone = _phoneCtrl.text;
+    widget.supervisor.pointageModeOverride = _pointageModeOverride;
     final tenantId = _selectedTenantId?.trim();
     widget.supervisor.hasTenantId = tenantId != null && tenantId.isNotEmpty;
     if (widget.supervisor.hasTenantId) {
@@ -140,7 +145,10 @@ class _AddSupervisorState extends State<AddSupervisor> {
           throw Exception('Impossible de créer le superviseur');
         }
       } else {
-        await SupervisorService().update(widget.supervisor);
+        await SupervisorService().update(
+          widget.supervisor,
+          writePointageModeOverride: true,
+        );
       }
 
       if (!mounted) {
@@ -330,6 +338,23 @@ class _AddSupervisorState extends State<AddSupervisor> {
     );
   }
 
+  /// Supervisors follow the country's `pointageMode` unless overridden.
+  String? get _countrySupervisorMode {
+    for (final tenant in _tenants) {
+      if (tenant.id == _selectedTenantId) return tenant.pointageMode;
+    }
+    return null;
+  }
+
+  Widget _buildPointageModeField() {
+    return PointageModeOverrideField(
+      value: _pointageModeOverride,
+      countryMode: _loadingTenants ? null : _countrySupervisorMode,
+      decoration: _decoration(hintText: 'Mode de pointage', icon: Icons.rule),
+      onChanged: (value) => setState(() => _pointageModeOverride = value),
+    );
+  }
+
   Widget _buildActionButtons() {
     final canDelete = widget.supervisor.UID.isNotEmpty &&
         AuthService.currentManager!.profil!
@@ -410,6 +435,8 @@ class _AddSupervisorState extends State<AddSupervisor> {
                 _buildDepartmentField(),
                 const SizedBox(height: PointageSpacing.md),
                 _buildTenantField(),
+                const SizedBox(height: PointageSpacing.md),
+                _buildPointageModeField(),
                 const SizedBox(height: PointageSpacing.md),
                 TextFormField(
                   readOnly: widget.supervisor.code.isNotEmpty,

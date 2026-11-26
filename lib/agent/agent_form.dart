@@ -1,4 +1,5 @@
 import 'dart:convert';
+import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
@@ -11,6 +12,9 @@ import '../model.dart';
 import '../services/agent.dart';
 import '../services/department.dart';
 import '../services/loading.dart';
+import '../services/agent_photo.dart';
+import 'widgets/agent_photo_field.dart';
+import 'widgets/agent_department_field.dart';
 
 class AddAgent extends StatefulWidget {
   AddAgent({
@@ -36,6 +40,10 @@ class _AddSupervisorState extends State<AddAgent> {
   final GlobalKey<FormState> _key = GlobalKey<FormState>();
 
   bool _adding = false;
+  bool _preparingPhoto = false;
+  Uint8List? _pendingPhoto;
+  bool _removePhoto = false;
+  String? _uploadedPhotoUrl;
 
   @override
   void initState() {
@@ -71,6 +79,54 @@ class _AddSupervisorState extends State<AddAgent> {
     _dateArret_ctrl.dispose();
   }
 
+  Future<void> _saveAgent() async {
+    if (_adding || _preparingPhoto || !_key.currentState!.validate()) return;
+    _key.currentState!.save();
+    final agent = widget.agent;
+    final previousPhotoUrl = agent.photoUrl;
+    agent.dateArret = DateTime.tryParse(_dateArret_ctrl.text);
+    agent.dateEmbauche = DateTime.tryParse(_dateEmbauche_ctrl.text);
+    agent.code = _code_ctrl.text;
+    agent.firstName = _firstName_ctrl.text;
+    agent.lastName = _lastName_ctrl.text;
+    agent.email = _email_ctrl.text;
+    agent.phone = _phone_ctrl.text;
+    final isNew = agent.code.isEmpty;
+    setState(() => _adding = true);
+    try {
+      if (_pendingPhoto != null) {
+        _uploadedPhotoUrl ??=
+            await AgentPhotoService.upload(agent, _pendingPhoto!);
+        agent.photoUrl = _uploadedPhotoUrl;
+      } else if (_removePhoto) {
+        agent.photoUrl = null;
+      }
+      if (isNew) {
+        await AgentService().add(agent);
+      } else {
+        await AgentService().update(agent);
+      }
+      if (mounted) context.pop();
+    } catch (error) {
+      agent.photoUrl = previousPhotoUrl;
+      if (isNew) agent.code = '';
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+              content: Text(
+                  'Enregistrement impossible. Vérifiez la connexion et réessayez.')),
+        );
+      }
+    } finally {
+      if (mounted) setState(() => _adding = false);
+    }
+  }
+
+  void _setDepartment(Department department) {
+    widget.agent.department = department;
+    widget.agent.departmentId = normalizeDepartmentId(department.id);
+  }
+
   @override
   Widget build(BuildContext context) {
     double padding = MediaQuery.of(context).size.width * 0.1;
@@ -85,45 +141,29 @@ class _AddSupervisorState extends State<AddAgent> {
             key: _key,
             child: Column(
               children: [
+                AgentPhotoField(
+                  photoUrl: widget.agent.photoUrl,
+                  enabled: !_adding,
+                  onBusyChanged: (busy) =>
+                      setState(() => _preparingPhoto = busy),
+                  onChanged: (photo, removed) {
+                    _pendingPhoto = photo;
+                    _removePhoto = removed;
+                    _uploadedPhotoUrl = null;
+                  },
+                ),
+                const SizedBox(height: 20),
                 StreamBuilder(
                     stream: DepartmentService().all(),
                     builder: (context, snapshot) {
                       if (snapshot.hasData) {
-                        List<Department>? data = snapshot.data?.docs
-                            .map(DepartmentService.fromSnapshot)
-                            .toList();
-
-                        return DropdownButtonFormField<Department>(
-                          hint: const Text("Département"),
-                          decoration: const InputDecoration(
-                              hintText: "Département",
-                              border: OutlineInputBorder(),
-                              prefixIcon: Icon(Icons.apartment)),
-                          validator: (value) {
-                            return value != null
-                                ? null
-                                : "Département obligatoir";
-                          },
-                          isExpanded: true,
-                          value: data
-                              ?.where((element) =>
-                                  element.id == widget.agent.department?.id ||
-                                  element.label.contains(
-                                      widget.agent.department?.label ?? ""))
-                              .toList()
-                              .first,
-                          items: data
-                              ?.map((Department department) =>
-                                  DropdownMenuItem<Department>(
-                                      value: department,
-                                      child: Text(department.label)))
-                              .toList(),
-                          onChanged: (value) {
-                            widget.agent.department = value!;
-                          },
-                          onSaved: (value) {
-                            widget.agent.department = value!;
-                          },
+                        return AgentDepartmentField(
+                          departments: snapshot.data!.docs
+                              .map(DepartmentService.fromSnapshot),
+                          departmentId: widget.agent.departmentId ??
+                              widget.agent.department?.id,
+                          onChanged: _setDepartment,
+                          onSaved: _setDepartment,
                         );
                       } else {
                         return const Text(
@@ -144,6 +184,11 @@ class _AddSupervisorState extends State<AddAgent> {
                         List<AgentType>? data =
                             docs?.map((e) => AgentType.fromJson(e)).toList();
 
+                        final matches = data
+                            ?.where((type) =>
+                                type.label == widget.agent.typeAgent?.label)
+                            .toList();
+
                         return DropdownButtonFormField<AgentType>(
                           hint: const Text("Type"),
                           decoration: const InputDecoration(
@@ -155,11 +200,9 @@ class _AddSupervisorState extends State<AddAgent> {
                             return value != null ? null : "Type obligatoir";
                           },
                           isExpanded: true,
-                          value: data
-                              ?.where((element) => element.label.contains(
-                                  widget.agent.typeAgent?.label ?? ""))
-                              .toList()
-                              .first,
+                          value: matches != null && matches.isNotEmpty
+                              ? matches.first
+                              : null,
                           items: data
                               ?.map((AgentType agtType) =>
                                   DropdownMenuItem<AgentType>(
@@ -361,7 +404,7 @@ class _AddSupervisorState extends State<AddAgent> {
                 const SizedBox(
                   height: 20,
                 ),
-                _adding
+                _adding || _preparingPhoto
                     ? Loading(size: 48, inline: false)
                     : Row(
                         //mainAxisAlignment: MainAxisAlignment.center,
@@ -371,56 +414,7 @@ class _AddSupervisorState extends State<AddAgent> {
                                   fixedSize: const Size(150, 50),
                                   shape: RoundedRectangleBorder(
                                       borderRadius: BorderRadius.circular(20))),
-                              onPressed: () async {
-                                widget.agent.dateArret =
-                                    DateTime.tryParse(_dateArret_ctrl.text);
-                                widget.agent.dateEmbauche =
-                                    DateTime.tryParse(_dateEmbauche_ctrl.text);
-                                widget.agent.code = _code_ctrl.text;
-                                widget.agent.firstName = _firstName_ctrl.text;
-                                widget.agent.lastName = _lastName_ctrl.text;
-                                widget.agent.email = _email_ctrl.text;
-                                widget.agent.phone = _phone_ctrl.text;
-
-                                if (_key.currentState!.validate()) {
-                                  setState(() {
-                                    _adding = true;
-                                  });
-                                  if (widget.agent.code.isEmpty) {
-                                    await AgentService()
-                                        .add(widget.agent)
-                                        .then((value) {
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                      context.pop();
-                                    }).onError((error, stackTrace) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                              content: Text(error.toString())));
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                    });
-                                  } else {
-                                    await AgentService()
-                                        .update(widget.agent)
-                                        .then((value) {
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                      context.pop();
-                                    }).onError((error, stackTrace) {
-                                      ScaffoldMessenger.of(context)
-                                          .showSnackBar(SnackBar(
-                                              content: Text(error.toString())));
-                                      setState(() {
-                                        _adding = false;
-                                      });
-                                    });
-                                  }
-                                }
-                              },
+                              onPressed: _saveAgent,
                               child: const Row(
                                 mainAxisAlignment: MainAxisAlignment.center,
                                 children: [

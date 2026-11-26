@@ -4,6 +4,7 @@ import 'package:spas_web/model.dart';
 
 import 'authentication.dart';
 import 'department_scope.dart';
+import 'zone_chief_scope.dart';
 import 'tenant_scope.dart';
 
 enum SiteSupervisorSlot {
@@ -128,6 +129,40 @@ class SiteService {
     }).toList();
 
     return collection;
+  }
+
+  Query _queryForZoneMember(ZoneMember member) {
+    if (!member.hasSiteScope ||
+        !TenantScope.matchesTenant(member.tenantId) ||
+        !DepartmentScope.matchesDepartment(member.departmentId)) {
+      throw StateError('Périmètre du chef de zone invalide ou inaccessible');
+    }
+    Query query = _collectionReference
+        .where('tenantId', isEqualTo: member.tenantId)
+        .where('departmentIds',
+            arrayContains: normalizeDepartmentId(member.departmentId))
+        .where('actif', isEqualTo: true);
+    if (!member.hasGlobalZoneAccess) {
+      query = query.where('zone.codeZone', isEqualTo: member.zone!.codeZone);
+    }
+    return query;
+  }
+
+  Future<List<Site>> allSitesForZoneMember(ZoneMember member) async {
+    final snapshot = await TenantScope.getQuery(
+        'SiteService.allSitesForZoneMember', _queryForZoneMember(member));
+    return snapshot.docs
+        .map((doc) =>
+            Site.fromJson(Map<String, dynamic>.from(doc.data() as Map)))
+        .where((site) => ZoneChiefScope.includesActiveSite(member, site))
+        .toList();
+  }
+
+  Future<int> countSitesForZoneMember(ZoneMember member) async {
+    final result = await TenantScope.getCount(
+        'SiteService.countSitesForZoneMember',
+        _queryForZoneMember(member).count());
+    return result.count ?? 0;
   }
 
   Future<List<Site>> allSitesByZone(Zone zone) async {

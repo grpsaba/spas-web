@@ -1286,7 +1286,7 @@ class PointageZoneListToPDF {
         //employe.telephone,
         pointage.site.name,
         "${pointage.zoneMember?.firstName} ${pointage.zoneMember?.lastName}",
-        "${pointage.zoneMember?.zone?.name}",
+        "${pointage.site.zone?.name ?? ""}",
         pointage.zoneMember?.phone,
       ];
     }).toList();

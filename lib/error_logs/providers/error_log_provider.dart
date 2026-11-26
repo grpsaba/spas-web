@@ -135,6 +135,18 @@ class ErrorLogProvider extends ChangeNotifier {
       );
     }
 
+    // Geolocation attempt filters (equality). Combined with the timestamp
+    // ordering they need composite indexes, see docs/geo-photo-fallback.md.
+    if (_filters.attemptOutcome != null) {
+      query = query.where('attemptOutcome', isEqualTo: _filters.attemptOutcome);
+    }
+    if (_filters.appVersion != null) {
+      query = query.where('appVersion', isEqualTo: _filters.appVersion);
+    }
+    if (_filters.deviceModel != null) {
+      query = query.where('deviceInfo.model', isEqualTo: _filters.deviceModel);
+    }
+
     // Filter by date range
     if (_filters.dateRange != null) {
       query = query
@@ -186,23 +198,18 @@ class ErrorLogProvider extends ChangeNotifier {
         _scopedQuery.orderBy('timestamp', descending: true).limit(500),
       );
 
-      final byErrorType = <String, int>{};
-      final byType = <String, int>{};
-
-      for (final doc in recentLogs.docs) {
-        final data = doc.data();
-        final errorType = data['errorType'] as String? ?? 'unknown';
-        final type = data['type'] as String? ?? 'unknown';
-        byErrorType[errorType] = (byErrorType[errorType] ?? 0) + 1;
-        byType[type] = (byType[type] ?? 0) + 1;
-      }
+      final counts =
+          ErrorLogStats.countRecent(recentLogs.docs.map((doc) => doc.data()));
 
       _stats = ErrorLogStats(
         total: total,
         resolved: total - unresolved,
         unresolved: unresolved,
-        byErrorType: byErrorType,
-        byType: byType,
+        byErrorType: counts['errorType']!,
+        byType: counts['type']!,
+        byAttemptOutcome: counts['attemptOutcome']!,
+        byAppVersion: counts['appVersion']!,
+        byDeviceModel: counts['deviceModel']!,
       );
       notifyListeners();
     } catch (e) {
@@ -244,6 +251,36 @@ class ErrorLogProvider extends ChangeNotifier {
     loadLogs();
   }
 
+  /// Set geolocation attempt outcome filter (null = all)
+  void setAttemptOutcomeFilter(String? outcome) {
+    _filters = _filters.copyWith(
+      attemptOutcome: outcome,
+      clearAttemptOutcome: outcome == null,
+    );
+    _selectedIds.clear();
+    loadLogs();
+  }
+
+  /// Set app version filter (null = all)
+  void setAppVersionFilter(String? version) {
+    _filters = _filters.copyWith(
+      appVersion: version,
+      clearAppVersion: version == null,
+    );
+    _selectedIds.clear();
+    loadLogs();
+  }
+
+  /// Set phone model filter on raw deviceInfo.model (null = all)
+  void setDeviceModelFilter(String? model) {
+    _filters = _filters.copyWith(
+      deviceModel: model,
+      clearDeviceModel: model == null,
+    );
+    _selectedIds.clear();
+    loadLogs();
+  }
+
   /// Set search query
   void setSearchQuery(String query) {
     _filters = _filters.copyWith(
@@ -267,7 +304,9 @@ class ErrorLogProvider extends ChangeNotifier {
           log.actorName.toLowerCase().contains(query) ||
           log.actorRoleLabel.toLowerCase().contains(query) ||
           log.zoneName.toLowerCase().contains(query) ||
-          log.errorType.toLowerCase().contains(query);
+          log.errorType.toLowerCase().contains(query) ||
+          (log.visitId?.toLowerCase().contains(query) ?? false) ||
+          (log.appAndDeviceLabel?.toLowerCase().contains(query) ?? false);
     }).toList();
   }
 
@@ -378,7 +417,7 @@ class ErrorLogProvider extends ChangeNotifier {
   String exportToCsv() {
     final buffer = StringBuffer();
     buffer.writeln(
-        'Date,Type,Error Type,Role,Acteur,Zone,Site/Agent,Message,Distance,Platform,Resolved,Resolved By,Resolved At');
+        'Date,Type,Error Type,Role,Acteur,Zone,Site/Agent,Message,Distance,Platform,Resolved,Resolved By,Resolved At,App Version,Phone,Visit,Attempt,Attempt Outcome,Attempt Duration Ms');
 
     for (final log in filteredLogs) {
       final date =
@@ -401,6 +440,12 @@ class ErrorLogProvider extends ChangeNotifier {
         log.isResolved ? 'Oui' : 'Non',
         log.resolvedBy ?? '',
         resolvedAt,
+        log.appVersion ?? '',
+        (log.device?.fullLabel ?? '').replaceAll(',', ' '),
+        log.visitId ?? '',
+        log.attemptNumber?.toString() ?? '',
+        log.attemptOutcome ?? '',
+        log.attemptDurationMs?.toString() ?? '',
       ].join(','));
     }
 

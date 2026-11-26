@@ -1,9 +1,12 @@
 import 'dart:async';
+import 'dart:collection';
 
 import 'package:flutter/material.dart';
 import 'package:spas_web/model.dart';
 import 'package:spas_web/services/agent.dart';
 import 'package:spas_web/services/department.dart';
+import 'package:spas_web/services/department_scope.dart';
+import 'package:spas_web/services/tenant_scope.dart';
 
 class AgentBadgeProvider extends ChangeNotifier {
   AgentBadgeProvider({
@@ -23,6 +26,13 @@ class AgentBadgeProvider extends ChangeNotifier {
   final DepartmentService _departmentService;
 
   final TextEditingController searchController = TextEditingController();
+
+  static const pageSize = 25;
+  int _pageIndex = 0;
+  int _loadRequestId = 0;
+  bool _disposed = false;
+  List<Agent>? _cachedAgents;
+  String? _cacheScope;
 
   List<Department> _departments = <Department>[];
   List<Agent> _loadedAgents = <Agent>[];
@@ -44,11 +54,30 @@ class AgentBadgeProvider extends ChangeNotifier {
 
   Timer? _searchDebounce;
 
-  List<Department> get departments =>
-      List<Department>.unmodifiable(_departments);
-  List<Agent> get loadedAgents => List<Agent>.unmodifiable(_loadedAgents);
-  List<Agent> get visibleAgents => List<Agent>.unmodifiable(_visibleAgents);
-  Set<String> get selectedCodes => Set<String>.unmodifiable(_selectedCodes);
+  List<Department> get departments => UnmodifiableListView(_departments);
+  List<Agent> get loadedAgents => UnmodifiableListView(_loadedAgents);
+  List<Agent> get visibleAgents => UnmodifiableListView(_visibleAgents);
+  Set<String> get selectedCodes => UnmodifiableSetView(_selectedCodes);
+
+  bool isSelected(Agent agent) => _selectedCodes.contains(agent.code);
+  int get pageIndex => _pageIndex;
+  int get pageCount => (visibleCount + pageSize - 1) ~/ pageSize;
+  int get pageStart => visibleCount == 0 ? 0 : _pageIndex * pageSize + 1;
+  int get pageEnd => ((_pageIndex + 1) * pageSize).clamp(0, visibleCount);
+  List<Agent> get pageAgents =>
+      _visibleAgents.sublist(_pageIndex * pageSize, pageEnd);
+
+  void setPage(int index) {
+    if (index < 0 || index >= pageCount || index == _pageIndex) return;
+    _pageIndex = index;
+    notifyListeners();
+  }
+
+  // A page-local cache must never be reused after a tenant/access-scope change.
+  String get _currentScope {
+    final departments = DepartmentScope.activeDepartmentIds..sort();
+    return '${TenantScope.activeTenantFilterId}|${DepartmentScope.isLimited}|${departments.join(',')}';
+  }
 
   bool get isLoadingDepartments => _isLoadingDepartments;
   bool get isLoadingAgents => _isLoadingAgents;
@@ -96,7 +125,9 @@ class AgentBadgeProvider extends ChangeNotifier {
   }) async {
     _useCurrentList = useCurrentList;
     _errorMessage = null;
+    final requestId = _loadRequestId;
     await loadDepartments();
+    if (_disposed || requestId != _loadRequestId) return;
 
     if (useCurrentList && currentAgents != null && currentAgents.isNotEmpty) {
       setCurrentAgents(currentAgents);
@@ -112,6 +143,9 @@ class AgentBadgeProvider extends ChangeNotifier {
     required bool useCurrentList,
     List<Agent>? currentAgents,
   }) {
+    _loadRequestId++;
+    _isLoadingAgents = false;
+    _pageIndex = 0;
     _useCurrentList = useCurrentList;
     _errorMessage = null;
 
@@ -134,6 +168,8 @@ class AgentBadgeProvider extends ChangeNotifier {
   }
 
   void setCurrentAgents(List<Agent> agents) {
+    _loadRequestId++;
+    _isLoadingAgents = false;
     _loadedAgents = List<Agent>.from(agents);
     _selectedCodes = _loadedAgents.map((agent) => agent.code).toSet();
     _applySearch(notify: false);
@@ -146,21 +182,29 @@ class AgentBadgeProvider extends ChangeNotifier {
 
     try {
       final departments = await _departmentService.allFuture();
+      if (_disposed) return;
       departments.sort(
         (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
       );
       _departments = departments;
     } catch (error) {
+      if (_disposed) return;
       _errorMessage = 'Erreur chargement départements: $error';
       _departments = <Department>[];
     } finally {
       _isLoadingDepartments = false;
-      notifyListeners();
+      if (!_disposed) notifyListeners();
     }
   }
 
   Future<void> loadAgentsFromFirebase() async {
+    if (_disposed || _isLoadingAgents) return;
+    final requestId = ++_loadRequestId;
+    final scope = _currentScope;
     _isLoadingAgents = true;
+    _cachedAgents = null;
+    _cacheScope = null;
+    _pageIndex = 0;
     _errorMessage = null;
     _loadedAgents = <Agent>[];
     _visibleAgents = <Agent>[];
@@ -169,35 +213,53 @@ class AgentBadgeProvider extends ChangeNotifier {
 
     try {
       final allAgents = await _agentService.allFuture();
-
-      final filtered = allAgents.where((agent) {
-        final matchesStatus =
-            _selectedActif == null || agent.actif == _selectedActif;
-
-        final agentType = (agent.typeAgent?.label ?? '').trim().toUpperCase();
-        final matchesType =
-            _selectedType == 'Tous' || agentType == _selectedType.trim();
-
-        final departmentLabel =
-            (agent.department?.label ?? '').trim().toLowerCase();
-        final selectedDepartment = _selectedDepartment.trim().toLowerCase();
-        final matchesDepartment = _selectedDepartment == 'Tous' ||
-            departmentLabel == selectedDepartment;
-
-        return matchesStatus && matchesType && matchesDepartment;
-      }).toList();
-
-      filtered.sort(
-        (a, b) => a.code.toLowerCase().compareTo(b.code.toLowerCase()),
-      );
-
-      _loadedAgents = filtered;
-      _selectedCodes = _loadedAgents.map((agent) => agent.code).toSet();
-      _applySearch(notify: false);
+      if (_disposed || requestId != _loadRequestId) return;
+      if (scope != _currentScope) {
+        _errorMessage = 'Le périmètre a changé. Rechargez la sélection.';
+        return;
+      }
+      // Sort once per explicit load, not again for every filter/reset.
+      _cachedAgents = List<Agent>.from(allAgents)
+        ..sort(
+          (a, b) => a.code.toLowerCase().compareTo(b.code.toLowerCase()),
+        );
+      _cacheScope = scope;
+      _applyCachedFilters(notify: false);
     } catch (error) {
+      if (_disposed || requestId != _loadRequestId) return;
       _errorMessage = 'Erreur chargement agents: $error';
     } finally {
-      _isLoadingAgents = false;
+      if (!_disposed && requestId == _loadRequestId) {
+        _isLoadingAgents = false;
+        notifyListeners();
+      }
+    }
+  }
+
+  void _applyCachedFilters({bool notify = true}) {
+    final selectedType = _selectedType.trim().toUpperCase();
+    final selectedDepartment = _selectedDepartment.trim().toLowerCase();
+    _loadedAgents = _cachedAgents!.where((agent) {
+      return (_selectedActif == null || agent.actif == _selectedActif) &&
+          (_selectedType == 'Tous' ||
+              (agent.typeAgent?.label ?? '').trim().toUpperCase() ==
+                  selectedType) &&
+          (_selectedDepartment == 'Tous' ||
+              (agent.department?.label ?? '').trim().toLowerCase() ==
+                  selectedDepartment);
+    }).toList();
+    _selectedCodes = _loadedAgents.map((agent) => agent.code).toSet();
+    _errorMessage = null;
+    _applySearch(notify: notify);
+  }
+
+  Future<void> _filterOrLoad() async {
+    if (_cachedAgents != null && _cacheScope == _currentScope) {
+      _applyCachedFilters();
+    } else if (!_isLoadingAgents) {
+      await loadAgentsFromFirebase();
+    } else {
+      // The pending request will apply the latest filter values when it finishes.
       notifyListeners();
     }
   }
@@ -212,6 +274,7 @@ class AgentBadgeProvider extends ChangeNotifier {
 
     _searchDebounce?.cancel();
     _searchDebounce = Timer(const Duration(milliseconds: 250), () {
+      if (_searchQuery == value) return;
       _searchQuery = value;
       _applySearch();
     });
@@ -221,7 +284,7 @@ class AgentBadgeProvider extends ChangeNotifier {
     if (value == null || value == _selectedType) return;
     _selectedType = value;
     if (!_useCurrentList) {
-      await loadAgentsFromFirebase();
+      await _filterOrLoad();
     } else {
       notifyListeners();
     }
@@ -231,7 +294,7 @@ class AgentBadgeProvider extends ChangeNotifier {
     if (value == null || value == _selectedDepartment) return;
     _selectedDepartment = value;
     if (!_useCurrentList) {
-      await loadAgentsFromFirebase();
+      await _filterOrLoad();
     } else {
       notifyListeners();
     }
@@ -241,7 +304,7 @@ class AgentBadgeProvider extends ChangeNotifier {
     if (value == _selectedActif) return;
     _selectedActif = value;
     if (!_useCurrentList) {
-      await loadAgentsFromFirebase();
+      await _filterOrLoad();
     } else {
       notifyListeners();
     }
@@ -289,7 +352,7 @@ class AgentBadgeProvider extends ChangeNotifier {
       return;
     }
 
-    unawaited(loadAgentsFromFirebase());
+    unawaited(_filterOrLoad());
   }
 
   void clearError() {
@@ -331,10 +394,11 @@ class AgentBadgeProvider extends ChangeNotifier {
   }
 
   void _applySearch({bool notify = true}) {
+    _pageIndex = 0;
     final query = _searchQuery.trim().toLowerCase();
 
     if (query.isEmpty) {
-      _visibleAgents = List<Agent>.from(_loadedAgents);
+      _visibleAgents = _loadedAgents;
       if (notify) {
         notifyListeners();
       }
@@ -365,6 +429,8 @@ class AgentBadgeProvider extends ChangeNotifier {
 
   @override
   void dispose() {
+    _disposed = true;
+    _loadRequestId++;
     _searchDebounce?.cancel();
     searchController.dispose();
     super.dispose();

@@ -5,6 +5,9 @@ import 'package:spas_web/model.dart';
 import 'package:spas_web/services/access_control.dart';
 import 'package:spas_web/services/mobile_config.dart';
 import 'package:spas_web/services/tenant.dart';
+import 'package:spas_web/mobile_config/background_tracking_control.dart';
+import 'package:spas_web/mobile_config/geo_pointing_settings_panel.dart';
+import 'package:spas_web/widgets/pointage_mode_override_field.dart';
 
 class MobileConfigPage extends StatefulWidget {
   const MobileConfigPage({super.key});
@@ -25,16 +28,20 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
       TextEditingController();
 
   late Future<MobileConfig> _configFuture;
+  late final Stream<MobileConfig> _configStream;
   bool _backgroundTrackingEnabled =
       MobileConfig.defaultBackgroundTrackingEnabled;
   double _photoQuality = MobileConfig.defaultPointingPhotoQuality.toDouble();
+  GeoPointingConfig _geoPointing = const GeoPointingConfig.recommended();
   bool _isSaving = false;
+  bool _isSavingTracking = false;
   final Set<String> _savingPointageTenantIds = <String>{};
 
   @override
   void initState() {
     super.initState();
     _configFuture = _loadConfig();
+    _configStream = _service.watchConfig();
   }
 
   @override
@@ -85,6 +92,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
 
   void _applyConfig(MobileConfig config) {
     _backgroundTrackingEnabled = config.backgroundTrackingEnabled;
+    _geoPointing = config.geoPointing;
     _photoQuality = config.pointingPhotoQuality.toDouble();
     _maxWidthController.text = _formatOptionalDouble(
       config.pointingPhotoMaxWidth,
@@ -120,7 +128,10 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
                 ],
                 _buildPointageModesPanel(canEditPointageModes),
                 const SizedBox(height: 16),
-                _buildTrackingPanel(canEdit),
+                _buildGeoPointingPanel(canEdit),
+                const SizedBox(height: 16),
+                _buildTrackingPanel(
+                    canEdit && AccessControl.canBypassTenantFilter),
                 const SizedBox(height: 16),
                 _buildPhotoPanel(canEdit),
                 const SizedBox(height: 20),
@@ -280,6 +291,8 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
               ),
             ],
           ),
+          const SizedBox(height: 10),
+          const PointageModeOverrideHint(),
           const SizedBox(height: 16),
           StreamBuilder<List<Tenant>>(
             stream: _tenantService.watchPointageModeTenants(
@@ -509,37 +522,85 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
     );
   }
 
+  /// Settings shared by every country: same gate as the global tracking.
+  Widget _buildGeoPointingPanel(bool canEdit) {
+    final canEditGeo = canEdit && AccessControl.canBypassTenantFilter;
+    return GeoPointingSettingsPanel(
+      initial: _geoPointing,
+      canEdit: canEditGeo,
+      readOnlyReason: canEditGeo
+          ? null
+          : 'Réglage commun à tous les pays : seuls les administrateurs et la '
+              'direction générale peuvent le modifier.',
+      onSave: _saveGeoPointing,
+    );
+  }
+
+  Future<void> _saveGeoPointing(GeoPointingConfig config) async {
+    if (!AccessControl.canBypassTenantFilter ||
+        !AccessControl.canAdd(ModuleName.MOBILE_CONFIG)) {
+      return;
+    }
+    final manager = AccessControl.currentManager;
+    final name = manager == null
+        ? ''
+        : '${manager.firstName} ${manager.lastName}'.trim();
+    try {
+      await _service.saveGeoPointing(
+        config,
+        author: GeoConfigAuthor(
+          uid: manager?.UID,
+          name: name.isEmpty ? null : name,
+          email: manager?.email,
+        ),
+      );
+      final saved = await _service.getConfig();
+      if (!mounted) return;
+      setState(() => _geoPointing = saved.geoPointing);
+      _showSnackBar('Réglage du pointage par géolocalisation enregistré.');
+    } catch (error) {
+      if (!mounted) return;
+      _showSnackBar('Erreur pendant l enregistrement: $error', isError: true);
+    }
+  }
+
   Widget _buildTrackingPanel(bool canEdit) {
-    return Container(
-      padding: const EdgeInsets.all(18),
-      decoration: _panelDecoration(),
-      child: Row(
-        children: [
-          _buildPanelIcon(Icons.my_location_rounded),
-          const SizedBox(width: 14),
-          const Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Suivi GPS en arriere-plan',
-                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w700),
-                ),
-                SizedBox(height: 4),
-                Text(
-                  'Pilote par le mode de pointage du pays: geo active, photo desactive.',
-                  style: TextStyle(color: Colors.black54, fontSize: 13),
-                ),
-              ],
-            ),
-          ),
-          Switch(
-            value: _backgroundTrackingEnabled,
-            onChanged: null,
-          ),
-        ],
+    return StreamBuilder<MobileConfig>(
+      stream: _configStream,
+      builder: (context, snapshot) => BackgroundTrackingControl(
+        value: snapshot.data?.backgroundTrackingEnabled ??
+            _backgroundTrackingEnabled,
+        enabled: canEdit && !snapshot.hasError,
+        saving: _isSavingTracking,
+        error: snapshot.hasError
+            ? 'Impossible de recevoir la configuration. Rechargez la page.'
+            : null,
+        onChanged: _saveTracking,
       ),
     );
+  }
+
+  Future<void> _saveTracking(bool enabled) async {
+    if (!AccessControl.canBypassTenantFilter ||
+        !AccessControl.canAdd(ModuleName.MOBILE_CONFIG) ||
+        _isSavingTracking) {
+      return;
+    }
+    setState(() => _isSavingTracking = true);
+    try {
+      await _service.setBackgroundTrackingEnabled(enabled);
+      if (!mounted) return;
+      setState(() => _backgroundTrackingEnabled = enabled);
+      _showSnackBar(enabled
+          ? 'Suivi continu autorise pour les roles en mode Geo.'
+          : 'Suivi continu desactive pour tous les pays.');
+    } catch (error) {
+      if (mounted) {
+        _showSnackBar('Impossible de modifier le suivi: $error', isError: true);
+      }
+    } finally {
+      if (mounted) setState(() => _isSavingTracking = false);
+    }
   }
 
   Widget _buildPhotoPanel(bool canEdit) {
@@ -815,8 +876,9 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
     try {
       await _tenantService.updatePointageModes(
         tenantId: tenantId,
-        pointageMode: nextPointageMode,
-        zoneChiefPointageMode: nextZoneChiefPointageMode,
+        pointageMode: pointageMode == null ? null : nextPointageMode,
+        zoneChiefPointageMode:
+            zoneChiefPointageMode == null ? null : nextZoneChiefPointageMode,
       );
       if (!mounted) return;
       _showSnackBar('Modes de pointage mis a jour.');
@@ -866,7 +928,7 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
       builder: (context) => AlertDialog(
         title: const Text('Remettre les valeurs par defaut ?'),
         content: const Text(
-          'Les champs de configuration mobile seront supprimes de Firestore. Le mobile utilisera alors ses valeurs par defaut.',
+          'Les parametres photo seront remis aux valeurs par defaut. Le suivi GPS continu et les modes de pointage sont conserves.',
         ),
         actions: [
           TextButton(
@@ -892,7 +954,9 @@ class _MobileConfigPageState extends State<MobileConfigPage> {
 
     try {
       await _service.resetToDefaults();
-      const config = MobileConfig.defaults();
+      // The photo reset does not touch the geolocation settings.
+      final config =
+          const MobileConfig.defaults().copyWith(geoPointing: _geoPointing);
       if (!mounted) return;
       _applyConfig(config);
       setState(() {

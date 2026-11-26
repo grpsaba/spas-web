@@ -28,11 +28,8 @@ class _SiteNonVisiteParZoneState extends State<SiteNonVisiteParZone> {
   }
 
   getSiteOfSupervisor() async {
-    _siteOfZone = await _service.allAsModel();
-    _siteOfZone = _siteOfZone
-        .where((element) =>
-            element.actif == true && (element.zone == widget.zoneMember.zone))
-        .toList();
+    final sites = await _service.allSitesForZoneMember(widget.zoneMember);
+    if (mounted) setState(() => _siteOfZone = sites);
   }
 
   @override

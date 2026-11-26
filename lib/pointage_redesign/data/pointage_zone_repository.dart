@@ -20,8 +20,8 @@ import '../../services/tenant_scope.dart';
 ///    Fields: date (Descending), site.UID (Ascending)
 ///    
 /// 3. Collection: zonePointings
-///    Fields: date (Descending), zoneMember.zone.codeZone (Ascending)
-///    
+///    Fields: date (Descending), site.zone.codeZone (Ascending)
+///
 /// These indexes enable efficient server-side filtering and sorting
 /// Requirements: 1.1, 1.2
 class PointageZoneRepository {
@@ -280,7 +280,7 @@ class PointageZoneRepository {
       // Filter by specific zones if provided
       if (zoneIds != null && zoneIds.isNotEmpty) {
         if (zoneIds.length <= 10) {
-          query = query.where('zoneMember.zone.codeZone', whereIn: zoneIds);
+          query = query.where('site.zone.codeZone', whereIn: zoneIds);
         }
       }
 
@@ -297,7 +297,8 @@ class PointageZoneRepository {
           final data = doc.data() as Map<String, dynamic>;
           final zoneMemberData = data['zoneMember'] as Map<String, dynamic>?;
           if (zoneMemberData != null) {
-            final zoneData = zoneMemberData['zone'] as Map<String, dynamic>?;
+            final zoneData = (data['site'] as Map<String, dynamic>?)?['zone']
+                as Map<String, dynamic>?;
             if (zoneData != null) {
               final zoneCode = zoneData['codeZone'] as String?;
               if (zoneCode != null) {
@@ -370,7 +371,8 @@ class PointageZoneRepository {
             }
             
             // Extract zone info
-            final zoneData = zoneMemberData['zone'] as Map<String, dynamic>?;
+            final zoneData = (data['site'] as Map<String, dynamic>?)?['zone']
+                as Map<String, dynamic>?;
             if (zoneData != null) {
               final zoneCode = zoneData['codeZone'] as String?;
               if (zoneCode != null) {

@@ -1,5 +1,9 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
+import 'geo_pointing_config.dart';
+
+export 'geo_pointing_config.dart';
+
 class MobileConfigService {
   MobileConfigService({FirebaseFirestore? firestore})
       : _firestore = firestore ?? FirebaseFirestore.instance;
@@ -30,9 +34,18 @@ class MobileConfigService {
     return MobileConfig.fromJson(snapshot.data() ?? <String, dynamic>{});
   }
 
+  Stream<MobileConfig> watchConfig() => _documentReference.snapshots().map(
+        (snapshot) => MobileConfig.fromJson(snapshot.data() ?? {}),
+      );
+
+  Future<void> setBackgroundTrackingEnabled(bool enabled) =>
+      _documentReference.set({
+        backgroundTrackingEnabledField: enabled,
+        'updatedAt': FieldValue.serverTimestamp(),
+      }, SetOptions(merge: true));
+
   Future<void> saveConfig(MobileConfig config) {
     final data = <String, dynamic>{
-      backgroundTrackingEnabledField: config.backgroundTrackingEnabled,
       pointingPhotoQualityField: config.pointingPhotoQuality,
       'updatedAt': FieldValue.serverTimestamp(),
     };
@@ -47,10 +60,36 @@ class MobileConfigService {
     return _documentReference.set(data, SetOptions(merge: true));
   }
 
+  /// Writes only the `geoPointing` map (replaced as a whole, so no stale
+  /// sub-field survives): every other field of app_config/global (photo
+  /// settings, menus, tracking gate...) is left untouched.
+  Future<void> saveGeoPointing(
+    GeoPointingConfig config, {
+    required GeoConfigAuthor author,
+  }) =>
+      _documentReference.set(
+        geoPointingWritePayload(config, author: author),
+        geoPointingWriteOptions,
+      );
+
+  static final SetOptions geoPointingWriteOptions =
+      SetOptions(mergeFields: <Object>[GeoPointingConfig.firestoreField]);
+
+  static Map<String, dynamic> geoPointingWritePayload(
+    GeoPointingConfig config, {
+    required GeoConfigAuthor author,
+  }) =>
+      <String, dynamic>{
+        GeoPointingConfig.firestoreField: <String, dynamic>{
+          ...config.copyWith().settingsToJson(),
+          GeoPointingConfig.updatedAtField: FieldValue.serverTimestamp(),
+          GeoPointingConfig.updatedByField: author.toJson(),
+        },
+      };
+
   Future<void> resetToDefaults() {
     return _documentReference.set(
       <String, dynamic>{
-        backgroundTrackingEnabledField: FieldValue.delete(),
         pointingPhotoQualityField: FieldValue.delete(),
         pointingPhotoMaxWidthField: FieldValue.delete(),
         pointingPhotoMaxHeightField: FieldValue.delete(),
@@ -71,6 +110,7 @@ class MobileConfig {
   final double? pointingPhotoMaxWidth;
   final double? pointingPhotoMaxHeight;
   final int? pointingPhotoUploadTimeoutSeconds;
+  final GeoPointingConfig geoPointing;
 
   const MobileConfig({
     required this.backgroundTrackingEnabled,
@@ -78,6 +118,7 @@ class MobileConfig {
     this.pointingPhotoMaxWidth,
     this.pointingPhotoMaxHeight,
     this.pointingPhotoUploadTimeoutSeconds,
+    this.geoPointing = const GeoPointingConfig.recommended(),
   });
 
   const MobileConfig.defaults()
@@ -85,7 +126,8 @@ class MobileConfig {
         pointingPhotoQuality = defaultPointingPhotoQuality,
         pointingPhotoMaxWidth = null,
         pointingPhotoMaxHeight = null,
-        pointingPhotoUploadTimeoutSeconds = null;
+        pointingPhotoUploadTimeoutSeconds = null,
+        geoPointing = const GeoPointingConfig.recommended();
 
   factory MobileConfig.fromJson(Map<String, dynamic> json) {
     const defaults = MobileConfig.defaults();
@@ -107,6 +149,9 @@ class MobileConfig {
       pointingPhotoUploadTimeoutSeconds: _readPositiveInt(
         json[MobileConfigService.pointingPhotoUploadTimeoutSecondsField],
       ),
+      geoPointing: GeoPointingConfig.fromJson(
+        json[GeoPointingConfig.firestoreField],
+      ),
     );
   }
 
@@ -116,6 +161,7 @@ class MobileConfig {
     double? pointingPhotoMaxWidth,
     double? pointingPhotoMaxHeight,
     int? pointingPhotoUploadTimeoutSeconds,
+    GeoPointingConfig? geoPointing,
   }) {
     return MobileConfig(
       backgroundTrackingEnabled:
@@ -127,6 +173,7 @@ class MobileConfig {
           pointingPhotoMaxHeight ?? this.pointingPhotoMaxHeight,
       pointingPhotoUploadTimeoutSeconds: pointingPhotoUploadTimeoutSeconds ??
           this.pointingPhotoUploadTimeoutSeconds,
+      geoPointing: geoPointing ?? this.geoPointing,
     );
   }
 

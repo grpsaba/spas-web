@@ -316,6 +316,8 @@ class _PermissionToggle extends StatelessWidget {
 
 IconData _moduleIcon(ModuleName moduleName) {
   switch (moduleName) {
+    case ModuleName.BON_MISE_EN_PLACE:
+      return HugeIcons.strokeRoundedNoteEdit;
     case ModuleName.TABLEAU_DE_BORD:
       return HugeIcons.strokeRoundedDashboardSquare01;
     case ModuleName.AGENT:
@@ -359,6 +361,8 @@ IconData _moduleIcon(ModuleName moduleName) {
 
 String _moduleLabel(ModuleName moduleName) {
   switch (moduleName) {
+    case ModuleName.BON_MISE_EN_PLACE:
+      return 'Bons de mise en place';
     case ModuleName.TABLEAU_DE_BORD:
       return 'Tableau de bord';
     case ModuleName.AGENT:

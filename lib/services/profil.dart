@@ -6,12 +6,26 @@ import '../const.dart';
 import '../model.dart';
 
 class ProfilService {
+  Map<String, dynamic> _data(Profil profil) => {
+        ...profil.toJson(),
+        // Indexed permissions for Firestore/Storage rules (rules cannot search a
+        // list of module maps). Persisted only through the existing profile editor.
+        'installationAccess': {
+          'view': profil.getModule(ModuleName.BON_MISE_EN_PLACE)?.view ?? false,
+          'add': profil.getModule(ModuleName.BON_MISE_EN_PLACE)?.add ?? false,
+          'validation':
+              profil.getModule(ModuleName.BON_MISE_EN_PLACE)?.validation ??
+                  false,
+          'print':
+              profil.getModule(ModuleName.BON_MISE_EN_PLACE)?.print ?? false,
+        },
+      };
   final CollectionReference _collectionReference =
       FirebaseFirestore.instance.collection("Profils");
 
   Future<void> add(Profil profil) async {
     profil.modules = AppConstants.moduleList;
-    _collectionReference.doc(profil.name).set(profil.toJson());
+    await _collectionReference.doc(profil.name).set(_data(profil));
   }
 
   Stream<QuerySnapshot> all() {
@@ -29,6 +43,6 @@ class ProfilService {
   }
 
   Future<void> update(Profil profil) {
-    return _collectionReference.doc(profil.name).update(profil.toJson());
+    return _collectionReference.doc(profil.name).update(_data(profil));
   }
 }

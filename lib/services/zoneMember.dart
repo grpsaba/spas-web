@@ -4,6 +4,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 
 import '../model.dart';
+import '../models/pointage_mode_override.dart';
 import 'authentication.dart';
 import 'department_scope.dart';
 import 'tenant_scope.dart';
@@ -17,15 +18,18 @@ class ZoneMemberService {
       );
 
   Future<User?> add(ZoneMember zoneMember, password) async {
-    TenantScope.applyTenantIdForWrite(zoneMember);
+    _prepareForWrite(zoneMember);
     var user =
         await AuthService().createUserWithEmail(zoneMember.email, password);
     if (user != null) {
       zoneMember.UID = user.uid;
-      _collectionReference
-          .doc(user.uid)
-          .set(zoneMember.toJson())
-          .onError((error, stackTrace) => print(error));
+      await _collectionReference.doc(user.uid).set({
+        ...zoneMember.toJson(),
+        ...PointageModeOverride.createFields(zoneMember.pointageModeOverride),
+      });
+    }
+    if (user == null) {
+      throw StateError('Impossible de créer le compte du chef de zone');
     }
     return user;
   }
@@ -48,6 +52,7 @@ class ZoneMemberService {
 
     return collection;
   }
+
   Future<List<ZoneMember>> allActifAsModel() async {
     var snapshot = await TenantScope.getQuery(
       'ZoneMemberService.allActifAsModel',
@@ -75,9 +80,37 @@ class ZoneMemberService {
     return ZoneMember.fromJson(json);
   }
 
-  Future<void> update(ZoneMember zoneMember) {
-    TenantScope.applyTenantIdForWrite(zoneMember);
-    return _collectionReference.doc(zoneMember.UID).update(zoneMember.toJson());
+  /// See [SupervisorService.update] for [writePointageModeOverride].
+  Future<void> update(
+    ZoneMember zoneMember, {
+    bool writePointageModeOverride = false,
+  }) {
+    _prepareForWrite(zoneMember);
+    return _collectionReference.doc(zoneMember.UID).update({
+      ...zoneMember.toJson(),
+      if (writePointageModeOverride)
+        ...PointageModeOverride.updateFields(zoneMember.pointageModeOverride),
+    });
+  }
+
+  void _prepareForWrite(ZoneMember member) {
+    // Existing profiles must not silently move countries when an admin changes
+    // the country filter while their edit form is open.
+    if (member.UID.isEmpty && !member.hasTenantId) {
+      TenantScope.applyTenantIdForWrite(member);
+    }
+    member.departmentId = normalizeDepartmentId(member.departmentId);
+    if (!member.hasSiteScope ||
+        !TenantScope.matchesTenant(member.tenantId) ||
+        !DepartmentScope.matchesDepartment(member.departmentId)) {
+      throw StateError(
+          'Affectation invalide : pays, département et périmètre requis. Le mode global est réservé à la Sécurité.');
+    }
+    if (!member.hasGlobalZoneAccess &&
+        member.zone?.tenantId != member.tenantId) {
+      throw StateError('La zone doit appartenir au pays du chef de zone');
+    }
+    if (member.hasGlobalZoneAccess) member.zone = null;
   }
 
   Future<void> saveToken(String? token, String UID) {

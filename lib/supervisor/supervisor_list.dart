@@ -13,6 +13,7 @@ import '../services/agent.dart';
 import '../services/loading.dart';
 import '../services/site.dart';
 import '../services/supervisor.dart';
+import '../widgets/pointage_mode_override_field.dart';
 
 class SupervisorList extends StatefulWidget {
   const SupervisorList({
@@ -299,10 +300,21 @@ class _DataSource extends DataTableSource {
         DataCell(Text(supervisor.lastName)),
         DataCell(Text(supervisor.phone)),
         DataCell(Text(supervisor.email)),
-        DataCell(Text(
-          supervisor.hasTenantId
-              ? supervisor.tenantId.toUpperCase()
-              : 'Non affecte',
+        DataCell(Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Text(
+              supervisor.hasTenantId
+                  ? supervisor.tenantId.toUpperCase()
+                  : 'Non affecte',
+            ),
+            if (supervisor.pointageModeOverride != null) ...[
+              const SizedBox(width: 6),
+              PointageModeOverrideBadge(
+                mode: supervisor.pointageModeOverride,
+              ),
+            ],
+          ],
         )),
         DataCell(_nbSite(supervisor)),
         DataCell(_nbAgent(supervisor)),

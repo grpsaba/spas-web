@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 import 'package:spas_web/administration/home.dart';
 import 'package:spas_web/error_logs/models/error_log_model.dart';
+import 'package:spas_web/error_logs/models/geo_diagnostic.dart';
 import 'package:spas_web/error_logs/providers/error_log_provider.dart';
 import 'package:spas_web/error_logs/widgets/error_type_badge.dart';
 import 'package:spas_web/error_logs/widgets/status_filter_badges.dart';
@@ -282,7 +283,136 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
               ],
             ),
           ),
+          const SizedBox(height: PointageSpacing.sm),
+          _buildGeoFilters(provider),
         ],
+      ),
+    );
+  }
+
+  /// Filters on the fields sent by the geolocation fallback app versions.
+  /// Choices come from the 500 most recent logs (plus the active value).
+  Widget _buildGeoFilters(ErrorLogProvider provider) {
+    final filters = provider.filters;
+    final stats = provider.stats;
+    final outcomes = <String>{
+      ...AttemptOutcome.all,
+      ...stats.byAttemptOutcome.keys,
+    }.toList();
+    return Wrap(
+      spacing: PointageSpacing.sm,
+      runSpacing: PointageSpacing.sm,
+      crossAxisAlignment: WrapCrossAlignment.center,
+      children: [
+        _buildFilterDropdown(
+          label: 'Résultat de l\'essai GPS',
+          icon: Icons.gps_not_fixed,
+          value: filters.attemptOutcome,
+          options: {
+            for (final outcome in outcomes)
+              outcome: '${AttemptOutcome.label(outcome)}'
+                  '${stats.byAttemptOutcome[outcome] != null ? ' (${stats.byAttemptOutcome[outcome]})' : ''}',
+          },
+          onChanged: provider.setAttemptOutcomeFilter,
+        ),
+        _buildFilterDropdown(
+          label: 'Version de l\'app',
+          icon: Icons.system_update,
+          value: filters.appVersion,
+          options: _countOptions(stats.byAppVersion, filters.appVersion,
+              format: (v) => 'v$v'),
+          onChanged: provider.setAppVersionFilter,
+        ),
+        _buildFilterDropdown(
+          label: 'Modèle de téléphone',
+          icon: Icons.phone_android,
+          value: filters.deviceModel,
+          options: _countOptions(stats.byDeviceModel, filters.deviceModel),
+          onChanged: provider.setDeviceModelFilter,
+        ),
+      ],
+    );
+  }
+
+  Map<String, String> _countOptions(
+    Map<String, int> counts,
+    String? current, {
+    String Function(String value)? format,
+  }) {
+    final keys = counts.keys.toList()
+      ..sort((a, b) => (counts[b] ?? 0).compareTo(counts[a] ?? 0));
+    if (current != null && !keys.contains(current)) keys.insert(0, current);
+    return {
+      for (final key in keys)
+        key: '${format?.call(key) ?? key}'
+            '${counts[key] != null ? ' (${counts[key]})' : ''}',
+    };
+  }
+
+  Widget _buildFilterDropdown({
+    required String label,
+    required IconData icon,
+    required String? value,
+    required Map<String, String> options,
+    required ValueChanged<String?> onChanged,
+  }) {
+    final isActive = value != null;
+    return Container(
+      height: 36,
+      padding: const EdgeInsets.symmetric(horizontal: PointageSpacing.sm),
+      decoration: BoxDecoration(
+        color: isActive
+            ? PointageColors.primary.withValues(alpha: 0.08)
+            : Colors.white,
+        borderRadius: PointageBorderRadius.medium,
+        border: Border.all(
+          color: isActive ? PointageColors.primary : PointageColors.divider,
+        ),
+      ),
+      child: DropdownButtonHideUnderline(
+        child: DropdownButton<String?>(
+          value: value,
+          isDense: true,
+          icon: const Icon(Icons.arrow_drop_down, size: 18),
+          hint: Row(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 16, color: PointageColors.textSecondary),
+              const SizedBox(width: 6),
+              Text(label, style: PointageTextStyles.caption),
+            ],
+          ),
+          selectedItemBuilder: (context) => [
+            Text(label, style: PointageTextStyles.caption),
+            for (final entry in options.entries)
+              Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  Icon(icon, size: 16, color: PointageColors.primary),
+                  const SizedBox(width: 6),
+                  Text(
+                    entry.value,
+                    style: PointageTextStyles.caption.copyWith(
+                      color: PointageColors.primary,
+                      fontWeight: FontWeight.w600,
+                    ),
+                  ),
+                ],
+              ),
+          ],
+          items: [
+            DropdownMenuItem<String?>(
+              value: null,
+              child: Text('$label : tous'),
+            ),
+            for (final entry in options.entries)
+              DropdownMenuItem<String?>(
+                value: entry.key,
+                child: Text(entry.value),
+              ),
+          ],
+          onChanged: onChanged,
+        ),
       ),
     );
   }
@@ -617,6 +747,22 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
                     overflow: TextOverflow.ellipsis,
                     maxLines: 2,
                   ),
+                  if (log.attemptLabel != null ||
+                      log.appAndDeviceLabel != null) ...[
+                    const SizedBox(height: 4),
+                    Text(
+                      [
+                        if (log.attemptLabel != null) log.attemptLabel!,
+                        if (log.appAndDeviceLabel != null)
+                          log.appAndDeviceLabel!,
+                      ].join(' · '),
+                      style: PointageTextStyles.caption.copyWith(
+                        color: PointageColors.primary,
+                        fontWeight: FontWeight.w500,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ],
                   if (diagnosticSummary != null) ...[
                     const SizedBox(height: 4),
                     Text(
@@ -732,6 +878,9 @@ class _ErrorLogsListPageState extends State<ErrorLogsListPage> {
     if (log.backgroundCacheAgeSeconds != null) {
       diagnostics.add('Cache background: ${log.backgroundCacheAgeSeconds}s');
     }
+
+    final geo = log.geoDiagnosticSummary?.shortLabel;
+    if (geo != null && geo.isNotEmpty) diagnostics.add('GPS : $geo');
 
     if (diagnostics.isEmpty) return null;
     return diagnostics.join(' • ');

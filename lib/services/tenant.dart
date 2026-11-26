@@ -34,13 +34,14 @@ class TenantService {
   }
 
   Future<List<Tenant>> allActive() async {
-try{    final snapshot = await _collectionReference
-        .where('active', isEqualTo: true)
-        .orderBy('label')
-        .get();
-    List<Tenant> tenants = snapshot.docs.map(_mapSnapshotToTenant).toList();
-    return tenants;}
-    catch(e){
+    try {
+      final snapshot = await _collectionReference
+          .where('active', isEqualTo: true)
+          .orderBy('label')
+          .get();
+      List<Tenant> tenants = snapshot.docs.map(_mapSnapshotToTenant).toList();
+      return tenants;
+    } catch (e) {
       debugPrint('Error fetching active tenants: $e');
       return [];
     }
@@ -53,35 +54,82 @@ try{    final snapshot = await _collectionReference
     return Tenant.fromJson(data);
   }
 
-  Future<void> save(Tenant tenant) async {
+  Future<void> save(Tenant tenant, {Tenant? previous}) async {
     final id = tenant.id.trim().toLowerCase();
     if (id.isEmpty) {
       throw ArgumentError('Le code pays est obligatoire.');
     }
 
-    await _collectionReference.doc(id).set({
-      ...tenant.toJson(),
-      'id': id,
+    final data = tenant.toJson()..['id'] = id;
+    if (previous == null) {
+      await _collectionReference.doc(id).set(data);
+      return;
+    }
+    final previousData = previous.toJson();
+    data.removeWhere((key, value) => previousData[key] == value);
+    if (data.isEmpty) return;
+    final reference = _collectionReference.doc(id);
+    await reference.firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(reference);
+      final modes = pointageModeChanges(
+        current: _asMap(snapshot.data()),
+        pointageMode: data['pointageMode'] as String?,
+        zoneChiefPointageMode: data['zoneChiefPointageMode'] as String?,
+      );
+      transaction.update(reference, {
+        ...data,
+        ...modes,
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
 
   Future<void> updatePointageModes({
     required String tenantId,
-    required String pointageMode,
-    required String zoneChiefPointageMode,
+    String? pointageMode,
+    String? zoneChiefPointageMode,
   }) async {
     final id = tenantId.trim().toLowerCase();
     if (id.isEmpty) {
       throw ArgumentError('Le code pays est obligatoire.');
     }
 
-    await _collectionReference.doc(id).update({
-      'pointageMode': TenantPointageMode.normalize(pointageMode),
-      'zoneChiefPointageMode':
-          TenantPointageMode.normalize(zoneChiefPointageMode),
-      'updatedAt': FieldValue.serverTimestamp(),
+    if (pointageMode == null && zoneChiefPointageMode == null) return;
+    final reference = _collectionReference.doc(id);
+    await reference.firestore.runTransaction((transaction) async {
+      final snapshot = await transaction.get(reference);
+      transaction.update(reference, {
+        ...pointageModeChanges(
+          current: _asMap(snapshot.data()),
+          pointageMode: pointageMode,
+          zoneChiefPointageMode: zoneChiefPointageMode,
+        ),
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
     });
   }
+
+  /// Only changed roles are written, preserving concurrent edits to other roles.
+  static Map<String, dynamic> pointageModeChanges({
+    Map<String, dynamic>? current,
+    String? pointageMode,
+    String? zoneChiefPointageMode,
+  }) =>
+      {
+        if (pointageMode != null)
+          'pointageMode': TenantPointageMode.normalize(pointageMode),
+        if (zoneChiefPointageMode != null)
+          'zoneChiefPointageMode':
+              TenantPointageMode.normalize(zoneChiefPointageMode),
+        // Freeze the old inherited value before changing the supervisor mode.
+        // Otherwise legacy countries without an explicit chief field change both.
+        if (pointageMode != null &&
+            zoneChiefPointageMode == null &&
+            current != null &&
+            current['zoneChiefPointageMode'] == null)
+          'zoneChiefPointageMode':
+              Tenant.fromJson(current).zoneChiefPointageMode,
+      };
 
   Future<void> setActive(Tenant tenant, bool active) async {
     final id = tenant.id.trim().toLowerCase();

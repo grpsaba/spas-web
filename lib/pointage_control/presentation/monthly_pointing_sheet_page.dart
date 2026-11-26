@@ -9,6 +9,7 @@ import '../services/monthly_pointing_calculator.dart';
 import '../services/monthly_pointing_sheet_exporter.dart';
 import '../services/monthly_pointing_sheet_service.dart';
 import 'pointing_control_ui.dart';
+import 'package:spas_web/widgets/pointing_method_chip.dart';
 
 enum _DayListFilter { all, attention, compliant }
 
@@ -2064,13 +2065,25 @@ class _EvidenceSiteTile extends StatelessWidget {
                           color: const Color(0xFFF5F6F8),
                           borderRadius: BorderRadius.circular(6),
                         ),
-                        child: Text(
-                          '${PointingControlFormat.time(pointing.date)} · ${pointing.distance.isFinite ? pointing.distance.round() : 0} m',
-                          style: const TextStyle(
-                            color: PointingControlColors.ink,
-                            fontSize: 10.5,
-                            fontWeight: FontWeight.w600,
-                          ),
+                        child: Row(
+                          mainAxisSize: MainAxisSize.min,
+                          children: [
+                            Text(
+                              '${PointingControlFormat.time(pointing.date)} · ${pointing.distance.isFinite ? pointing.distance.round() : 0} m',
+                              style: const TextStyle(
+                                color: PointingControlColors.ink,
+                                fontSize: 10.5,
+                                fontWeight: FontWeight.w600,
+                              ),
+                            ),
+                            if (pointing.methodInfo != null) ...[
+                              const SizedBox(width: 6),
+                              PointingMethodChip(
+                                info: pointing.methodInfo,
+                                dense: true,
+                              ),
+                            ],
+                          ],
                         ),
                       ),
                   ],

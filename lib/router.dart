@@ -57,6 +57,8 @@ import 'department/department_list.dart';
 import 'manager/manager_form.dart';
 import 'manager/user_page.dart';
 import 'mobile_config/mobile_config_page.dart';
+import 'geo_tracking/geo_tracking_page.dart';
+import 'site_installation/installation_pages.dart';
 
 Manager _emptyManager() {
   return Manager(
@@ -126,6 +128,16 @@ GoRouter routeConfig = GoRouter(
       }
     },
     routes: [
+      GoRoute(
+        path: '/bons-mise-en-place',
+        builder: (context, state) => const InstallationListPage(),
+        routes: [GoRoute(
+          path: ':id',
+          builder: (context, state) => InstallationDetailPage(
+            key: ValueKey(state.pathParameters['id']),
+            id: state.pathParameters['id']!),
+        )],
+      ),
       //routes auth
       GoRoute(
           name: "page d'erreur",
@@ -232,6 +244,14 @@ GoRouter routeConfig = GoRouter(
                 name: "génération avancée des badges agents",
                 path: "badges",
                 builder: (context, state) => AgentBadgeGenerationPage(
+                      currentAgents:
+                          (state.extra as List<Agent>?) ?? const <Agent>[],
+                    )),
+            GoRoute(
+                name: "badges agents avec photo",
+                path: "photo-badges",
+                builder: (context, state) => AgentBadgeGenerationPage(
+                      withPhoto: true,
                       currentAgents:
                           (state.extra as List<Agent>?) ?? const <Agent>[],
                     )),
@@ -434,6 +454,11 @@ GoRouter routeConfig = GoRouter(
                       errorLog: state.extra as ErrorLog,
                     )),
           ]),
+      GoRoute(
+        name: "suivi géolocalisation",
+        path: "/suivi-geolocalisation",
+        builder: (context, state) => const GeoTrackingPage(),
+      ),
       GoRoute(
         name: "configuration mobile",
         path: "/mobile-config",

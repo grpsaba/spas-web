@@ -1,0 +1,642 @@
+import 'dart:typed_data';
+import 'dart:convert';
+
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:firebase_storage/firebase_storage.dart';
+import 'package:flutter/foundation.dart' show kDebugMode;
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../model.dart';
+import '../services/access_control.dart';
+import '../services/department_scope.dart';
+import '../services/tenant_scope.dart';
+import 'installation_order.dart';
+import 'installation_catalog.dart';
+import 'installation_numbering.dart';
+import 'installation_transactions.dart';
+
+class InstallationService {
+  final _db = FirebaseFirestore.instance;
+
+  Future<T> _transaction<T>(TransactionHandler<T> action) =>
+      installationTransaction<T>(
+          (handler) => _db.runTransaction<T>(handler), action);
+  CollectionReference<Map<String, dynamic>> get _orders =>
+      _db.collection(installationOrdersCollection);
+
+  bool get canView => AccessControl.canView(ModuleName.BON_MISE_EN_PLACE);
+  bool get canAdd => AccessControl.canAdd(ModuleName.BON_MISE_EN_PLACE);
+  bool get canReview => AccessControl.canValidate(ModuleName.BON_MISE_EN_PLACE);
+  bool get canPrint => AccessControl.canPrint(ModuleName.BON_MISE_EN_PLACE);
+  bool get canConfigureNumbering => AccessControl.isAdministrator;
+
+  /// Bon managers (validation) and printers see every request in their
+  /// scope; other managers only see the requests they created.
+  bool get canSeeAll => canReview || canPrint;
+
+  DocumentReference<Map<String, dynamic>> get _counter => _db
+      .collection(InstallationNumbering.collection)
+      .doc(InstallationNumbering.document);
+
+  Stream<InstallationNumbering?> watchNumbering() {
+    _require(canView && canReview);
+    return _counter.snapshots().map((doc) =>
+        doc.exists ? InstallationNumbering.fromJson(doc.data()!) : null);
+  }
+
+  Future<void> initializeNumbering(String lastUsedNumber) async {
+    _require(canConfigureNumbering);
+    final number = InstallationNumbering.parseLastNumber(lastUsedNumber);
+    await _transaction((transaction) async {
+      final existing = await transaction.get(_counter);
+      if (existing.exists) {
+        throw StateError('Compteur déjà initialisé');
+      }
+      transaction.set(_counter, {
+        'lastNumber': number,
+        'lastOrderId': '',
+        'updatedBy': actor['uid'],
+        'updatedAt': FieldValue.serverTimestamp(),
+      });
+    });
+  }
+
+  List<String> get departments => ['security', 'cleaning']
+      .where((id) => DepartmentScope.matchesDepartment(id))
+      .toList();
+
+  Map<String, dynamic> get actor {
+    final manager = AccessControl.currentManager;
+    if (manager == null) throw StateError('Connexion requise.');
+    return {
+      'uid': manager.UID,
+      'type': 'manager',
+      'name': '${manager.firstName} ${manager.lastName}'.trim()
+    };
+  }
+
+  InstallationOrder newDraft() {
+    _require(canView && canAdd);
+    if (departments.isEmpty) throw StateError('Aucune prestation autorisée.');
+    return InstallationOrder(
+        id: _orders.doc().id,
+        tenantId: TenantScope.tenantIdForWrite ?? TenantScope.currentTenantId,
+        departmentId: departments.first,
+        createdBy: actor,
+        agents: [InstallationAgent()],
+        equipment: [InstallationEquipment()]);
+  }
+
+  void _require(bool value) {
+    if (!value) {
+      throw StateError('Accès refusé');
+    }
+  }
+
+  void _scope(InstallationOrder order) {
+    _require(canView &&
+        TenantScope.matchesTenant(order.tenantId) &&
+        DepartmentScope.matchesDepartment(order.departmentId));
+  }
+
+  /// The author may delete a request not yet validated (no bon number, no
+  /// site). A debug build may delete any request, to clean test data.
+  static bool deletable(InstallationOrder order, String uid,
+          {bool debug = false}) =>
+      debug ||
+      (order.authorUid == uid &&
+          order.bonNumber.trim().isEmpty &&
+          order.siteId == null &&
+          const [
+            InstallationStatus.draft,
+            InstallationStatus.submitted,
+            InstallationStatus.changesRequested
+          ].contains(order.status));
+
+  bool canDelete(InstallationOrder order) =>
+      canView &&
+      (kDebugMode || canAdd) &&
+      deletable(order, actor['uid'] as String, debug: kDebugMode);
+
+  Future<void> delete(InstallationOrder order) async {
+    _scope(order);
+    _require(canDelete(order));
+    final ref = _orders.doc(order.id);
+    await _transaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      if (!snapshot.exists) return;
+      final current = InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
+      _scope(current);
+      // Re-checked on the latest version: a validation may have just won.
+      if (!deletable(current, actor['uid'] as String, debug: kDebugMode)) {
+        throw StateError('Bon déjà validé : suppression impossible');
+      }
+      transaction.delete(ref);
+    });
+  }
+
+  bool canEdit(InstallationOrder order) => canReview
+      ? order.status.reviewerCanEdit
+      : canAdd && order.authorUid == actor['uid'] && order.status.authorCanEdit;
+
+  Stream<List<InstallationOrder>> watchAll() {
+    _require(canView);
+    var query = DepartmentScope.applyToDepartmentQuery(
+        TenantScope.applyToQuery(_orders));
+    if (!canSeeAll) {
+      query = query.where('createdBy.uid', isEqualTo: actor['uid']);
+    }
+    return query.snapshots().map((snapshot) {
+      final result = snapshot.docs
+          .map((doc) => InstallationOrder.fromJson(doc.id, doc.data()))
+          .toList();
+      result.sort((a, b) => (b.updatedAt ?? DateTime(2000))
+          .compareTo(a.updatedAt ?? DateTime(2000)));
+      return result;
+    });
+  }
+
+  Future<InstallationOrder> one(String id) async {
+    _require(canView);
+    final snapshot = await _orders.doc(id).get();
+    if (!snapshot.exists) throw StateError('Fiche introuvable.');
+    final order = InstallationOrder.fromJson(id, snapshot.data()!);
+    _scope(order);
+    _require(canSeeAll || order.authorUid == actor['uid']);
+    return order;
+  }
+
+  Future<InstallationOrder> save(InstallationOrder order) async {
+    _scope(order);
+    final ref = _orders.doc(order.id);
+    await _transaction((transaction) async {
+      final snapshot = await transaction.get(ref);
+      final current = snapshot.exists
+          ? InstallationOrder.fromJson(snapshot.id, snapshot.data()!)
+          : null;
+      if (current == null) {
+        _require(canAdd &&
+            order.revision == 0 &&
+            order.status == InstallationStatus.draft &&
+            order.authorUid == actor['uid']);
+      } else {
+        _scope(current);
+        _require(canEdit(current));
+        _sameVersion(current, order);
+        _require(order.tenantId == current.tenantId);
+        if (current.status == InstallationStatus.submitted) {
+          final errors = order.validate();
+          if (errors.isNotEmpty) throw StateError(errors.join('\n'));
+        }
+      }
+      final data = order.toJson()
+        ..['createdBy'] = current?.createdBy ?? actor
+        ..['createdAt'] =
+            snapshot.data()?['createdAt'] ?? FieldValue.serverTimestamp()
+        ..['updatedAt'] = FieldValue.serverTimestamp()
+        ..['revision'] = (current?.revision ?? 0) + 1
+        ..['status'] = current?.status.name ?? InstallationStatus.draft.name
+        ..['bonNumber'] = current?.bonNumber ?? ''
+        ..['siteId'] = current?.siteId
+        ..['attachments'] = current?.attachments ?? [];
+      transaction.set(ref, data);
+      transaction.set(
+          ref.collection('events').doc(),
+          _event(current == null ? 'created' : 'updated',
+              current == null ? 'Fiche créée' : 'Informations mises à jour'));
+    });
+    return one(order.id);
+  }
+
+  Future<InstallationOrder> move(
+      InstallationOrder order, InstallationStatus next,
+      {String message = ''}) async {
+    _scope(order);
+    final ref = _orders.doc(order.id);
+    // A conflicting counter can fail rules before its version precondition is
+    // checked. Retry that case only when a server read proves it advanced.
+    for (var attempt = 0;; attempt++) {
+      int? counterBefore;
+      try {
+        await _transaction((transaction) async {
+          final snapshot = await transaction.get(ref);
+          if (!snapshot.exists) {
+            throw StateError('Enregistrez d’abord');
+          }
+          final current =
+              InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
+          _scope(current);
+          _sameVersion(current, order);
+          _require(canReview || (canAdd && current.authorUid == actor['uid']));
+          if (!current.status.canMoveTo(next, reviewer: canReview)) {
+            throw StateError('Action impossible pour ce statut');
+          }
+          if (next == InstallationStatus.changesRequested &&
+              message.trim().isEmpty) {
+            throw StateError('Message manquant');
+          }
+          int? allocatedNumber;
+          if (next == InstallationStatus.approved &&
+              current.bonNumber.isEmpty) {
+            // Read before any write. Firestore retries if another approval uses
+            // the counter, so allocation and approval always commit together.
+            final counter = await transaction.get(_counter);
+            if (!counter.exists) {
+              throw StateError('Compteur non initialisé');
+            }
+            final numbering = InstallationNumbering.fromJson(counter.data()!);
+            counterBefore = numbering.lastNumber;
+            allocatedNumber = numbering.nextNumber;
+            current.bonNumber = allocatedNumber.toString();
+          }
+          if (next == InstallationStatus.submitted ||
+              next == InstallationStatus.approved) {
+            final errors = current.validate(
+                forApproval: next == InstallationStatus.approved,
+                forSite: next == InstallationStatus.approved);
+            if (errors.isNotEmpty) throw StateError(errors.join('\n'));
+          }
+          if (allocatedNumber != null) {
+            transaction.update(_counter, {
+              'lastNumber': allocatedNumber,
+              'lastOrderId': current.id,
+              'updatedBy': actor['uid'],
+              'updatedAt': FieldValue.serverTimestamp(),
+            });
+          }
+          transaction.update(ref, {
+            if (allocatedNumber != null) 'bonNumber': current.bonNumber,
+            'status': next.name,
+            'revision': current.revision + 1,
+            'updatedAt': FieldValue.serverTimestamp()
+          });
+          transaction.set(ref.collection('events').doc(), {
+            ..._event(
+                'status',
+                message.trim().isEmpty
+                    ? '${next.label}${allocatedNumber == null ? '' : ' · Bon n° ${installationBonLabel(current.bonNumber)}'}'
+                    : message.trim()),
+            'from': current.status.name,
+            'to': next.name,
+          });
+        });
+        break;
+      } on FirebaseException catch (error) {
+        if (error.code != 'permission-denied' ||
+            counterBefore == null ||
+            attempt >= 3) {
+          rethrow;
+        }
+        final latest =
+            await _counter.get(const GetOptions(source: Source.server));
+        if (!latest.exists ||
+            InstallationNumbering.fromJson(latest.data()!).lastNumber <=
+                counterBefore!) {
+          rethrow;
+        }
+      }
+    }
+    return one(order.id);
+  }
+
+  void _sameVersion(InstallationOrder current, InstallationOrder edited) {
+    if (current.revision != edited.revision) {
+      throw StateError('Fiche modifiée ailleurs : rechargez');
+    }
+  }
+
+  Map<String, dynamic> _event(String kind, String message) => {
+        'kind': kind,
+        'message': message,
+        'author': actor,
+        'at': FieldValue.serverTimestamp(),
+      };
+
+  Stream<QuerySnapshot<Map<String, dynamic>>> events(InstallationOrder order) {
+    _scope(order);
+    return _orders.doc(order.id).collection('events').orderBy('at').snapshots();
+  }
+
+  Future<void> comment(InstallationOrder order, String message) async {
+    _scope(await one(order.id));
+    _require(canReview || (canAdd && order.authorUid == actor['uid']));
+    if (message.trim().isEmpty) return;
+    if (message.length > 4000) {
+      throw StateError('Message trop long');
+    }
+    await _orders
+        .doc(order.id)
+        .collection('events')
+        .add(_event('comment', message.trim()));
+  }
+
+  // Reference lists change rarely: they are read once for a few minutes
+  // instead of at every opening of a request (whole catalogue included).
+  static final _optionsCache = <String, _CachedOptions>{};
+  static const _optionsLifetime = Duration(minutes: 10);
+
+  Future<Map<String, List<InstallationOption>>> options(InstallationOrder order,
+      {bool refresh = false}) {
+    _scope(order);
+    final key = '${order.tenantId}|${departments.join(',')}';
+    final cached = _optionsCache[key];
+    if (!refresh &&
+        cached != null &&
+        DateTime.now().difference(cached.at) < _optionsLifetime) {
+      return cached.value;
+    }
+    final loading = _loadOptions(order);
+    _optionsCache[key] = _CachedOptions(DateTime.now(), loading);
+    // A failed read must not stay cached.
+    loading.catchError((Object _) {
+      if (identical(_optionsCache[key]?.value, loading)) {
+        _optionsCache.remove(key);
+      }
+      return <String, List<InstallationOption>>{};
+    });
+    return loading;
+  }
+
+  Future<Map<String, List<InstallationOption>>> _loadOptions(
+      InstallationOrder order) async {
+    final results = await Future.wait([
+      _db
+          .collection('Zones')
+          .where('tenantId', isEqualTo: order.tenantId)
+          .get(),
+      DepartmentScope.applyToDepartmentQuery(_db
+              .collection('Supervisors')
+              .where('tenantId', isEqualTo: order.tenantId))
+          .get(),
+      _db.collection('categorieTools').get(),
+    ]);
+    List<InstallationOption> map(
+            int index, String Function(Map<String, dynamic>) label) =>
+        results[index].docs.map((doc) {
+          final data = Map<String, dynamic>.from(doc.data());
+          data['departmentId'] = departmentIdFromJson(data);
+          return InstallationOption(doc.id, label(data), data);
+        }).toList()
+          ..sort((a, b) => a.label.compareTo(b.label));
+    return {
+      'zones': map(0, (data) => data['name'] as String? ?? ''),
+      'supervisors':
+          map(1, (data) => '${data['firstName']} ${data['lastName']}'),
+      'catalog': installationCatalogOptions(
+          {for (final doc in results[2].docs) doc.id: doc.data()}, departments),
+    };
+  }
+
+  Future<InstallationOption> createEquipment(
+      InstallationOrder order, String label, String departmentId) async {
+    _scope(order);
+    _require(canAdd || canReview);
+    _require(DepartmentScope.matchesDepartment(departmentId));
+    label = label.trim();
+    if (label.isEmpty || label.contains('/') || label.length > 120) {
+      throw StateError('Nom invalide (sans /, 120 max)');
+    }
+    final ref = _db.collection('categorieTools').doc(label);
+    final data = {
+      'label': label,
+      'tenantId': order.tenantId,
+      'departmentId': departmentId,
+      'department': {
+        'id': departmentId,
+        'label': departmentId == 'security' ? 'Sécurité' : 'Nettoyage',
+        'active': true
+      }
+    };
+    await _transaction((transaction) async {
+      final existing = await transaction.get(ref);
+      if (existing.exists) {
+        final value = existing.data()!;
+        if (departmentIdFromJson(value) != departmentId) {
+          throw StateError('Nom déjà pris par l’autre prestation');
+        }
+      } else {
+        transaction.set(ref, data);
+      }
+    });
+    _optionsCache.clear();
+    return InstallationOption(ref.id, label, data);
+  }
+
+  Future<InstallationOrder> attach(
+      InstallationOrder order, String filename, Uint8List bytes) async {
+    final current = await one(order.id);
+    _scope(current);
+    _require(canReview || (canAdd && current.authorUid == actor['uid']));
+    if (current.status == InstallationStatus.finalized) {
+      throw StateError('Fiche terminée');
+    }
+    if (bytes.isEmpty || bytes.length > 10 * 1024 * 1024) {
+      throw StateError('Fichier trop lourd (10 Mo max)');
+    }
+    final extension = filename.split('.').last.toLowerCase();
+    final types = {
+      'pdf': 'application/pdf',
+      'png': 'image/png',
+      'jpg': 'image/jpeg',
+      'jpeg': 'image/jpeg'
+    };
+    final type = types[extension];
+    if (type == null) throw StateError('Format JPG, PNG ou PDF');
+    final path =
+        'site-installation-orders/${order.tenantId}/${order.id}/${_orders.doc().id}.$extension';
+    await _orders
+        .doc(order.id)
+        .collection('uploads')
+        .doc(path.split('/').last)
+        .set({
+      'uid': actor['uid'],
+      'tenantId': order.tenantId,
+      'path': path,
+      'contentType': type,
+      'at': FieldValue.serverTimestamp(),
+      'expiresAt':
+          Timestamp.fromDate(DateTime.now().add(const Duration(minutes: 15))),
+    });
+    final storage = FirebaseStorage.instance.ref(path);
+    await storage.putData(bytes, SettableMetadata(contentType: type));
+    final url = await storage.getDownloadURL();
+    try {
+      await _transaction((transaction) async {
+        final snapshot = await transaction.get(_orders.doc(order.id));
+        final latest =
+            InstallationOrder.fromJson(snapshot.id, snapshot.data()!);
+        _scope(latest);
+        if (latest.status == InstallationStatus.finalized) {
+          throw StateError('Fiche déjà terminée');
+        }
+        transaction.update(snapshot.reference, {
+          'attachments': [
+            ...latest.attachments,
+            {'name': filename, 'path': path, 'url': url, 'contentType': type}
+          ],
+          'revision': latest.revision + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+        });
+        transaction.set(snapshot.reference.collection('events').doc(),
+            _event('attachment', 'Document ajouté : $filename'));
+      });
+    } catch (_) {
+      await storage.delete();
+      rethrow;
+    }
+    return one(order.id);
+  }
+
+  Future<InstallationOrder> finalize(InstallationOrder order,
+      {required String code,
+      required String email,
+      required String password}) async {
+    _scope(order);
+    _require(canReview);
+    final current = await one(order.id);
+    if (current.status == InstallationStatus.finalized) return current;
+    _sameVersion(current, order);
+    if (current.status != InstallationStatus.signedReturned) {
+      throw StateError('Bon signé non confirmé');
+    }
+    final errors = current.validate(forSite: true);
+    if (code.trim().isEmpty) errors.add('Code manquant');
+    if (!RegExp(r'^[^\s@]+@[^\s@]+\.[^\s@]+$').hasMatch(email.trim())) {
+      errors.add('Email invalide');
+    }
+    if (password.length < 8) {
+      errors.add('Mot de passe : 8 caractères min.');
+    }
+    if (errors.isNotEmpty) throw StateError(errors.join('\n'));
+
+    // Keep only non-secret recovery information if the browser loses the
+    // connection between Auth account creation and the Firestore transaction.
+    final preferences = await SharedPreferences.getInstance();
+    final recoveryKey =
+        'installation-account:${Firebase.app().options.projectId}:${current.id}';
+    final raw = preferences.getString(recoveryKey);
+    final recovery = raw == null ? null : installationMap(jsonDecode(raw));
+    final app = await Firebase.initializeApp(
+        name: 'installation-${current.id}', options: Firebase.app().options);
+    final secondaryAuth = FirebaseAuth.instanceFor(app: app);
+    try {
+      User user;
+      if (recovery != null) {
+        if (recovery['email'] != email.trim()) {
+          throw StateError('Utilisez l’email ${recovery['email']}');
+        }
+        user = (await secondaryAuth.signInWithEmailAndPassword(
+                email: email.trim(), password: password))
+            .user!;
+        if (user.uid != recovery['uid']) {
+          throw StateError('Compte différent');
+        }
+      } else {
+        user = (await secondaryAuth.createUserWithEmailAndPassword(
+                email: email.trim(), password: password))
+            .user!;
+        final stored = await preferences.setString(
+            recoveryKey, jsonEncode({'uid': user.uid, 'email': email.trim()}));
+        if (!stored) {
+          await user.delete();
+          throw StateError('Échec, réessayez');
+        }
+      }
+      final siteRef = _db.collection('Sites').doc(user.uid);
+      await _transaction((tx) async {
+        final snapshot = await tx.get(_orders.doc(current.id));
+        final existingSite = await tx.get(siteRef);
+        final latest = InstallationOrder.fromJson(current.id, snapshot.data()!);
+        _scope(latest);
+        _require(canReview);
+        if (latest.status == InstallationStatus.finalized &&
+            latest.siteId != null) {
+          return;
+        }
+        _sameVersion(latest, current);
+        if (latest.status != InstallationStatus.signedReturned) {
+          throw StateError('Statut changé : rechargez');
+        }
+        final primary = await tx.get(_db
+            .collection('Supervisors')
+            .doc(latest.supervisor!['UID'] as String));
+        final secondaryId = latest.supervisor2?['UID'] as String?;
+        final secondary = secondaryId == null
+            ? null
+            : await tx.get(_db.collection('Supervisors').doc(secondaryId));
+        final zone = await tx.get(
+            _db.collection('Zones').doc(latest.zone!['codeZone'] as String));
+        for (final supervisor in [primary, if (secondary != null) secondary]) {
+          final value = supervisor.data();
+          if (value == null ||
+              value['actif'] == false ||
+              value['isPortal'] == true ||
+              value['tenantId'] != latest.tenantId ||
+              departmentIdFromJson(value) != latest.departmentId) {
+            throw StateError('Superviseur invalide');
+          }
+        }
+        if (!zone.exists ||
+            zone.data()!['tenantId'] != latest.tenantId ||
+            secondaryId == primary.id) {
+          throw StateError('Zone ou superviseurs invalides');
+        }
+        if (existingSite.exists) {
+          throw StateError('Compte déjà lié à un site');
+        }
+        tx.set(siteRef, {
+          'UID': user.uid,
+          'codeSite': code.trim(),
+          'name': latest.siteName.trim(),
+          'adresse': latest.address.trim(),
+          'phone': latest.phone,
+          'email': email.trim(),
+          'latLng': latest.latitude == null
+              ? null
+              : {'lat': latest.latitude, 'lng': latest.longitude},
+          'supervisor': primary.data(),
+          'supervisor_2': secondary?.data(),
+          'zone': zone.data(),
+          'actif': true,
+          'tenantId': latest.tenantId,
+          'departmentIds': [latest.departmentId],
+          'nbAgent': latest.agentCount,
+          'nbRonde': latest.roundCount,
+          'pointageType': latest.pointageType,
+          'dateContrat': latest.contractDate!.toIso8601String(),
+          'token': '',
+          'sos': false,
+          'installationOrderId': latest.id,
+        });
+        tx.update(snapshot.reference, {
+          'status': 'finalized',
+          'siteId': user.uid,
+          'revision': latest.revision + 1,
+          'updatedAt': FieldValue.serverTimestamp(),
+          'finalizedBy': actor['uid'],
+          'finalizedAt': FieldValue.serverTimestamp()
+        });
+        tx.set(snapshot.reference.collection('events').doc(), {
+          ..._event('status', 'Site actif créé'),
+          'from': 'signedReturned',
+          'to': 'finalized'
+        });
+      });
+      final finalized = await one(order.id);
+      if (finalized.siteId != user.uid) await user.delete();
+      await preferences.remove(recoveryKey);
+      return finalized;
+    } finally {
+      await secondaryAuth.signOut();
+      await app.delete();
+    }
+  }
+}
+
+class _CachedOptions {
+  _CachedOptions(this.at, this.value);
+  final DateTime at;
+  final Future<Map<String, List<InstallationOption>>> value;
+}
