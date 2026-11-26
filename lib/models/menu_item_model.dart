@@ -248,6 +248,16 @@ class MenuItemModel {
       section: MenuSection.pointage,
     ),
     MenuItemModel(
+      icon: HugeIcons.strokeRoundedGps01,
+      configKey: 'suivi_geolocalisation',
+      title: "Suivi géolocalisation",
+      route: "/suivi-geolocalisation",
+      index: 23,
+      // Same permission as the error logs it is built from.
+      moduleName: ModuleName.ERROR_LOG,
+      section: MenuSection.pointage,
+    ),
+    MenuItemModel(
       icon: HugeIcons.strokeRoundedMobileSecurity,
       configKey: 'config_mobile',
       title: "Config Mobile",

@@ -57,6 +57,7 @@ import 'department/department_list.dart';
 import 'manager/manager_form.dart';
 import 'manager/user_page.dart';
 import 'mobile_config/mobile_config_page.dart';
+import 'geo_tracking/geo_tracking_page.dart';
 import 'site_installation/installation_pages.dart';
 
 Manager _emptyManager() {
@@ -453,6 +454,11 @@ GoRouter routeConfig = GoRouter(
                       errorLog: state.extra as ErrorLog,
                     )),
           ]),
+      GoRoute(
+        name: "suivi géolocalisation",
+        path: "/suivi-geolocalisation",
+        builder: (context, state) => const GeoTrackingPage(),
+      ),
       GoRoute(
         name: "configuration mobile",
         path: "/mobile-config",
