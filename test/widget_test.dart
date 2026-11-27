@@ -1,9 +1,9 @@
-// This is a basic Flutter widget test.
-//
-// To perform an interaction with a widget in your test, use the WidgetTester
-// utility in the flutter_test package. For example, you can send tap and scroll
-// gestures. You can also use WidgetTester to find child widgets in the widget
-// tree, read text, and verify that the values of widget properties are correct.
+// Boilerplate smoke test of the app shell. `package:spas_web/main.dart`
+// imports web-only libraries (dart:html, dart:ui_web...), so this file can
+// only compile in a browser: `flutter test --platform chrome
+// test/widget_test.dart`. The default `flutter test` (VM) skips it.
+@TestOn('browser')
+library widget_test;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';

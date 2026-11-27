@@ -115,7 +115,12 @@ void main() {
       expect(provider.pageIndex, 0);
       expect(provider.visibleCount, 1);
       expect(find.byType(CheckboxListTile), findsOneWidget);
-      expect(find.text('AGENT-05000'), findsOneWidget);
+      // The search field shows the same text: look in the result rows only.
+      expect(
+          find.descendant(
+              of: find.byType(CheckboxListTile),
+              matching: find.text('AGENT-05000')),
+          findsOneWidget);
       expect(provider.selectedCount, 9999);
       expect(service.calls, withPhoto ? 1 : 0);
       expect(tester.takeException(), isNull);
