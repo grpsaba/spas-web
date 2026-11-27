@@ -70,42 +70,22 @@ class _GeoPointingSettingsPanelState extends State<GeoPointingSettingsPanel> {
           ],
           const SizedBox(height: 16),
           _SettingTile(
-            title: 'Temps d\'attente du GPS par essai',
-            help:
-                'Durée max où le téléphone cherche la position avant d\'abandonner l\'essai.',
+            title: 'Bouton photo après (secondes)',
+            help: 'Temps de recherche GPS avant que le bouton photo apparaisse. '
+                'Le GPS continue de chercher après l\'apparition du bouton : '
+                's\'il trouve la position avant que la personne choisisse la '
+                'photo, le pointage est enregistré par GPS. Après '
+                '${GeoPointingConfig.gpsSearchMaxSeconds} s sans position, '
+                'l\'app affiche « GPS introuvable ».',
             recommended:
-                'Recommandé : ${GeoPointingConfig.recommendedTimeoutSeconds} s'
-                ' (entre ${GeoPointingConfig.minTimeoutSeconds} et ${GeoPointingConfig.maxTimeoutSeconds} s)',
-            isRecommended: _draft.attemptTimeoutSeconds ==
-                GeoPointingConfig.recommendedTimeoutSeconds,
-            control: _buildTimeoutControl(),
-          ),
-          _SettingTile(
-            title: 'Nombre d\'essais GPS avant la photo',
-            help:
-                'Nombre de recherches GPS faites avant d\'abandonner (et de proposer la photo si elle est autorisée).',
-            recommended:
-                'Recommandé : ${GeoPointingConfig.recommendedAttempts} (entre ${GeoPointingConfig.minAttempts} et ${GeoPointingConfig.maxAttempts})',
-            isRecommended: _draft.attemptsBeforePhoto ==
-                GeoPointingConfig.recommendedAttempts,
-            control: SegmentedButton<int>(
-              key: const ValueKey('geo-attempts'),
-              showSelectedIcon: false,
-              segments: [
-                for (var value = GeoPointingConfig.minAttempts;
-                    value <= GeoPointingConfig.maxAttempts;
-                    value++)
-                  ButtonSegment(
-                    value: value,
-                    label: Text(value == 1 ? '1 essai' : '$value essais'),
-                  ),
-              ],
-              selected: {_draft.attemptsBeforePhoto},
-              onSelectionChanged: _enabled
-                  ? (values) => _update(
-                      _draft.copyWith(attemptsBeforePhoto: values.first))
-                  : null,
-            ),
+                'Recommandé : ${GeoPointingConfig.recommendedPhotoOfferSeconds} s'
+                ' (entre ${GeoPointingConfig.minPhotoOfferSeconds} et ${GeoPointingConfig.maxPhotoOfferSeconds} s)',
+            isRecommended: _draft.photoOfferAfterSeconds ==
+                GeoPointingConfig.recommendedPhotoOfferSeconds,
+            note: _draft.photoFallbackEnabled
+                ? null
+                : 'Sans effet tant que la photo de secours est désactivée.',
+            control: _buildPhotoOfferControl(),
           ),
           _SettingTile(
             title: 'Proposer la photo si le GPS ne répond pas',
@@ -238,6 +218,15 @@ class _GeoPointingSettingsPanelState extends State<GeoPointingSettingsPanel> {
                   style:
                       const TextStyle(fontSize: 12.5, color: Color(0xFF1E40AF)),
                 ),
+                if (_draft.legacySummary != null) ...[
+                  const SizedBox(height: 4),
+                  Text(
+                    _draft.legacySummary!,
+                    key: const ValueKey('geo-legacy'),
+                    style: const TextStyle(
+                        fontSize: 12, color: Color(0xFF64748B)),
+                  ),
+                ],
                 if (_dirty) ...[
                   const SizedBox(height: 6),
                   Text(
@@ -256,18 +245,18 @@ class _GeoPointingSettingsPanelState extends State<GeoPointingSettingsPanel> {
     );
   }
 
-  Widget _buildTimeoutControl() {
-    const min = GeoPointingConfig.minTimeoutSeconds;
-    const max = GeoPointingConfig.maxTimeoutSeconds;
-    const step = GeoPointingConfig.timeoutStepSeconds;
-    final value = _draft.attemptTimeoutSeconds;
-    void set(int next) =>
-        _update(_draft.copyWith(attemptTimeoutSeconds: next.clamp(min, max)));
+  Widget _buildPhotoOfferControl() {
+    const min = GeoPointingConfig.minPhotoOfferSeconds;
+    const max = GeoPointingConfig.maxPhotoOfferSeconds;
+    const step = GeoPointingConfig.photoOfferStepSeconds;
+    final value = _draft.photoOfferAfterSeconds;
+    void set(int next) => _update(
+        _draft.copyWith(photoOfferAfterSeconds: next.clamp(min, max)));
 
     return Row(
       children: [
         IconButton.outlined(
-          key: const ValueKey('geo-timeout-minus'),
+          key: const ValueKey('geo-photo-offer-minus'),
           tooltip: 'Moins $step s',
           onPressed: _enabled && value > min ? () => set(value - step) : null,
           icon: const Icon(Icons.remove),
@@ -276,13 +265,13 @@ class _GeoPointingSettingsPanelState extends State<GeoPointingSettingsPanel> {
           width: 64,
           child: Text(
             '$value s',
-            key: const ValueKey('geo-timeout-value'),
+            key: const ValueKey('geo-photo-offer-value'),
             textAlign: TextAlign.center,
             style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w700),
           ),
         ),
         IconButton.outlined(
-          key: const ValueKey('geo-timeout-plus'),
+          key: const ValueKey('geo-photo-offer-plus'),
           tooltip: 'Plus $step s',
           onPressed: _enabled && value < max ? () => set(value + step) : null,
           icon: const Icon(Icons.add),
@@ -290,16 +279,23 @@ class _GeoPointingSettingsPanelState extends State<GeoPointingSettingsPanel> {
         const SizedBox(width: 8),
         Expanded(
           child: Slider(
+            key: const ValueKey('geo-photo-offer-slider'),
             value: value.toDouble(),
             min: min.toDouble(),
             max: max.toDouble(),
-            divisions: max - min,
+            divisions: (max - min) ~/ step,
             label: '$value s',
-            onChanged: _enabled ? (v) => set(v.round()) : null,
+            onChanged: _enabled ? (v) => set(_roundToStep(v)) : null,
           ),
         ),
       ],
     );
+  }
+
+  static int _roundToStep(double value) {
+    const min = GeoPointingConfig.minPhotoOfferSeconds;
+    const step = GeoPointingConfig.photoOfferStepSeconds;
+    return min + ((value - min) / step).round() * step;
   }
 
   Widget _buildActions() {
@@ -393,6 +389,7 @@ class _SettingTile extends StatelessWidget {
     required this.recommended,
     required this.isRecommended,
     required this.control,
+    this.note,
     this.isLast = false,
   });
 
@@ -401,6 +398,7 @@ class _SettingTile extends StatelessWidget {
   final String recommended;
   final bool isRecommended;
   final Widget control;
+  final String? note;
   final bool isLast;
 
   @override
@@ -431,6 +429,11 @@ class _SettingTile extends StatelessWidget {
             ),
           ],
         ),
+        if (note != null) ...[
+          const SizedBox(height: 4),
+          Text(note!,
+              style: TextStyle(fontSize: 12, color: Colors.orange.shade900)),
+        ],
       ],
     );
 

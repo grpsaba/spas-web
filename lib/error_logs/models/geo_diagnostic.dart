@@ -13,6 +13,9 @@ class AttemptOutcome {
   static const String mockLocation = 'mock_location';
   static const String error = 'error';
 
+  /// The person chose the photo while the GPS was still searching.
+  static const String photoChosen = 'photo_chosen';
+
   static const List<String> all = [
     timeout,
     noSignal,
@@ -24,6 +27,7 @@ class AttemptOutcome {
     permissionDenied,
     mockLocation,
     error,
+    photoChosen,
   ];
 
   static String label(String? outcome) {
@@ -48,6 +52,8 @@ class AttemptOutcome {
         return 'Position simulée';
       case error:
         return 'Erreur technique';
+      case photoChosen:
+        return 'Photo choisie pendant la recherche';
       default:
         return outcome == null || outcome.isEmpty ? 'Inconnu' : outcome;
     }
@@ -296,13 +302,21 @@ class GeoDiagnosticSummary {
   }
 }
 
-/// "25 s × 2 essais · photo de secours : oui · précision normale".
+/// "Photo proposée après 45 s · photo de secours : oui · précision normale"
+/// (current app), or "25 s × 2 essais · …" for snapshots written by older
+/// app builds (`attemptTimeoutSeconds` / `attemptsBeforePhoto`).
 String? geoSettingsLabel(Object? raw) {
   final map = asStringMap(raw);
   if (map == null || map.isEmpty) return null;
   final config = GeoPointingConfig.fromJson(map);
-  return '${config.attemptTimeoutSeconds} s × ${config.attemptsBeforePhoto} '
-      'essai${config.attemptsBeforePhoto > 1 ? 's' : ''} · photo de secours : '
+  final hasOffer =
+      map[GeoPointingConfig.photoOfferAfterSecondsField] != null;
+  final legacy = GeoPointingConfig.legacyAttemptsLabel(
+      config.legacyAttemptTimeoutSeconds, config.legacyAttemptsBeforePhoto);
+  final timing = hasOffer || legacy.isEmpty
+      ? 'Photo proposée après ${config.photoOfferAfterSeconds} s'
+      : legacy;
+  return '$timing · photo de secours : '
       '${config.photoFallbackEnabled ? 'oui' : 'non'} · précision '
       '${GeoAccuracyRule.label(config.accuracyRule).toLowerCase()}';
 }

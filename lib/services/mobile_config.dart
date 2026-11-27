@@ -60,9 +60,12 @@ class MobileConfigService {
     return _documentReference.set(data, SetOptions(merge: true));
   }
 
-  /// Writes only the `geoPointing` map (replaced as a whole, so no stale
-  /// sub-field survives): every other field of app_config/global (photo
-  /// settings, menus, tracking gate...) is left untouched.
+  /// Writes only the `geoPointing` sub-fields of
+  /// [GeoPointingConfig.writtenFields], through a field mask. Every other
+  /// field of app_config/global (photo settings, menus, tracking gate...)
+  /// and every other `geoPointing` sub-field are left exactly as they are:
+  /// in particular the legacy `attemptTimeoutSeconds` / `attemptsBeforePhoto`
+  /// still read by phones that run app 1.8.0+18.
   Future<void> saveGeoPointing(
     GeoPointingConfig config, {
     required GeoConfigAuthor author,
@@ -72,8 +75,14 @@ class MobileConfigService {
         geoPointingWriteOptions,
       );
 
-  static final SetOptions geoPointingWriteOptions =
-      SetOptions(mergeFields: <Object>[GeoPointingConfig.firestoreField]);
+  /// `geoPointing.<field>` paths: Firestore replaces these values only (the
+  /// `geoPointing` map itself is never replaced as a whole).
+  static final SetOptions geoPointingWriteOptions = SetOptions(
+    mergeFields: <Object>[
+      for (final field in GeoPointingConfig.writtenFields)
+        FieldPath(<String>[GeoPointingConfig.firestoreField, field]),
+    ],
+  );
 
   static Map<String, dynamic> geoPointingWritePayload(
     GeoPointingConfig config, {
