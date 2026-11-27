@@ -1,5 +1,8 @@
 import 'package:spas_web/error_logs/models/geo_diagnostic.dart';
 import 'package:spas_web/model.dart' show dateTimeFromJsonValue;
+import 'package:spas_web/models/pointing_method.dart';
+
+import 'pointing_duration.dart';
 
 /// One document of the `mobile_events` collection (actions logged by phones).
 class MobileEvent {
@@ -76,15 +79,37 @@ class MobileEvent {
 
   String get label => MobileEventLabels.label(event);
 
+  /// Label with its key figure: « Pointage enregistré · 1 min 05 s »,
+  /// « Essai GPS terminé · Photo choisie pendant la recherche ».
+  String get title {
+    switch (event) {
+      case 'pointing_saved':
+        final duration = PointingDurationBreakdown.fromMap(data);
+        return duration == null
+            ? label
+            : '$label · ${formatDuration(duration.totalMs)}';
+      case 'geo_attempt_finished':
+        final outcome = data['outcome']?.toString();
+        return outcome == AttemptOutcome.photoChosen
+            ? '$label · ${AttemptOutcome.label(outcome)}'
+            : label;
+      default:
+        return label;
+    }
+  }
+
   String get roleLabel => role == 'zone_chief'
       ? 'Chef de zone'
       : role == 'supervisor'
           ? 'Superviseur'
           : (role ?? '—');
 
-  /// Compact "key: value" view of `data` for lists and the timeline.
+  /// Readable view of `data` for lists and the timeline: French sentences
+  /// for the events the web knows, compact "key: value" otherwise.
   String get dataSummary {
     if (data.isEmpty) return '';
+    final readable = MobileEventDetails.describe(event, data);
+    if (readable != null) return readable;
     return data.entries
         .where((e) => e.value != null && e.value is! Map && e.value is! List)
         .map((e) => '${e.key}: ${e.value}')
@@ -115,7 +140,155 @@ class MobileEventLabels {
     'location_permission_result': 'Réponse à la permission de localisation',
     'site_position_report_tapped': 'Position du site signalée',
     'diagnostic_copied': 'Diagnostic copié',
+    'gps_health': 'État du GPS',
+    'gps_first_fix': 'Première position',
+    'gps_stream_restarted': 'GPS relancé',
   };
 
   static String label(String event) => known[event] ?? event;
+}
+
+/// French details of the events whose `data` has a known shape.
+class MobileEventDetails {
+  /// Null when the event has no dedicated formatting.
+  static String? describe(String event, Map<String, dynamic> data) {
+    switch (event) {
+      case 'gps_health':
+        return _join(gpsHealth(data));
+      case 'gps_first_fix':
+        return _join([
+          if (_num(data['ms']) != null)
+            'après ${formatDuration(_num(data['ms']))}',
+          if (_num(data['accuracyM']) != null)
+            'précision ± ${_num(data['accuracyM'])!.round()} m',
+        ]);
+      case 'gps_stream_restarted':
+        final reason = _text(data['reason']);
+        return reason == null ? null : 'Raison : $reason';
+      case 'geo_attempt_finished':
+        final outcome = _text(data['outcome']);
+        final duration = _num(data['durationMs']);
+        if (outcome == null && duration == null) return null;
+        final rest = _rest(data, const {'outcome', 'durationMs'});
+        return _join([
+          if (outcome != null) 'Résultat : ${AttemptOutcome.label(outcome)}',
+          if (duration != null) 'durée ${formatDuration(duration)}',
+          ...rest,
+        ]);
+      case 'pointing_saved':
+        final duration = PointingDurationBreakdown.fromMap(data);
+        if (duration == null) return null;
+        final rest = _rest(data, const {
+          'durationMs',
+          'totalMs',
+          'gpsWaitMs',
+          'firstFixMs',
+          'decisionMs',
+          'photoMs',
+          'saveMs',
+          'relaunches',
+          'startedAt',
+          'version',
+          'pointingMethod',
+        });
+        final method = PointingMethodInfo.parse(data['pointingMethod']);
+        return _join([
+          'Durée ${formatDuration(duration.totalMs)}',
+          if (method != null) 'Méthode : ${DurationMethodLabels.label(method)}',
+          if (duration.summary.isNotEmpty) duration.summary,
+          ...rest,
+        ]);
+      default:
+        return null;
+    }
+  }
+
+  /// « Permission : toujours · GPS : activé · … » for `gps_health`.
+  static List<String> gpsHealth(Map<String, dynamic> data) {
+    final permission = _text(data['permission']);
+    final age = _num(data['lastFixAgeMs']);
+    final accuracy = _num(data['lastFixAccuracyM']);
+    final fixes = _num(data['fixesLast5Min']);
+    final inView = _num(data['satellitesInView']);
+    final used = _num(data['satellitesUsed']);
+    final cn0 = _num(data['bestCn0DbHz']);
+    final battery = _num(data['batteryPercent']);
+    final restarts = _num(data['streamRestarts']);
+    final trigger = _text(data['trigger']);
+    final error = _text(data['lastStreamError']);
+    return [
+      if (trigger != null) 'Déclencheur : $trigger',
+      if (permission != null) 'Permission : ${permissionLabel(permission)}',
+      if (data['locationServiceEnabled'] is bool)
+        'Localisation : ${_onOff(data['locationServiceEnabled'] as bool)}',
+      if (data['gpsProviderEnabled'] is bool)
+        'GPS : ${_onOff(data['gpsProviderEnabled'] as bool)}',
+      if (data['networkProviderEnabled'] is bool)
+        'Réseau : ${_onOff(data['networkProviderEnabled'] as bool)}',
+      if (data['powerSaveMode'] is bool)
+        'Économie d\'énergie : ${data['powerSaveMode'] == true ? 'oui' : 'non'}',
+      if (battery != null) 'Batterie : ${battery.round()} %',
+      if (data['trackerActive'] is bool)
+        'Suivi continu : ${data['trackerActive'] == true ? 'actif' : 'inactif'}',
+      if (data['backgroundRequested'] is bool)
+        'Arrière-plan demandé : ${data['backgroundRequested'] == true ? 'oui' : 'non'}',
+      if (age != null || accuracy != null)
+        'Dernière position : '
+            '${age == null ? 'âge inconnu' : 'il y a ${formatDuration(age)}'}'
+            '${accuracy == null ? '' : ' (± ${accuracy.round()} m)'}'
+      else if (data.containsKey('lastFixAgeMs'))
+        'Dernière position : aucune',
+      if (fixes != null) 'Positions sur 5 min : ${fixes.round()}',
+      if (inView != null || used != null)
+        'Satellites : ${used == null ? '?' : used.round()} utilisés'
+            ' / ${inView == null ? '?' : inView.round()} vus',
+      if (cn0 != null) 'Meilleur signal : ${cn0.round()} dB-Hz',
+      if (restarts != null) 'Relances du GPS : ${restarts.round()}',
+      if (error != null) 'Dernière erreur : $error',
+    ];
+  }
+
+  static String permissionLabel(String value) {
+    switch (value) {
+      case 'always':
+        return 'toujours';
+      case 'whileInUse':
+      case 'while_in_use':
+        return 'pendant l\'utilisation';
+      case 'granted':
+        return 'accordée';
+      case 'denied':
+        return 'refusée';
+      case 'deniedForever':
+      case 'denied_forever':
+        return 'refusée définitivement';
+      case 'unableToDetermine':
+        return 'inconnue';
+      default:
+        return value;
+    }
+  }
+
+  static String _onOff(bool value) => value ? 'activé' : 'désactivé';
+
+  static num? _num(Object? value) =>
+      value is num && !value.isNaN ? value : null;
+
+  static String? _text(Object? value) {
+    final text = value?.toString().trim();
+    return text == null || text.isEmpty ? null : text;
+  }
+
+  /// Simple values not already described, as "key: value".
+  static List<String> _rest(Map<String, dynamic> data, Set<String> known) => [
+        for (final entry in data.entries)
+          if (!known.contains(entry.key) &&
+              entry.value != null &&
+              entry.value is! Map &&
+              entry.value is! List)
+            '${entry.key}: ${entry.value}',
+      ];
+
+  static String? _join(List<String> parts) =>
+      parts.isEmpty ? null : parts.join(' · ');
 }

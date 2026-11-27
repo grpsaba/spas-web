@@ -9,10 +9,15 @@ import 'package:spas_web/services/zoneMember.dart';
 
 import 'models/geo_stats.dart';
 import 'models/mobile_event.dart';
+import 'pointing_duration_tab.dart';
 import 'services/geo_tracking_service.dart';
+import 'widgets/geo_common.dart';
+
+export 'widgets/geo_common.dart' show defaultGeoRange;
 
 /// "Suivi géolocalisation": per person / phone / app version stats of the
-/// pointing methods, and the journal of mobile actions. Read only.
+/// pointing methods, the duration of the pointings and the journal of mobile
+/// actions. Read only.
 class GeoTrackingPage extends StatelessWidget {
   const GeoTrackingPage({super.key});
 
@@ -31,7 +36,7 @@ class GeoTrackingPage extends StatelessWidget {
       pageIndex: pageIndex,
       title: 'Suivi géolocalisation',
       child: DefaultTabController(
-        length: 2,
+        length: 3,
         child: Column(
           children: [
             Material(
@@ -42,6 +47,7 @@ class GeoTrackingPage extends StatelessWidget {
                 indicatorColor: PointageColors.primary,
                 tabs: [
                   Tab(icon: Icon(Icons.insights), text: 'Statistiques'),
+                  Tab(icon: Icon(Icons.timer_outlined), text: 'Durée des pointages'),
                   Tab(
                       icon: Icon(Icons.list_alt),
                       text: 'Journal des actions mobiles'),
@@ -50,65 +56,16 @@ class GeoTrackingPage extends StatelessWidget {
             ),
             Expanded(
               child: TabBarView(
-                children: [GeoStatsTab(), MobileEventsJournalTab()],
+                children: [
+                  GeoStatsTab(),
+                  PointingDurationTab(),
+                  MobileEventsJournalTab(),
+                ],
               ),
             ),
           ],
         ),
       ),
-    );
-  }
-}
-
-DateTimeRange defaultGeoRange([DateTime? now]) {
-  final today = DateUtils.dateOnly(now ?? DateTime.now());
-  return DateTimeRange(
-    start: today.subtract(const Duration(days: 6)),
-    end: today,
-  );
-}
-
-String _formatDay(DateTime d) =>
-    '${d.day.toString().padLeft(2, '0')}/${d.month.toString().padLeft(2, '0')}/${d.year}';
-
-Future<DateTimeRange?> _pickRange(
-    BuildContext context, DateTimeRange current) async {
-  final picked = await showDateRangePicker(
-    context: context,
-    firstDate: DateTime(2024),
-    lastDate: DateUtils.dateOnly(DateTime.now()),
-    initialDateRange: current,
-    helpText: 'Période (${GeoTrackingService.maxRangeDays} jours max)',
-  );
-  if (picked == null) return null;
-  final days = picked.end.difference(picked.start).inDays + 1;
-  if (days > GeoTrackingService.maxRangeDays) {
-    if (context.mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(
-        content: Text(
-            'Période trop longue : ${GeoTrackingService.maxRangeDays} jours maximum.'),
-      ));
-    }
-    return null;
-  }
-  return picked;
-}
-
-class _RangeButton extends StatelessWidget {
-  const _RangeButton({required this.range, required this.onChanged});
-
-  final DateTimeRange range;
-  final ValueChanged<DateTimeRange> onChanged;
-
-  @override
-  Widget build(BuildContext context) {
-    return OutlinedButton.icon(
-      onPressed: () async {
-        final picked = await _pickRange(context, range);
-        if (picked != null) onChanged(picked);
-      },
-      icon: const Icon(Icons.date_range, size: 18),
-      label: Text('Du ${_formatDay(range.start)} au ${_formatDay(range.end)}'),
     );
   }
 }
@@ -159,7 +116,7 @@ class _GeoStatsTabState extends State<GeoStatsTab>
               runSpacing: PointageSpacing.sm,
               crossAxisAlignment: WrapCrossAlignment.center,
               children: [
-                _RangeButton(
+                GeoRangeButton(
                   range: _range,
                   onChanged: (range) {
                     _range = range;
@@ -204,26 +161,26 @@ class _GeoStatsTabState extends State<GeoStatsTab>
     final totals = report.totals;
     return [
       for (final collection in result.truncatedCollections)
-        _Notice(
+        GeoNotice(
           'Période trop chargée : seuls les ${GeoTrackingService.maxDocsPerCollection} '
           'premiers documents de $collection sont comptés. Réduisez la période.',
         ),
-      for (final warning in result.warnings) _Notice('Non chargé — $warning'),
+      for (final warning in result.warnings) GeoNotice('Non chargé — $warning'),
       Wrap(
         spacing: PointageSpacing.sm,
         runSpacing: PointageSpacing.sm,
         children: [
-          _Kpi('Pointages', '${totals.totalPointings}', PointageColors.primary),
-          _Kpi('Géo', '${totals.geo}', const Color(0xFF15803D)),
-          _Kpi('Photo', '${totals.photo}', const Color(0xFF475569)),
-          _Kpi('Photo (GPS indisponible)', '${totals.photoFallback}',
+          GeoKpi('Pointages', '${totals.totalPointings}', PointageColors.primary),
+          GeoKpi('Géo', '${totals.geo}', const Color(0xFF15803D)),
+          GeoKpi('Photo', '${totals.photo}', const Color(0xFF475569)),
+          GeoKpi('Photo (GPS indisponible)', '${totals.photoFallback}',
               const Color(0xFFC2410C)),
-          _Kpi('Taux de secours photo', formatRate(totals.fallbackRate),
+          GeoKpi('Taux de secours photo', formatRate(totals.fallbackRate),
               const Color(0xFFC2410C)),
-          _Kpi('Essais GPS échoués', '${totals.failedAttempts}',
+          GeoKpi('Essais GPS échoués', '${totals.failedAttempts}',
               PointageColors.error),
           if (totals.unknown > 0)
-            _Kpi('Méthode inconnue', '${totals.unknown}',
+            GeoKpi('Méthode inconnue', '${totals.unknown}',
                 PointageColors.textSecondary),
         ],
       ),
@@ -252,52 +209,6 @@ class _GeoStatsTabState extends State<GeoStatsTab>
         rows: report.byAppVersion,
       ),
     ];
-  }
-}
-
-class _Notice extends StatelessWidget {
-  const _Notice(this.text);
-
-  final String text;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.only(bottom: PointageSpacing.sm),
-      child: Text(text,
-          style:
-              PointageTextStyles.body2.copyWith(color: PointageColors.warning)),
-    );
-  }
-}
-
-class _Kpi extends StatelessWidget {
-  const _Kpi(this.label, this.value, this.color);
-
-  final String label;
-  final String value;
-  final Color color;
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      constraints: const BoxConstraints(minWidth: 130),
-      padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
-      decoration: BoxDecoration(
-        color: color.withValues(alpha: 0.07),
-        borderRadius: PointageBorderRadius.medium,
-        border: Border.all(color: color.withValues(alpha: 0.25)),
-      ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          Text(value,
-              style: PointageTextStyles.headline4
-                  .copyWith(color: color, fontWeight: FontWeight.w700)),
-          Text(label, style: PointageTextStyles.caption),
-        ],
-      ),
-    );
   }
 }
 
@@ -500,7 +411,7 @@ class _MobileEventsJournalTabState extends State<MobileEventsJournalTab>
           runSpacing: PointageSpacing.sm,
           crossAxisAlignment: WrapCrossAlignment.center,
           children: [
-            _RangeButton(
+            GeoRangeButton(
               range: _range,
               onChanged: (range) {
                 _range = range;
@@ -601,7 +512,7 @@ class MobileEventsTable extends StatelessWidget {
   static String _time(DateTime? d) {
     if (d == null) return '—';
     String two(int v) => v.toString().padLeft(2, '0');
-    return '${_formatDay(d)} ${two(d.hour)}:${two(d.minute)}:${two(d.second)}';
+    return '${formatGeoDay(d)} ${two(d.hour)}:${two(d.minute)}:${two(d.second)}';
   }
 
   @override
@@ -613,7 +524,7 @@ class MobileEventsTable extends StatelessWidget {
         child: DataTable(
           columnSpacing: 20,
           dataRowMinHeight: 36,
-          dataRowMaxHeight: 60,
+          dataRowMaxHeight: 76,
           columns: const [
             DataColumn(label: Text('Heure (téléphone)')),
             DataColumn(label: Text('Personne')),
@@ -633,21 +544,13 @@ class MobileEventsTable extends StatelessWidget {
                     '${e.userName ?? e.userCode ?? e.userId ?? '—'}\n${e.roleLabel}')),
                 DataCell(Tooltip(
                   message: e.event,
-                  child: Text(e.label),
-                )),
-                DataCell(Text(e.siteCode ?? e.siteId ?? '—')),
-                DataCell(ConstrainedBox(
-                  constraints: const BoxConstraints(maxWidth: 320),
-                  child: Text(
-                    [
-                      if (e.isOnline == false) 'Hors ligne',
-                      if (e.dataSummary.isNotEmpty) e.dataSummary,
-                    ].join(' · '),
-                    style: PointageTextStyles.caption,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
+                  child: ConstrainedBox(
+                    constraints: const BoxConstraints(maxWidth: 260),
+                    child: Text(e.title),
                   ),
                 )),
+                DataCell(Text(e.siteCode ?? e.siteId ?? '—')),
+                DataCell(_EventDetails(event: e)),
                 DataCell(Text(
                   [
                     if (e.device != null) e.device!.modelLabel,
@@ -660,5 +563,35 @@ class MobileEventsTable extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _EventDetails extends StatelessWidget {
+  const _EventDetails({required this.event});
+
+  final MobileEvent event;
+
+  @override
+  Widget build(BuildContext context) {
+    final text = [
+      if (event.isOnline == false) 'Hors ligne',
+      if (event.dataSummary.isNotEmpty) event.dataSummary,
+    ].join(' · ');
+    final details = ConstrainedBox(
+      constraints: const BoxConstraints(maxWidth: 420),
+      child: Text(
+        text,
+        style: PointageTextStyles.caption,
+        maxLines: 4,
+        overflow: TextOverflow.ellipsis,
+      ),
+    );
+    // Long details (État du GPS) stay readable in full in the tooltip.
+    return text.length > 120
+        ? Tooltip(
+            message: text.replaceAll(' · ', '\n'),
+            child: details,
+          )
+        : details;
   }
 }

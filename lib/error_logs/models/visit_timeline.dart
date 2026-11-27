@@ -51,7 +51,7 @@ class VisitTimelineEntry {
     return VisitTimelineEntry(
       kind: VisitTimelineKind.mobileEvent,
       time: event.time,
-      title: event.label,
+      title: event.title,
       detail: detail.isEmpty ? null : detail,
       sourceId: event.id,
     );
